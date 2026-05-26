@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trendy — カテゴリートレンドSNS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+
+  <!-- Left Sidebar Nav -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-mark">T</span>
+      <span class="logo-text">Trendy</span>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-page="home" onclick="goPage('home',this)">
+        <i class="ti ti-home"></i><span>ホーム</span>
+      </button>
+      <button class="nav-item" data-page="recommend" onclick="goPage('recommend',this)">
+        <i class="ti ti-sparkles"></i><span>ダイブ</span>
+      </button>
+      <button class="nav-item" data-page="ranking" onclick="goPage('ranking',this)">
+        <i class="ti ti-trophy"></i><span>ランキング</span>
+      </button>
+      <button class="nav-item" data-page="notif" onclick="goPage('notif',this)">
+        <i class="ti ti-bell"></i><span>通知</span>
+        <span class="nav-badge">7</span>
+      </button>
+      <button class="nav-item" data-page="mypage" onclick="goPage('mypage',this)">
+        <i class="ti ti-user"></i><span>マイページ</span>
+      </button>
+      <button class="nav-item" data-page="follows" onclick="goPage('follows',this)">
+        <i class="ti ti-users"></i><span>フォロー</span>
+      </button>
+      <button class="nav-item" data-page="settings" onclick="goPage('settings',this)">
+        <i class="ti ti-adjustments"></i><span>設定</span>
+      </button>
+      <button class="nav-item" data-page="feedback" onclick="goPage('feedback',this)">
+        <i class="ti ti-bulb"></i><span>意見箱</span>
+      </button>
+      <button class="nav-item" data-page="dev" onclick="goPage('dev',this)" style="display:none">
+        <i class="ti ti-code"></i><span>開発者</span>
+      </button>
+      <button class="nav-item nav-item-ad" data-page="ads" onclick="goPage('ads',null)">
+        <i class="ti ti-speakerphone"></i><span>広告を出稿</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip" onclick="goPage('acct-switch',null)" title="アカウントを切り替え">
+        <div class="user-av" id="sidebar-user-av">あ</div>
+        <div class="user-info">
+          <div class="user-name"><span id="sidebar-user-name">あなた</span><span id="sidebar-name-tag" class="sidebar-name-tag"></span> <span id="sidebar-acct-type" class="sidebar-acct-chip chip-main">メイン</span></div>
+          <div class="user-handle" id="sidebar-user-handle">@you</div>
+        </div>
+        <i class="ti ti-chevrons-right" style="margin-left:auto;color:var(--text3);font-size:14px;flex-shrink:0"></i>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main" id="main">
+
+    <!-- HOME PAGE -->
+    <div class="page active" id="page-home">
+      <div class="page-header">
+        <h1>ホーム</h1>
+      </div>
+      <!-- テストモード操作中バナー -->
+      <div id="test-active-banner" style="display:none" class="test-active-banner">
+        <i class="ti ti-test-pipe"></i>
+        <span id="test-active-banner-text">ダミーユーザーとして操作中</span>
+        <button onclick="testSwitchToSelf()" class="test-banner-exit"><i class="ti ti-x"></i> 自分に戻る</button>
+      </div>
+      <div class="home-profile-bar">
+        <div class="home-av-sm" id="home-av-display">あ</div>
+        <div>
+          <div class="home-profile-name" id="home-profile-name">あなた</div>
+          <div class="home-profile-stats">
+            <button class="home-stat-link" onclick="goPage('follows',null)">フォロー <b id="home-following-count">0</b></button>
+            <button class="home-stat-link" onclick="goPage('follows',null)">フォロワー <b id="home-follower-count">0</b></button>
+          </div>
+        </div>
+        <button class="btn-sm" onclick="goPage('mypage',null)" style="margin-left:auto;flex-shrink:0">マイページ</button>
+      </div>
+      <div class="compose-box">
+        <div class="av me" id="home-compose-av">あ</div>
+        <div class="compose-inner">
+          <div class="compose-acct-row">
+            <span class="compose-acct-label">投稿アカウント</span>
+            <button class="acct-btn active-main" id="acct-main-btn" onclick="selectAccount('main')">
+              <i class="ti ti-user-check"></i> メイン
+            </button>
+            <button class="acct-btn" id="acct-sub-btn" onclick="selectAccount('sub')">
+              <i class="ti ti-user-question"></i> サブ
+            </button>
+            <span class="sub-warn-inline" id="sub-warn-inline" style="display:none">
+              <i class="ti ti-alert-triangle"></i> サブマークが付きます
+            </span>
+          </div>
+          <textarea id="compose-input" placeholder="いまどうしてる？" rows="2" oninput="updateCompose()"></textarea>
+          <!-- 添付メディアプレビュー -->
+          <div class="compose-media-preview" id="compose-media-preview" style="display:none">
+            <div class="compose-media-inner" id="compose-media-inner"></div>
+            <button class="compose-media-remove" onclick="removeComposeMedia()" title="削除"><i class="ti ti-x"></i></button>
+          </div>
+          <!-- フッター：メディアボタン ＋ カテゴリー（インライン） ＋ 文字数 ＋ 投稿 -->
+          <div class="compose-footer">
+            <div class="compose-media-btns">
+              <button class="compose-media-btn" onclick="document.getElementById('compose-img-input').click()" title="画像を添付（JPG/PNG/GIFなど）">
+                <i class="ti ti-photo"></i>
+              </button>
+              <button class="compose-media-btn" onclick="document.getElementById('compose-vid-input').click()" title="動画を添付（MP4など）">
+                <i class="ti ti-video"></i>
+              </button>
+              <input type="file" id="compose-img-input" accept="image/*" style="display:none" onchange="handleComposeMedia(this,'image')">
+              <input type="file" id="compose-vid-input" accept="video/*" style="display:none" onchange="handleComposeMedia(this,'video')">
+            </div>
+            <!-- カテゴリー・タグ（インライン） -->
+            <button class="compose-cat-inline-btn" onclick="toggleComposeCat()" id="compose-cat-inline-btn" title="カテゴリー／タグを設定">
+              <i class="ti ti-hash"></i>
+              <span id="compose-cat-selected">未選択</span>
+              <i class="ti ti-chevron-down" id="compose-cat-chevron" style="font-size:11px;opacity:0.6"></i>
+            </button>
+            <span class="char-count" id="char-count">0/140</span>
+            <button class="post-btn" id="post-btn" disabled onclick="doPost()">投稿</button>
+          </div>
+          <!-- カテゴリー展開パネル（フッターの下） -->
+          <div class="compose-cat-body" id="compose-cat-body" style="display:none">
+            <!-- ① メインカテゴリー選択 -->
+            <p class="compose-cat-step-label">① メインカテゴリー</p>
+            <div class="compose-cat-pills" id="compose-cat-pills"><!-- JSで生成 --></div>
+            <!-- ② サブカテゴリー選択（カテゴリー選択後に表示） -->
+            <div id="compose-sub-section" style="display:none">
+              <p class="compose-cat-step-label">② サブカテゴリー（タップで選択）</p>
+              <div class="compose-sub-chips" id="compose-sub-chips"><!-- JSで生成 --></div>
+            </div>
+            <!-- ③ カスタムタグ入力 -->
+            <p class="compose-cat-step-label">③ カスタムタグ</p>
+            <div class="compose-tag-row">
+              <span class="compose-tag-hash">#</span>
+              <input type="text" id="compose-tag-input" class="compose-tag-input"
+                placeholder="自由にタグを入力（例：ファンアート）" maxlength="30"
+                onkeydown="handleTagKeydown(event)">
+              <button class="compose-tag-add-btn" onclick="addComposeTag()">追加</button>
+            </div>
+            <!-- 選択済みタグ一覧 -->
+            <div class="compose-tags-list" id="compose-tags-list"></div>
+          </div>
+        </div>
+      </div>
+      <div class="feed" id="home-feed"></div>
+      <div class="load-more-btn" id="home-load-more-btn" onclick="loadHomeMore()">
+        <i class="ti ti-refresh"></i> さらに読み込む
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- RECOMMEND PAGE（TikTok スタイル リール）       -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div class="page" id="page-recommend">
+      <div class="page-header">
+        <h1><i class="ti ti-sparkles" style="font-size:20px;vertical-align:-2px;margin-right:6px;color:var(--accent)"></i>ダイブ</h1>
+      </div>
+      <!-- コンテンツタイプフィルター（複数選択可） -->
+      <div class="home-media-filter" id="home-media-filter" style="display:flex">
+        <span class="home-mf-label">表示：</span>
+        <button class="home-mf-pill" data-type="text"  onclick="toggleHomeMediaFilter('text',this)"><i class="ti ti-align-left"></i> 文字</button>
+        <button class="home-mf-pill" data-type="image" onclick="toggleHomeMediaFilter('image',this)"><i class="ti ti-photo"></i> 画像</button>
+        <button class="home-mf-pill" data-type="video" onclick="toggleHomeMediaFilter('video',this)"><i class="ti ti-video"></i> 動画</button>
+        <button class="home-mf-reset" onclick="resetHomeMediaFilter()" title="フィルターをリセット"><i class="ti ti-x"></i></button>
+      </div>
+      <!-- リールビュー -->
+      <div id="recommend-reel"></div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- WELCOME PAGE (full-screen, shown when logged out) -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div class="page" id="page-welcome">
+      <div class="welcome-screen">
+        <div class="welcome-top">
+          <div class="welcome-logo-wrap">T</div>
+          <div class="welcome-title-text">Trendy</div>
+          <div class="welcome-tagline">今、話題のことをいち早く。<br>カテゴリーで探す、新しいSNS体験。</div>
+        </div>
+        <div class="welcome-bottom">
+          <button class="welcome-btn-primary" onclick="goPage('register',null)">
+            <i class="ti ti-user-plus"></i> アカウントを作成
+          </button>
+          <div class="welcome-divider">すでにアカウントをお持ちの方</div>
+          <button class="welcome-btn-secondary" onclick="goPage('login',null)">
+            <i class="ti ti-login"></i> ログインする
+          </button>
+          <div class="welcome-terms">
+            登録することで<a href="#" onclick="return false">利用規約</a>と
+            <a href="#" onclick="return false">プライバシーポリシー</a>に同意したことになります。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- LOGIN PAGE (ID + Password) -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div class="page" id="page-login">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('welcome',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1>ログイン</h1>
+      </div>
+      <div class="reg-hero">
+        <div class="reg-hero-icon" id="login-hero-icon">T</div>
+        <div class="reg-hero-title">おかえりなさい</div>
+        <div class="reg-hero-desc">IDとパスワードでログインできます。</div>
+      </div>
+      <div class="kids-panel" id="lpanel-1">
+        <div class="kids-panel-title"><i class="ti ti-login"></i> ログイン情報を入力</div>
+
+        <div class="kids-field">
+          <label class="kids-label">ユーザーID</label>
+          <div class="kids-id-row">
+            <span class="kids-id-prefix">@</span>
+            <input type="text" class="kids-input kids-id-input" id="login-id"
+              placeholder="登録したID" maxlength="20">
+          </div>
+        </div>
+
+        <div class="kids-field">
+          <label class="kids-label">パスワード</label>
+          <div class="kids-pw-row">
+            <input type="password" class="kids-input" id="login-pw"
+              placeholder="パスワード" maxlength="50">
+            <button class="kids-pw-toggle" type="button" onclick="togglePwVisibility('login-pw',this)">
+              <i class="ti ti-eye"></i>
+            </button>
+          </div>
+          <div class="reg-field-err" id="login-err" style="display:none"></div>
+        </div>
+
+        <button class="kids-next-btn" id="login-submit-btn" onclick="completeLogin()">
+          <i class="ti ti-login"></i> ログインする
+        </button>
+      </div>
+    </div>
+
+    <!-- RANKING PAGE -->
+    <div class="page" id="page-ranking">
+      <div class="page-header">
+        <h1>ランキング</h1>
+        <div class="ranking-controls">
+          <div class="header-pills" id="rank-period-pills">
+            <button class="pill active" onclick="setRankPeriod('daily',this)">デイリー</button>
+            <button class="pill" onclick="setRankPeriod('weekly',this)">ウィークリー</button>
+            <button class="pill" onclick="setRankPeriod('monthly',this)">マンスリー</button>
+            <button class="pill" onclick="setRankPeriod('yearly',this)">イヤーリー</button>
+            <button class="pill" onclick="setRankPeriod('male',this)"><i class="ti ti-gender-male"></i>男性人気</button>
+            <button class="pill" onclick="setRankPeriod('female',this)"><i class="ti ti-gender-female"></i>女性人気</button>
+          </div>
+          <div class="rank-region-row">
+            <span class="label-sm"><i class="ti ti-map-pin"></i> 地域</span>
+            <div id="rank-region-pills" class="header-pills">
+              <button class="pill active" onclick="pillActive(this,'rank-region-pills')">全国</button>
+              <button class="pill" onclick="pillActive(this,'rank-region-pills')">北海道</button>
+              <button class="pill" onclick="pillActive(this,'rank-region-pills')">東北</button>
+              <button class="pill" onclick="pillActive(this,'rank-region-pills')">関東</button>
+              <button class="pill" onclick="pillActive(this,'rank-region-pills')">近畿</button>
+              <button class="pill" onclick="pillActive(this,'rank-region-pills')">九州</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Trend Grid (ニコニコ風) - 廃止 -->
+      <div class="cat-drill-bar" id="cat-drill-bar" style="display:none !important">
+        <button class="drill-back-btn" onclick="drillBack()"><i class="ti ti-arrow-left"></i> 戻る</button>
+        <span class="drill-title" id="drill-title"></span>
+      </div>
+      <div class="rank-cat-header" style="display:none">
+        <span class="rank-cat-title"><i class="ti ti-layout-grid"></i> カテゴリー別トレンド</span>
+        <button class="btn-icon" onclick="goPage('settings',null)" title="カテゴリー設定"><i class="ti ti-settings"></i></button>
+      </div>
+
+      <!-- Ad Strip (見出しとグリッドの間) -->
+      <div class="ad-strip-section" id="ad-strip-section">
+        <div class="ad-strip-body">
+          <div class="ad-strip-vert-label">
+            <i class="ti ti-speakerphone"></i>
+            <span>スポンサーランキング</span>
+          </div>
+          <div class="ad-strip-track">
+            <div class="ad-strip-inner" id="ad-strip-inner"></div>
+            <div class="ad-strip-empty" id="ad-strip-empty" style="display:none">
+              <i class="ti ti-speakerphone"></i> 広告枠は空きです。<button class="ad-empty-btn" onclick="goPage('ads',null)">出稿する</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cat-grid-wrap">
+        <div class="scroll-x">
+        <div class="cat-grid" id="cat-grid"></div>
+        </div>
+        <div class="bookmark-panel" id="bookmark-panel">
+          <div class="bm-label-vert">お気に入り</div>
+          <div id="bm-list"></div>
+          <button class="bm-add-btn" onclick="openBmPicker()" title="追加"><i class="ti ti-bookmark-plus"></i></button>
+        </div>
+      </div>
+
+      <!-- Full-screen category overlay -->
+      <div class="fs-overlay" id="fs-overlay" onclick="closeFS()"></div>
+      <div class="fs-panel" id="fs-panel">
+        <div class="fs-header">
+          <i id="fs-icon" style="font-size:18px"></i>
+          <span class="fs-title" id="fs-title"></span>
+          <span class="fs-region-label" id="fs-region-label"></span>
+          <div class="fs-header-right">
+            <button class="bm-toggle-btn" id="fs-bm-btn" onclick="toggleFsCatBm()"></button>
+            <button class="btn-icon" onclick="closeFS()"><i class="ti ti-x"></i></button>
+          </div>
+        </div>
+        <div class="fs-mode-bar" id="fs-mode-bar">
+          <button class="fs-mode-btn active" onclick="setFsMode('ranking',this)"><i class="ti ti-trophy"></i>ランキング</button>
+          <button class="fs-mode-btn" onclick="setFsMode('new',this)"><i class="ti ti-clock"></i>最新</button>
+          <button class="fs-mode-btn" onclick="setFsMode('rec',this)"><i class="ti ti-sparkles"></i>ダイブ</button>
+        </div>
+        <div class="fs-sub-bar" id="fs-sub-bar"></div>
+        <!-- カテゴリー別広告ストリップ -->
+        <div class="ad-strip-section fs-ad-strip" id="fs-ad-strip-section" style="display:none">
+          <div class="ad-strip-body">
+            <div class="ad-strip-vert-label">
+              <i class="ti ti-speakerphone"></i>
+              <span>スポンサー</span>
+            </div>
+            <div class="ad-strip-track">
+              <div class="ad-strip-inner" id="fs-ad-strip-inner"></div>
+              <div class="ad-strip-empty" id="fs-ad-strip-empty" style="display:none">
+                <i class="ti ti-speakerphone"></i> このカテゴリーの広告枠は空きです。<button class="ad-empty-btn" onclick="closeFS();goPage('ads',null)">出稿する</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fs-jump-bar">
+          <span class="label-sm"><i class="ti ti-arrow-bar-right"></i> 順位ジャンプ</span>
+          <input type="number" class="jump-input" id="fs-jump-input" min="1" max="3000" placeholder="例: 500" onkeydown="if(event.key==='Enter')doFsJump()">
+          <button class="btn-sm" onclick="doFsJump()">移動</button>
+          <span id="fs-jump-info" class="label-sm" style="color:var(--accent)"></span>
+          <span class="label-sm" style="margin-left:auto">全3,000件</span>
+        </div>
+        <div class="fs-body" id="fs-body"></div>
+        <div class="fs-load-more" id="fs-load-more" onclick="loadFsMore()"><i class="ti ti-refresh"></i> 次の20件を読み込む</div>
+        <div class="fs-allsubs">
+          <div class="fs-allsubs-title"><i class="ti ti-list"></i> 全サブカテゴリーランキング</div>
+          <div class="fs-allsubs-grid" id="fs-allsubs-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTIFICATION PAGE -->
+    <div class="page" id="page-notif">
+      <div class="page-header">
+        <h1>通知</h1>
+        <button class="btn-sm" style="margin-left:auto" onclick="markAllNotifsRead()">全て既読</button>
+      </div>
+      <div id="notif-acct-tabs"></div>
+      <div id="notif-list"></div>
+    </div>
+
+    <!-- MY PAGE -->
+    <div class="page" id="page-mypage">
+      <div class="page-header"><h1>マイページ</h1></div>
+
+      <!-- カバー + アバター -->
+      <div class="profile-cover-area">
+        <div class="profile-cover-img" id="profile-cover-img">
+          <button class="cover-change-btn" onclick="document.getElementById('cover-upload').click()">
+            <i class="ti ti-camera"></i> カバーを変更
+          </button>
+          <input type="file" id="cover-upload" accept="image/*" style="display:none" onchange="handleCoverUpload(this)">
+        </div>
+        <div class="profile-av-wrap">
+          <div class="profile-av-lg" id="my-av-display">あ</div>
+          <button class="av-change-btn" onclick="document.getElementById('av-upload').click()" title="アイコン変更">
+            <i class="ti ti-camera"></i>
+          </button>
+          <input type="file" id="av-upload" accept="image/*" style="display:none" onchange="handleAvUpload(this)">
+        </div>
+        <!-- 外部リンク（カバー下・右寄せ） -->
+        <div id="mypage-social-links" class="social-links-cover" style="display:none"></div>
+      </div>
+
+      <!-- プロフィール情報 -->
+      <div class="profile-info-block">
+        <div class="profile-info-top-row">
+          <div>
+            <div class="profile-name" id="mypage-profile-name">あなた <span class="badge-main">メイン</span></div>
+            <div class="profile-name-tag-row">
+              <span class="profile-name-tag" id="profile-name-tag-display" style="display:none"></span>
+              <button class="name-tag-edit-btn" id="name-tag-edit-btn" onclick="startNameTagEdit()" title="名前タグを編集">
+                <i class="ti ti-tag"></i> <span id="name-tag-btn-label">タグを追加</span>
+              </button>
+            </div>
+            <div class="name-tag-edit-row" id="name-tag-edit-row" style="display:none">
+              <span class="name-tag-prefix">＠</span>
+              <input type="text" id="name-tag-input" class="name-tag-input" placeholder="6/12新曲リリース" maxlength="20" oninput="updateNameTagCount()">
+              <span class="name-tag-count" id="name-tag-count">0/20</span>
+              <button class="btn-sm" onclick="cancelNameTagEdit()">キャンセル</button>
+              <button class="post-btn" style="padding:4px 12px;font-size:12px" onclick="saveNameTag()">保存</button>
+            </div>
+            <div class="profile-handle" id="mypage-profile-handle">@you</div>
+          </div>
+          <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:10px">
+            <button class="btn-sm" onclick="goPage('profile-edit',null)">プロフィール編集</button>
+            <!-- 推しユーザーアイコン（マイページ表示用） -->
+            <div id="mypage-fav-row" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              <span style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:3px">
+                <i class="ti ti-heart" style="font-size:10px"></i> 推しユーザー
+              </span>
+              <div style="display:flex;gap:6px">
+                <div class="mypage-fav-av" id="mypage-fav-av-1" onclick="goPage('profile-edit',null)" title="推し1"></div>
+                <div class="mypage-fav-av" id="mypage-fav-av-2" onclick="goPage('profile-edit',null)" title="推し2"></div>
+                <div class="mypage-fav-av" id="mypage-fav-av-3" onclick="goPage('profile-edit',null)" title="推し3"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 自己紹介 -->
+        <div class="profile-bio-wrap" id="profile-bio-wrap" onclick="startBioEdit()">
+          <span id="profile-bio-display" class="profile-bio-empty">自己紹介文を追加…（タップして編集）</span>
+        </div>
+        <div class="profile-bio-edit" id="profile-bio-edit" style="display:none">
+          <textarea class="profile-bio-input" id="profile-bio-input" placeholder="自己紹介文を入力（160文字まで）" maxlength="160" rows="3" oninput="updateBioCount()"></textarea>
+          <div class="profile-bio-actions">
+            <span class="bio-char-count" id="bio-char-count">0/160</span>
+            <button class="btn-sm" onclick="cancelBioEdit()">キャンセル</button>
+            <button class="post-btn" style="padding:5px 14px;font-size:12px" onclick="saveBio()">保存</button>
+          </div>
+        </div>
+
+        <div class="profile-meta">
+          <span><i class="ti ti-map-pin"></i> 東京都</span>
+          <span><i class="ti ti-calendar"></i> 1990年代</span>
+        </div>
+
+        <div class="profile-stat-row">
+          <button class="profile-stat-link" onclick="goPage('follows',null)"><b id="mypage-following-count">-</b> フォロー</button>
+          <button class="profile-stat-link" onclick="goPage('follows',null)"><b id="mypage-follower-count">-</b> フォロワー</button>
+          <span class="profile-stat-link"><b id="mypage-post-count">-</b> 投稿</span>
+          <span class="profile-stat-link"><b id="mypage-best-rank">-</b> 最高ランク</span>
+        </div>
+
+        <!-- カテゴリーセクション -->
+        <div class="profile-cats-section">
+          <div class="profile-cats-header">
+            <span class="profile-cats-label"><i class="ti ti-tags"></i> カテゴリー</span>
+            <button class="btn-sm" onclick="openCatPicker(myHandle)"><i class="ti ti-plus"></i> 追加</button>
+          </div>
+          <div class="profile-cats-wrap" id="my-cats-wrap"></div>
+          <div class="cats-vote-hint"><i class="ti ti-info-circle"></i> 他のユーザーが同意・否定で投票 ／ メイン・サブ含め1票のみ有効</div>
+        </div>
+      </div>
+
+      <!-- タブ -->
+      <div class="tab-bar" id="mypage-tabs">
+        <button class="tab-btn active" onclick="setMyTab('my-posts',this)">投稿</button>
+        <button class="tab-btn" onclick="setMyTab('my-favs',this)">お気に入り</button>
+        <button class="tab-btn" onclick="setMyTab('my-rank',this)">ランキング入り</button>
+        <button class="tab-btn" onclick="setMyTab('my-stats',this)"><i class="ti ti-chart-bar" style="font-size:13px;vertical-align:-1px"></i> 統計</button>
+      </div>
+      <div id="my-posts"><div id="mypost-feed"></div></div>
+      <div id="my-favs" style="display:none"><div id="myfav-feed"></div></div>
+      <div id="my-rank" style="display:none"><div id="myrank-feed"></div></div>
+      <div id="my-stats" style="display:none"><div id="mystats-body"></div></div>
+    </div>
+
+    <!-- FOLLOWS PAGE -->
+    <div class="page" id="page-follows">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('mypage',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1>フォロー / フォロワー</h1>
+      </div>
+      <div class="tab-bar" id="follows-tabs">
+        <button class="tab-btn active" onclick="setFollowsTab('tab-following',this)">フォロー中 <span class="tab-cnt" id="follows-following-count">0</span></button>
+        <button class="tab-btn" onclick="setFollowsTab('tab-followers',this)">フォロワー <span class="tab-cnt" id="follows-follower-count">0</span></button>
+        <button class="tab-btn" onclick="setFollowsTab('tab-oshi',this)"><i class="ti ti-crown" style="font-size:13px;vertical-align:-1px"></i> 私のファンランキング</button>
+      </div>
+      <div id="tab-following"><div id="follow-list"></div></div>
+      <div id="tab-followers" style="display:none"><div id="follower-list"></div></div>
+      <div id="tab-oshi" style="display:none"><div id="oshi-rank-list"></div></div>
+    </div>
+
+    <!-- PROFILE EDIT PAGE -->
+    <div class="page" id="page-profile-edit">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('mypage',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1>プロフィール編集</h1>
+        <button class="btn-sm" style="margin-left:auto;background:var(--accent);color:#fff;border-color:var(--accent)" onclick="saveProfileEdit()">保存</button>
+      </div>
+      <div class="settings-body">
+
+        <!-- アイコン・カバー -->
+        <section class="settings-section">
+          <h2>アイコン・カバー画像</h2>
+          <div class="profile-edit-av-row">
+            <div style="position:relative;display:inline-block">
+              <div class="profile-av-lg" id="pe-av-display" style="width:72px;height:72px;font-size:28px">あ</div>
+              <button class="av-change-btn" onclick="document.getElementById('pe-av-upload').click()" title="アイコン変更">
+                <i class="ti ti-camera"></i>
+              </button>
+              <input type="file" id="pe-av-upload" accept="image/*" style="display:none" onchange="handleAvUpload(this)">
+            </div>
+            <div style="flex:1">
+              <div class="settings-note">アイコン画像を変更</div>
+              <button class="btn-sm" style="margin-top:6px" onclick="document.getElementById('pe-cover-upload').click()">
+                <i class="ti ti-photo"></i> カバー画像を変更
+              </button>
+              <input type="file" id="pe-cover-upload" accept="image/*" style="display:none" onchange="handleCoverUpload(this)">
+            </div>
+          </div>
+        </section>
+
+        <!-- 外部リンク設定 -->
+        <section class="settings-section">
+          <h2>外部リンク <span style="font-size:11px;color:var(--text3);font-weight:400">（最大5件）</span></h2>
+          <p style="font-size:11px;color:var(--text3);margin:2px 0 10px">左のアイコン画像をタップして変更できます</p>
+          <div id="pe-social-slots"></div>
+          <button class="btn-sm" id="pe-social-add-btn" onclick="addSocialSlot()" style="margin-top:10px;width:100%;justify-content:center">
+            <i class="ti ti-plus"></i> リンクを追加
+          </button>
+        </section>
+
+        <!-- 推しユーザー設定 -->
+        <section class="settings-section">
+          <h2>推しユーザー設定</h2>
+          <div class="settings-note" style="margin-bottom:10px">お気に入りのユーザーを最大3人設定。閲覧・いいね・コメントで推しレベルが上がります。</div>
+          <div style="display:flex;gap:12px;justify-content:center">
+            <div class="fav-slot" id="fav-slot-1" onclick="openFavoritePicker(1)">
+              <div onclick="event.stopPropagation();removeFavorite(1)" class="fav-remove">×</div>
+              <div class="fav-icon" id="fav-icon-1"><i class="ti ti-user-plus" style="font-size:20px"></i></div>
+              <span class="fav-slot-label" id="fav-label-1">追加</span>
+            </div>
+            <div class="fav-slot" id="fav-slot-2" onclick="openFavoritePicker(2)">
+              <div onclick="event.stopPropagation();removeFavorite(2)" class="fav-remove">×</div>
+              <div class="fav-icon" id="fav-icon-2"><i class="ti ti-user-plus" style="font-size:20px"></i></div>
+              <span class="fav-slot-label" id="fav-label-2">追加</span>
+            </div>
+            <div class="fav-slot" id="fav-slot-3" onclick="openFavoritePicker(3)">
+              <div onclick="event.stopPropagation();removeFavorite(3)" class="fav-remove">×</div>
+              <div class="fav-icon" id="fav-icon-3"><i class="ti ti-user-plus" style="font-size:20px"></i></div>
+              <span class="fav-slot-label" id="fav-label-3">追加</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 基本情報 -->
+        <section class="settings-section">
+          <h2>基本情報</h2>
+          <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+            <div style="display:flex;align-items:center;gap:8px;width:100%">
+              <label class="settings-key">ニックネーム</label>
+              <span id="pe-name-restrict-msg" style="display:none;font-size:11px;color:var(--text3);margin-left:auto"></span>
+            </div>
+            <input type="text" id="pe-name-input" class="test-input" placeholder="あなた" maxlength="20">
+          </div>
+          <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px;margin-top:12px">
+            <label class="settings-key">名前タグ <span class="settings-note">（＠の後ろに表示）</span></label>
+            <div style="display:flex;align-items:center;gap:4px;width:100%">
+              <span style="font-size:14px;font-weight:700;color:var(--accent)">＠</span>
+              <input type="text" id="pe-nametag-input" class="test-input" style="flex:1" placeholder="6/12新曲リリース" maxlength="20">
+            </div>
+          </div>
+          <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px;margin-top:12px">
+            <label class="settings-key">自己紹介</label>
+            <textarea id="pe-bio-input" class="test-input" rows="3" placeholder="自己紹介文を入力（160文字まで）" maxlength="160" style="resize:vertical"></textarea>
+          </div>
+        </section>
+
+        <!-- 属性情報 -->
+        <section class="settings-section">
+          <h2>属性情報 <span class="settings-note">（他ユーザーに表示されます）</span></h2>
+          <div class="settings-row"><span class="settings-key">性別</span><span class="settings-val" id="pe-gender-val">男性（非公開）</span><span class="settings-note" style="margin-left:auto;font-size:11px">変更不可</span></div>
+          <div class="settings-row"><span class="settings-key">地域</span><span class="settings-val" id="pe-region-val">東京都</span><span id="pe-region-change-wrap"></span></div>
+          <div class="settings-row"><span class="settings-key">生年月日</span><span class="settings-val" id="pe-dob-val">1990年1月1日（非公開）</span><span class="settings-note" style="margin-left:auto;font-size:11px">変更不可</span></div>
+        </section>
+
+        <!-- アカウント -->
+        <section class="settings-section">
+          <h2>アカウント</h2>
+          <div class="settings-row"><span class="settings-key">電話番号</span><span class="settings-val" id="pe-phone-val">090-****-1234 ✓認証済み</span><span id="pe-phone-change-wrap"></span></div>
+          <div class="settings-row"><span class="settings-key">サブアカウント</span><button class="btn-sm" onclick="goPage('sub-create',null)">追加する</button></div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div class="page" id="page-settings">
+      <div class="page-header"><h1>設定</h1></div>
+      <div class="settings-body">
+        <section class="settings-section">
+          <h2>カテゴリーグリッド</h2>
+          <div class="settings-row">
+            <span class="settings-key">列幅</span>
+            <div style="display:flex;align-items:center;gap:8px;flex:1">
+              <input type="range" min="140" max="400" value="200" step="10" id="settings-width-slider" oninput="updateCatWidth(this.value)" style="width:140px">
+              <span id="settings-width-val">200</span>
+              <span class="settings-note">px</span>
+            </div>
+          </div>
+        </section>
+        <section class="settings-section">
+          <h2>カテゴリー表示・並び替え</h2>
+          <p class="settings-desc">ドラッグで並び替え、トグルで表示/非表示を切り替えられます</p>
+          <div id="cat-sort-list"></div>
+        </section>
+        <section class="settings-section">
+          <h2>アカウント</h2>
+          <div class="settings-row" style="align-items:flex-start;flex-direction:column;gap:4px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="settings-key">メインアカウント</span>
+              <span class="settings-val" id="settings-account-handle">あなた (@you)</span>
+            </div>
+            <div class="settings-note" style="margin-left:0"><i class="ti ti-info-circle"></i> 名前はニックネームでOK。ただし年齢層・性別・地域は他のユーザーに表示されます。</div>
+          </div>
+          <div class="settings-row"><span class="settings-key">電話番号</span><span class="settings-val" id="settings-phone-val">090-****-1234 ✓認証済み</span><button class="btn-sm" onclick="openPhoneModal()">変更</button></div>
+          <div class="settings-row"><span class="settings-key">性別</span><span class="settings-val" id="settings-gender-val">男性（非公開）</span><button class="btn-sm" onclick="openSettingsEdit('gender')">変更</button></div>
+          <div class="settings-row"><span class="settings-key">地域</span><span class="settings-val" id="settings-region-val">東京都</span><button class="btn-sm" onclick="openSettingsEdit('region')">変更</button></div>
+          <div class="settings-row"><span class="settings-key">生年月日</span><span class="settings-val" id="settings-dob-val">1990年1月1日（非公開）</span><button class="btn-sm" onclick="openSettingsEdit('dob')">変更</button></div>
+          <div class="settings-row" style="align-items:flex-start;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:10px;width:100%">
+              <span class="settings-key">サブアカウント</span>
+              <span class="badge-sub" style="font-size:10px;padding:2px 8px"><i class="ti ti-user-question" style="font-size:10px;vertical-align:-1px"></i> サブ</span>
+            </div>
+            <div class="sub-acct-rules">
+              <div class="sub-rule-item ok"><i class="ti ti-check"></i> 名前を匿名にでき、年齢・性別・地域もすべて非公開にできる</div>
+              <div class="sub-rule-item ok"><i class="ti ti-check"></i> 荒らし抑止：投稿に <b>サブ</b> マークが付き、発言の信用度が下がる</div>
+              <div class="sub-rule-item warn"><i class="ti ti-alert-triangle"></i> BANされると全アカウント（メイン含む）が凍結</div>
+            </div>
+            <button class="btn-sm" onclick="goPage('sub-create',null)">サブアカウントを追加する</button>
+          </div>
+        </section>
+        <section class="settings-section">
+          <h2>表示モード</h2>
+          <div class="settings-row">
+            <span class="settings-key">R18モード</span>
+            <label class="toggle-wrap">
+              <input type="checkbox" id="r18-toggle" onchange="toggleR18(this)">
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            </label>
+            <span class="settings-note">年齢確認済みの方のみ</span>
+          </div>
+          <div class="r18-warn" id="r18-warn" style="display:none">
+            <i class="ti ti-alert-triangle"></i> R18コンテンツが表示されます。18歳以上の方のみ有効にしてください。
+          </div>
+          <div class="settings-row">
+            <span class="settings-key">子供モード</span>
+            <label class="toggle-wrap">
+              <input type="checkbox" id="kids-toggle" onchange="toggleKidsMode(this)">
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            </label>
+            <span class="settings-note">未成年アカウントの管理・保護機能</span>
+          </div>
+        </section>
+
+        <!-- 開発者ページへのアクセス（設定ページ最下部） -->
+        <section class="settings-section" style="border-top:2px dashed var(--border)">
+          <div class="settings-row">
+            <span class="settings-key" style="color:var(--text3)"><i class="ti ti-code"></i> 開発者向け</span>
+            <button class="btn-sm" onclick="goPage('dev',null)" style="margin-left:auto">
+              <i class="ti ti-code"></i> 開発者ページ
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- DEVELOPER PAGE -->
+    <div class="page" id="page-dev">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('settings',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1><i class="ti ti-code" style="color:#6366f1"></i> 開発者ページ</h1>
+        <span class="dev-mode-badge">DEV</span>
+      </div>
+      <div class="settings-body">
+
+        <!-- ── SNSブランド設定 ── -->
+        <section class="settings-section">
+          <h2><i class="ti ti-palette" style="color:#f59e0b"></i> SNSブランド設定</h2>
+          <div id="dev-brand-section"></div>
+        </section>
+
+        <!-- ── ダミーアカウントモード ── -->
+        <section class="settings-section">
+          <h2><i class="ti ti-users" style="color:#6366f1"></i> ダミーアカウントモード</h2>
+          <p class="settings-desc">ONにすると80件のダミー投稿がホームフィードに表示されます。実際のサービス表示を確認したい場合はOFFのままにしてください。</p>
+          <div id="dev-dummy-mode-section"></div>
+        </section>
+
+        <!-- ── 開発者アカウント ── -->
+        <section class="settings-section">
+          <h2><i class="ti ti-shield" style="color:#6366f1"></i> 開発者アカウント</h2>
+          <div id="dev-account-section"></div>
+        </section>
+
+        <!-- ── テストモード ── -->
+        <section class="settings-section">
+          <h2><i class="ti ti-test-pipe" style="color:#f59e0b"></i> テストモード</h2>
+          <p class="settings-desc">投稿・通知・名前タグをすべて削除し、サービス開始直後の状態に戻します。<br><span style="color:#6366f1;font-size:11px"><i class="ti ti-info-circle"></i> 開発者アカウント設定はリセットされません</span></p>
+          <button class="btn-danger-full" onclick="testReset()"><i class="ti ti-trash"></i> サービス開始直後の状態にリセット</button>
+        </section>
+
+        <section class="settings-section">
+          <h2>👤 現在の操作ユーザー</h2>
+          <div id="test-active-user-card"></div>
+          <button class="btn-sm" style="margin-top:8px" onclick="testSwitchToSelf()"><i class="ti ti-home"></i> 自分に戻る</button>
+        </section>
+
+        <section class="settings-section">
+          <h2>🧑‍🤝‍🧑 ダミーユーザー管理</h2>
+          <div id="test-dummy-list"></div>
+          <div class="test-add-user-form" id="test-add-form" style="display:none">
+            <input type="text" id="test-dummy-name" placeholder="表示名（例：田中テスト）" class="test-input">
+            <input type="text" id="test-dummy-handle" placeholder="ハンドル（例：@tanaka_test）" class="test-input">
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn-sm" onclick="testAddDummyUser()"><i class="ti ti-check"></i> 追加</button>
+              <button class="btn-sm" onclick="document.getElementById('test-add-form').style.display='none'">キャンセル</button>
+            </div>
+          </div>
+          <button class="btn-sm" style="margin-top:10px" onclick="document.getElementById('test-add-form').style.display=''">
+            <i class="ti ti-plus"></i> ダミーユーザーを追加
+          </button>
+        </section>
+
+        <!-- ── サブカテゴリーランキング ── -->
+        <section class="settings-section">
+          <h2>📊 サブカテゴリーランキング</h2>
+          <p class="settings-desc">各メインカテゴリー内での投稿タグの集計（投稿数・いいね数ベースで自動ランキング）</p>
+          <div id="dev-sub-ranking"></div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- KIDS MODE PAGE -->
+    <div class="page" id="page-kids">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('settings',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1><i class="ti ti-shield-check" style="color:var(--kids-accent)"></i> 子供モード設定</h1>
+      </div>
+      <div class="kids-hero">
+        <div class="kids-hero-icon"><i class="ti ti-shield-heart"></i></div>
+        <div class="kids-hero-text">
+          <div class="kids-hero-title">子供モード</div>
+          <div class="kids-hero-desc">未成年のお子さまが安全に利用できるよう、保護者の方と一緒に設定します。<br>子供の端末と保護者の電話番号、両方の認証が必要です。</div>
+        </div>
+      </div>
+
+      <!-- Step indicator -->
+      <div class="kids-steps" id="kids-steps">
+        <div class="kids-step active" id="kstep-1"><span class="step-num">1</span><span class="step-label">子供の情報</span></div>
+        <div class="kids-step-line"></div>
+        <div class="kids-step" id="kstep-2"><span class="step-num">2</span><span class="step-label">子供の電話認証</span></div>
+        <div class="kids-step-line"></div>
+        <div class="kids-step" id="kstep-3"><span class="step-num">3</span><span class="step-label">保護者の電話認証</span></div>
+        <div class="kids-step-line"></div>
+        <div class="kids-step" id="kstep-4"><span class="step-num">4</span><span class="step-label">保護者設定</span></div>
+        <div class="kids-step-line"></div>
+        <div class="kids-step" id="kstep-5"><span class="step-num">5</span><span class="step-label">完了</span></div>
+      </div>
+
+      <!-- Step 1: Child info -->
+      <div class="kids-panel" id="kpanel-1">
+        <div class="kids-panel-title"><i class="ti ti-user"></i> お子さまの基本情報</div>
+        <div class="kids-field">
+          <label class="kids-label">お子さまの名前（ニックネーム可）</label>
+          <input type="text" class="kids-input" id="kid-name" placeholder="例：たろう">
+        </div>
+        <div class="kids-field">
+          <label class="kids-label">生年月日</label>
+          <div class="kids-dob-row">
+            <select class="kids-select" id="kid-year">
+              <option value="">年</option>
+              <script>for(let y=2024;y>=2007;y--)document.write(`<option value="${y}">${y}年</option>`)</script>
+            </select>
+            <select class="kids-select" id="kid-month">
+              <option value="">月</option>
+              <script>for(let m=1;m<=12;m++)document.write(`<option value="${m}">${m}月</option>`)</script>
+            </select>
+            <select class="kids-select" id="kid-day">
+              <option value="">日</option>
+              <script>for(let d=1;d<=31;d++)document.write(`<option value="${d}">${d}日</option>`)</script>
+            </select>
+          </div>
+          <div class="kids-note"><i class="ti ti-info-circle"></i> 生年月日から年齢を自動判定し、18歳未満の場合に子供モードが適用されます</div>
+        </div>
+        <div class="kids-field">
+          <label class="kids-label">性別（任意）</label>
+          <div class="kids-radio-row">
+            <label class="kids-radio"><input type="radio" name="kid-gender" value="male"> 男の子</label>
+            <label class="kids-radio"><input type="radio" name="kid-gender" value="female"> 女の子</label>
+            <label class="kids-radio"><input type="radio" name="kid-gender" value="other" checked> 回答しない</label>
+          </div>
+        </div>
+        <button class="kids-next-btn" onclick="kidsStep(2)">次へ <i class="ti ti-arrow-right"></i></button>
+      </div>
+
+      <!-- Step 2: Child phone -->
+      <div class="kids-panel" id="kpanel-2" style="display:none">
+        <div class="kids-panel-title"><i class="ti ti-device-mobile"></i> 子供の端末の電話番号認証</div>
+        <div class="kids-info-box kids-info-child">
+          <i class="ti ti-device-mobile" style="font-size:20px"></i>
+          <div>
+            <div style="font-weight:700;margin-bottom:2px">お子さまが使う端末で入力してください</div>
+            <div style="font-size:12px;opacity:0.85">この端末がお子さまのメイン端末として登録されます</div>
+          </div>
+        </div>
+        <div class="kids-field">
+          <label class="kids-label">お子さまの電話番号</label>
+          <div class="kids-phone-row">
+            <span class="kids-phone-prefix">+81</span>
+            <input type="tel" class="kids-input kids-phone-input" id="kid-phone" placeholder="090-0000-0000">
+          </div>
+        </div>
+        <div class="kids-field" id="kid-code-field" style="display:none">
+          <label class="kids-label">認証コード（6桁）</label>
+          <div class="kids-code-row">
+            <input type="text" class="kids-input kids-code-input" id="kid-code" placeholder="000000" maxlength="6">
+            <button class="kids-verify-btn" onclick="verifyKidPhone()">認証する</button>
+          </div>
+          <div class="kids-note"><i class="ti ti-clock"></i> コードの有効期限：<span id="kid-timer">5:00</span></div>
+        </div>
+        <div class="kids-verified-box" id="kid-verified" style="display:none">
+          <i class="ti ti-circle-check"></i> 子供の端末の電話番号認証が完了しました
+        </div>
+        <div class="kids-btn-row">
+          <button class="kids-back-btn" onclick="kidsStep(1)"><i class="ti ti-arrow-left"></i> 戻る</button>
+          <button class="kids-send-btn" id="kid-send-btn" onclick="sendKidCode()"><i class="ti ti-send"></i> SMSを送信</button>
+          <button class="kids-next-btn" id="kid-next-btn" onclick="kidsStep(3)" style="display:none">次へ <i class="ti ti-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- Step 3: Parent phone -->
+      <div class="kids-panel" id="kpanel-3" style="display:none">
+        <div class="kids-panel-title"><i class="ti ti-shield-lock"></i> 保護者の電話番号認証</div>
+        <div class="kids-info-box kids-info-parent">
+          <i class="ti ti-user-shield" style="font-size:20px"></i>
+          <div>
+            <div style="font-weight:700;margin-bottom:2px">保護者の方の端末で入力してください</div>
+            <div style="font-size:12px;opacity:0.85">子供の端末とは別の電話番号が必要です。保護者アカウントとして管理権限を持ちます。</div>
+          </div>
+        </div>
+        <div class="kids-field">
+          <label class="kids-label">保護者の電話番号</label>
+          <div class="kids-phone-row">
+            <span class="kids-phone-prefix">+81</span>
+            <input type="tel" class="kids-input kids-phone-input" id="parent-phone" placeholder="090-0000-0000">
+          </div>
+          <div class="kids-note warn"><i class="ti ti-alert-triangle"></i> 子供の電話番号と同じ番号は使用できません</div>
+        </div>
+        <div class="kids-field" id="parent-code-field" style="display:none">
+          <label class="kids-label">認証コード（6桁）</label>
+          <div class="kids-code-row">
+            <input type="text" class="kids-input kids-code-input" id="parent-code" placeholder="000000" maxlength="6">
+            <button class="kids-verify-btn" onclick="verifyParentPhone()">認証する</button>
+          </div>
+          <div class="kids-note"><i class="ti ti-clock"></i> コードの有効期限：<span id="parent-timer">5:00</span></div>
+        </div>
+        <div class="kids-verified-box" id="parent-verified" style="display:none">
+          <i class="ti ti-circle-check"></i> 保護者の電話番号認証が完了しました
+        </div>
+        <div class="kids-btn-row">
+          <button class="kids-back-btn" onclick="kidsStep(2)"><i class="ti ti-arrow-left"></i> 戻る</button>
+          <button class="kids-send-btn" id="parent-send-btn" onclick="sendParentCode()"><i class="ti ti-send"></i> SMSを送信</button>
+          <button class="kids-next-btn" id="parent-next-btn" onclick="kidsStep(4)" style="display:none">次へ <i class="ti ti-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- Step 4: Parent controls -->
+      <div class="kids-panel" id="kpanel-4" style="display:none">
+        <div class="kids-panel-title"><i class="ti ti-adjustments"></i> 保護者設定</div>
+
+        <div class="kids-control-group">
+          <div class="kids-control-label">コンテンツフィルター</div>
+          <div class="kids-control-row">
+            <div class="kids-control-info">
+              <span class="kids-control-name">センシティブコンテンツをブロック</span>
+              <span class="kids-control-desc">暴力・性的表現を含む投稿を非表示にします</span>
+            </div>
+            <label class="toggle-wrap"><input type="checkbox" id="kids-block-sensitive" checked onchange="kidsSettingToggle('blockSensitive',this)"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+          </div>
+          <div class="kids-control-row">
+            <div class="kids-control-info">
+              <span class="kids-control-name">政治カテゴリーの表示</span>
+              <span class="kids-control-desc">政治・社会問題に関する投稿を表示するか</span>
+            </div>
+            <label class="toggle-wrap"><input type="checkbox" id="kids-show-politics" onchange="kidsSettingToggle('showPolitics',this)"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+          </div>
+          <div class="kids-control-row">
+            <div class="kids-control-info">
+              <span class="kids-control-name">知らない人からのDMを禁止</span>
+              <span class="kids-control-desc">フォロー外からのメッセージをブロックします</span>
+            </div>
+            <label class="toggle-wrap"><input type="checkbox" id="kids-block-dm" checked onchange="kidsSettingToggle('blockDM',this)"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+          </div>
+        </div>
+
+        <div class="kids-control-group">
+          <div class="kids-control-label">利用時間の制限</div>
+          <div class="kids-control-row">
+            <div class="kids-control-info">
+              <span class="kids-control-name">1日の利用上限時間</span>
+              <span class="kids-control-desc">上限に達すると通知が届きます</span>
+            </div>
+            <select class="kids-select" style="width:auto">
+              <option>制限なし</option>
+              <option>30分</option>
+              <option selected>1時間</option>
+              <option>2時間</option>
+              <option>3時間</option>
+            </select>
+          </div>
+          <div class="kids-control-row">
+            <div class="kids-control-info">
+              <span class="kids-control-name">利用禁止時間帯</span>
+              <span class="kids-control-desc">設定した時間帯はアプリを使用できません</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:13px">
+              <input type="time" class="kids-time-input" value="22:00"> 〜 <input type="time" class="kids-time-input" value="07:00">
+            </div>
+          </div>
+        </div>
+
+        <div class="kids-control-group">
+          <div class="kids-control-label">保護者への通知</div>
+          <div class="kids-control-row">
+            <div class="kids-control-info">
+              <span class="kids-control-name">フォロー申請を保護者が承認</span>
+              <span class="kids-control-desc">新しいフォローは保護者の承認が必要になります</span>
+            </div>
+            <label class="toggle-wrap"><input type="checkbox" id="kids-parent-follow" checked onchange="kidsSettingToggle('parentApproveFollow',this)"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+          </div>
+          <div class="kids-control-row">
+            <div class="kids-control-info">
+              <span class="kids-control-name">週次利用レポートを受け取る</span>
+              <span class="kids-control-desc">毎週月曜日に利用状況をSMSで通知します</span>
+            </div>
+            <label class="toggle-wrap"><input type="checkbox" id="kids-weekly-report" checked onchange="kidsSettingToggle('weeklyReport',this)"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+          </div>
+        </div>
+
+        <div class="kids-btn-row">
+          <button class="kids-back-btn" onclick="kidsStep(3)"><i class="ti ti-arrow-left"></i> 戻る</button>
+          <button class="kids-next-btn" onclick="kidsStep(5)">設定を保存して完了 <i class="ti ti-check"></i></button>
+        </div>
+      </div>
+
+      <!-- Step 5: Done -->
+      <div class="kids-panel" id="kpanel-5" style="display:none">
+        <div class="kids-done-wrap">
+          <div class="kids-done-icon"><i class="ti ti-shield-check"></i></div>
+          <div class="kids-done-title">子供モードの設定が完了しました</div>
+          <div class="kids-done-desc">お子さまのアカウントに保護設定が適用されました。<br>保護者の方はいつでも設定を変更できます。</div>
+          <div class="kids-done-summary" id="kids-done-summary"></div>
+          <div class="kids-done-note">
+            <i class="ti ti-info-circle"></i>
+            設定の変更・解除には保護者の電話番号認証が必要です
+          </div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <button class="kids-next-btn" onclick="goPage('settings',null)">設定に戻る</button>
+            <button class="kids-back-btn" onclick="goPage('home',null)">ホームへ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACCOUNT SWITCH PAGE -->
+    <div class="page" id="page-acct-switch">
+      <div class="page-header">
+        <button class="back-btn" id="acct-switch-back-btn"><i class="ti ti-arrow-left"></i></button>
+        <h1>アカウント</h1>
+      </div>
+      <div class="acct-switch-section-title">ログイン中のアカウント</div>
+      <div id="acct-switch-body" class="acct-list"></div>
+      <div class="acct-switch-section-title">アカウントを追加</div>
+      <div class="acct-action-list">
+        <button class="acct-action-btn" id="acct-add-sub-btn" onclick="goPage('sub-create',null)">
+          <i class="ti ti-user-plus"></i>
+          <div>
+            <div class="acct-action-title">サブアカウントを追加</div>
+            <div class="acct-action-desc">匿名で投稿できるサブアカウントを作成します</div>
+          </div>
+          <i class="ti ti-chevron-right"></i>
+        </button>
+        <button class="acct-action-btn" onclick="goPage('register',null)">
+          <i class="ti ti-user-circle"></i>
+          <div>
+            <div class="acct-action-title">新しいアカウントを登録</div>
+            <div class="acct-action-desc">別の電話番号で新しいアカウントを作成します</div>
+          </div>
+          <i class="ti ti-chevron-right"></i>
+        </button>
+      </div>
+      <div class="acct-action-list" style="margin-top:10px">
+        <button class="acct-action-btn danger" onclick="confirmLogout()">
+          <i class="ti ti-logout"></i>
+          <div>
+            <div class="acct-action-title">ログアウト</div>
+            <div class="acct-action-desc">このデバイスからログアウトします</div>
+          </div>
+          <i class="ti ti-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- REGISTER PAGE (ID + Password) -->
+    <div class="page" id="page-register">
+      <div class="page-header">
+        <button class="back-btn" id="reg-back-btn" onclick="goPage('welcome',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1>アカウント登録</h1>
+      </div>
+      <div class="reg-hero">
+        <div class="reg-hero-icon" id="reg-hero-icon">T</div>
+        <div class="reg-hero-title" id="reg-hero-app-name">Trendyへようこそ</div>
+        <div class="reg-hero-desc">IDとパスワードを設定するだけで登録完了。</div>
+      </div>
+      <div class="kids-steps" id="reg-steps">
+        <div class="kids-step active" id="rstep-1"><span class="step-num">1</span><span class="step-label">アカウント情報</span></div>
+        <div class="kids-step-line"></div>
+        <div class="kids-step" id="rstep-2"><span class="step-num">2</span><span class="step-label">完了</span></div>
+      </div>
+
+      <!-- Step 1: ID + Password + Nickname -->
+      <div class="kids-panel" id="rpanel-1">
+        <div class="kids-panel-title"><i class="ti ti-user-circle"></i> アカウント情報を設定</div>
+
+        <div class="kids-field">
+          <label class="kids-label">ユーザーID <span style="color:var(--accent)">*</span></label>
+          <div class="kids-id-row">
+            <span class="kids-id-prefix">@</span>
+            <input type="text" class="kids-input kids-id-input" id="reg-id"
+              placeholder="例：taro_123" maxlength="20"
+              oninput="validateRegId(this)">
+          </div>
+          <div class="kids-note"><i class="ti ti-info-circle"></i> 半角英数字・アンダースコアのみ（後から変更不可）</div>
+          <div class="reg-field-err" id="reg-id-err" style="display:none"></div>
+        </div>
+
+        <div class="kids-field">
+          <label class="kids-label">パスワード <span style="color:var(--accent)">*</span></label>
+          <div class="kids-pw-row">
+            <input type="password" class="kids-input" id="reg-pw"
+              placeholder="8文字以上" maxlength="50"
+              oninput="checkPwStrength(this)">
+            <button class="kids-pw-toggle" type="button" onclick="togglePwVisibility('reg-pw',this)">
+              <i class="ti ti-eye"></i>
+            </button>
+          </div>
+          <div class="pw-strength-bar" id="reg-pw-strength-wrap" style="display:none">
+            <div class="pw-strength-fill" id="reg-pw-strength-fill"></div>
+          </div>
+          <div class="reg-field-err" id="reg-pw-err" style="display:none"></div>
+        </div>
+
+        <div class="kids-field">
+          <label class="kids-label">パスワード（確認） <span style="color:var(--accent)">*</span></label>
+          <div class="kids-pw-row">
+            <input type="password" class="kids-input" id="reg-pw2"
+              placeholder="同じパスワードをもう一度" maxlength="50">
+            <button class="kids-pw-toggle" type="button" onclick="togglePwVisibility('reg-pw2',this)">
+              <i class="ti ti-eye"></i>
+            </button>
+          </div>
+          <div class="reg-field-err" id="reg-pw2-err" style="display:none"></div>
+        </div>
+
+        <div class="kids-field">
+          <label class="kids-label">ニックネーム <span class="kids-note" style="margin-left:4px">（省略するとIDが使われます）</span></label>
+          <input type="text" class="kids-input" id="reg-name"
+            placeholder="例：たろう" maxlength="20">
+        </div>
+
+        <div class="reg-terms-box">
+          <label class="reg-terms-label">
+            <input type="checkbox" id="reg-terms-chk">
+            <span>
+              <a href="#" onclick="return false" style="color:var(--accent)">利用規約</a>および
+              <a href="#" onclick="return false" style="color:var(--accent)">プライバシーポリシー</a>に同意する
+            </span>
+          </label>
+        </div>
+
+        <button class="kids-next-btn" style="margin-top:4px" onclick="completeRegister()">
+          <i class="ti ti-user-check"></i> 登録する
+        </button>
+      </div>
+
+      <!-- Step 2: Done -->
+      <div class="kids-panel" id="rpanel-2" style="display:none">
+        <div class="kids-done-wrap">
+          <div class="kids-done-icon" style="color:var(--accent)"><i class="ti ti-circle-check"></i></div>
+          <div class="kids-done-title">登録完了！🎉</div>
+          <div class="kids-done-desc" id="reg-done-desc">ようこそ！<br>アカウントの設定が完了しました。</div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px">
+            <button class="kids-next-btn" onclick="goPage('home',null)">ホームへ <i class="ti ti-home"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUB ACCOUNT CREATE PAGE -->
+    <div class="page" id="page-sub-create">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('acct-switch',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1>サブアカウント作成</h1>
+      </div>
+      <div class="kids-steps" id="sub-steps">
+        <div class="kids-step active" id="ssstep-1"><span class="step-num">1</span><span class="step-label">アカウント名</span></div>
+        <div class="kids-step-line"></div>
+        <div class="kids-step" id="ssstep-2"><span class="step-num">2</span><span class="step-label">確認</span></div>
+        <div class="kids-step-line"></div>
+        <div class="kids-step" id="ssstep-3"><span class="step-num">3</span><span class="step-label">完了</span></div>
+      </div>
+      <!-- Step 1: Name -->
+      <div class="kids-panel" id="sspanel-1">
+        <div class="sub-rules-box">
+          <div class="sub-rule-item ok"><i class="ti ti-check"></i> 名前を匿名にでき、年齢・性別・地域もすべて非公開にできる</div>
+          <div class="sub-rule-item ok"><i class="ti ti-check"></i> 投稿に <b>サブ</b> マークが付き、荒らし抑止として機能する</div>
+          <div class="sub-rule-item warn"><i class="ti ti-alert-triangle"></i> BANされるとメインを含む全アカウントが凍結されます</div>
+        </div>
+        <div class="kids-field">
+          <label class="kids-label">アカウント名（任意・匿名可）</label>
+          <input type="text" class="kids-input" id="sub-name-input" placeholder="空白の場合は「匿名ユーザー」" maxlength="20">
+        </div>
+        <div class="kids-btn-row">
+          <button class="kids-back-btn" onclick="goPage('acct-switch',null)"><i class="ti ti-arrow-left"></i> 戻る</button>
+          <button class="kids-next-btn" onclick="subCreateStep(2)">次へ <i class="ti ti-arrow-right"></i></button>
+        </div>
+      </div>
+      <!-- Step 2: Confirm -->
+      <div class="kids-panel" id="sspanel-2" style="display:none">
+        <div class="kids-panel-title"><i class="ti ti-clipboard-check"></i> 内容を確認</div>
+        <div class="sub-confirm-card">
+          <div class="sub-confirm-av" id="sub-confirm-av">匿</div>
+          <div class="sub-confirm-info">
+            <div class="sub-confirm-name" id="sub-confirm-name">匿名ユーザー</div>
+            <div class="sub-confirm-handle">@anon_you</div>
+            <div style="margin-top:8px">
+              <span class="badge-sub"><i class="ti ti-user-question" style="font-size:10px;vertical-align:-1px"></i> サブ</span>
+            </div>
+          </div>
+        </div>
+        <div class="kids-note" style="margin-top:4px">
+          <i class="ti ti-info-circle"></i> 年齢・性別・地域はすべて非公開で作成されます<br>作成後もアカウント名は変更できます
+        </div>
+        <div class="kids-btn-row">
+          <button class="kids-back-btn" onclick="subCreateStep(1)"><i class="ti ti-arrow-left"></i> 戻る</button>
+          <button class="kids-next-btn" onclick="completeSubCreate()">作成する <i class="ti ti-plus"></i></button>
+        </div>
+      </div>
+      <!-- Step 3: Done -->
+      <div class="kids-panel" id="sspanel-3" style="display:none">
+        <div class="kids-done-wrap">
+          <div class="kids-done-icon"><i class="ti ti-circle-check"></i></div>
+          <div class="kids-done-title">サブアカウントを作成しました！</div>
+          <div class="kids-done-desc">投稿時に「サブ」ボタンを選択すると<br>このアカウントで投稿できます。</div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px">
+            <button class="kids-next-btn" onclick="goPage('acct-switch',null)">アカウント確認 <i class="ti ti-users"></i></button>
+            <button class="kids-back-btn" onclick="goPage('home',null)">ホームへ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USER PROFILE PAGE -->
+    <div class="page" id="page-user">
+      <div class="page-header">
+        <button class="back-btn" id="user-page-back-btn"><i class="ti ti-arrow-left"></i></button>
+        <h1 id="user-page-title">ユーザー</h1>
+      </div>
+
+      <!-- カバー + アバター -->
+      <div class="profile-cover-area">
+        <div class="profile-cover-img" id="user-page-cover"></div>
+        <div class="profile-av-wrap" id="user-page-av-wrap" style="position:relative">
+          <div class="profile-av-lg" id="user-page-av">?</div>
+        </div>
+        <!-- 外部リンク（カバー下・右寄せ） -->
+        <div id="user-page-social-links" class="social-links-cover" style="display:none"></div>
+      </div>
+
+      <!-- プロフィール情報 -->
+      <div class="profile-info-block">
+        <div class="profile-info-top-row">
+          <div>
+            <div class="profile-name" id="user-page-name"></div>
+            <div class="profile-handle" id="user-page-handle"></div>
+          </div>
+          <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+            <button class="btn-sm" id="user-page-follow-btn">フォローする</button>
+            <!-- 推しユーザー -->
+            <div id="user-page-oshi-row" style="display:none">
+              <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:3px">
+                <i class="ti ti-heart" style="font-size:11px"></i> 推し
+              </div>
+              <div style="display:flex;gap:5px;justify-content:flex-end" id="user-page-oshi-icons"></div>
+            </div>
+          </div>
+        </div>
+        <div class="profile-bio-wrap">
+          <span id="user-page-bio" style="font-size:13px;color:var(--text2)">-</span>
+        </div>
+        <div class="profile-meta" id="user-page-meta"></div>
+        <div class="profile-stat-row">
+          <span class="profile-stat-link"><b id="user-page-following-count">-</b> フォロー</span>
+          <span class="profile-stat-link"><b id="user-page-follower-count">-</b> フォロワー</span>
+          <span class="profile-stat-link"><b id="user-page-post-count">-</b> 投稿</span>
+        </div>
+        <!-- カテゴリー -->
+        <div class="profile-cats-section" id="user-page-cats-section">
+          <div class="profile-cats-header">
+            <span class="profile-cats-label"><i class="ti ti-tags"></i> カテゴリー</span>
+            <button class="btn-sm" id="user-page-cat-add-btn"><i class="ti ti-plus"></i> 追加</button>
+          </div>
+          <div class="profile-cats-wrap" id="user-page-cats-wrap"></div>
+          <div class="cats-vote-hint" id="user-page-cat-hint"></div>
+        </div>
+      </div>
+
+      <!-- 投稿フィルター -->
+      <div class="user-posts-filter-bar">
+        <div class="header-pills" id="user-post-filter-pills">
+          <button class="pill active" onclick="setUserPostFilter('all',this)">全て</button>
+          <button class="pill" onclick="setUserPostFilter('text',this)"><i class="ti ti-align-left"></i> 文字のみ</button>
+          <button class="pill" onclick="setUserPostFilter('image',this)"><i class="ti ti-photo"></i> 画像</button>
+          <button class="pill" onclick="setUserPostFilter('video',this)"><i class="ti ti-video"></i> 動画</button>
+        </div>
+      </div>
+
+      <!-- 投稿一覧 -->
+      <div id="user-page-feed"></div>
+    </div>
+
+    <!-- FEEDBACK PAGE (意見箱) -->
+    <div class="page" id="page-feedback">
+      <div class="page-header">
+        <h1><i class="ti ti-bulb" style="color:var(--accent)"></i> 意見箱</h1>
+      </div>
+
+      <!-- 投稿フォーム -->
+      <div class="fb-compose">
+        <div class="fb-compose-title"><i class="ti ti-edit"></i> 意見・要望を投稿</div>
+        <div class="fb-field">
+          <input type="text" id="fb-title-input" class="fb-input" placeholder="タイトル（例：ダークモードを追加してほしい）" maxlength="50">
+        </div>
+        <div class="fb-field fb-cat-row">
+          <select id="fb-cat-select" class="fb-select">
+            <option value="機能要望">💡 機能要望</option>
+            <option value="UIの改善">🎨 UIの改善</option>
+            <option value="バグ報告">🐛 バグ報告</option>
+            <option value="その他">📝 その他</option>
+          </select>
+          <label class="fb-anon-label">
+            <input type="checkbox" id="fb-anon-chk">
+            <span>匿名で投稿</span>
+          </label>
+        </div>
+        <div class="fb-field">
+          <textarea id="fb-text-input" class="fb-textarea" placeholder="詳細を入力してください（任意・200文字まで）" rows="3" maxlength="200" oninput="updateFbCount()"></textarea>
+          <div class="fb-char-count-row"><span id="fb-char-count">0</span>/200</div>
+        </div>
+        <button class="post-btn fb-submit-btn" onclick="submitOpinion()">
+          <i class="ti ti-send"></i> 投稿する
+        </button>
+      </div>
+
+      <!-- フィルター・ソート -->
+      <div class="fb-filter-bar">
+        <div class="header-pills" id="fb-cat-pills">
+          <button class="pill active" onclick="setFbFilter('all',this)">すべて</button>
+          <button class="pill" onclick="setFbFilter('機能要望',this)">💡 機能要望</button>
+          <button class="pill" onclick="setFbFilter('UIの改善',this)">🎨 UI改善</button>
+          <button class="pill" onclick="setFbFilter('バグ報告',this)">🐛 バグ</button>
+        </div>
+        <div class="fb-sort-row">
+          <span class="label-sm">並び替え</span>
+          <div class="header-pills" id="fb-sort-pills">
+            <button class="pill active" onclick="setFbSort('new',this)">新着</button>
+            <button class="pill" onclick="setFbSort('likes',this)">👍 いいね順</button>
+            <button class="pill" onclick="setFbSort('hot',this)">🔥 注目</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 運営モードトグル -->
+      <div class="fb-admin-bar">
+        <label class="fb-admin-toggle">
+          <input type="checkbox" id="fb-admin-mode" onchange="toggleFbAdminMode(this)">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="fb-admin-label-text"><i class="ti ti-shield-check"></i> 運営として実装検討を操作</span>
+        </label>
+        <span class="fb-admin-note">このトグルはデモ用です</span>
+      </div>
+
+      <!-- 意見一覧 -->
+      <div id="fb-list"></div>
+    </div>
+
+    <!-- ADS PAGE -->
+    <div class="page" id="page-ads">
+      <div class="page-header">
+        <button class="back-btn" id="ads-back-btn"><i class="ti ti-arrow-left"></i></button>
+        <h1><i class="ti ti-speakerphone" style="color:var(--accent)"></i> 広告管理</h1>
+      </div>
+
+      <!-- 新しい広告を出稿 -->
+      <section class="ads-section">
+        <div class="ads-section-head">
+          <span class="ads-section-title"><i class="ti ti-edit"></i> 新しい広告を出稿</span>
+        </div>
+        <div class="ad-create-form">
+
+          <div class="ad-field">
+            <label class="ad-label">掲載カテゴリー <span class="ad-required">必須</span>
+              <span class="ad-label-note">— 選んだカテゴリーのページに表示されます</span>
+            </label>
+            <select id="ad-cat-select" class="ad-input" style="cursor:pointer" onchange="updateAdSubSelect()"></select>
+          </div>
+          <div class="ad-field" id="ad-subcat-field" style="display:none">
+            <label class="ad-label">サブカテゴリー <span class="ad-optional">任意</span>
+              <span class="ad-label-note">— 絞り込む場合に選択（例：ウマ娘、ドラえもん）</span>
+            </label>
+            <select id="ad-subcat-select" class="ad-input" style="cursor:pointer"></select>
+          </div>
+
+          <div class="ad-field">
+            <label class="ad-label">広告テキスト <span class="ad-required">必須</span></label>
+            <input type="text" id="ad-text-input" class="ad-input" placeholder="例：新春セール開催中！最大50%OFF" maxlength="30" oninput="updateAdPreview()">
+            <div class="ad-char-count"><span id="ad-text-count">0</span>/30文字</div>
+          </div>
+
+          <div class="ad-field">
+            <label class="ad-label">広告アカウント <span class="ad-required">必須</span>
+              <span class="ad-label-note">— この名前で広告が表示されます</span>
+            </label>
+            <div class="ad-acct-selector" id="ad-acct-selector"></div>
+          </div>
+
+          <div class="ad-field">
+            <label class="ad-label">広告画像 <span class="ad-optional">任意</span></label>
+            <div class="ad-img-upload-area" id="ad-img-upload-area" onclick="document.getElementById('ad-img-file').click()">
+              <i class="ti ti-photo"></i>
+              <span>クリックして画像を選択</span>
+            </div>
+            <input type="file" id="ad-img-file" accept="image/*" style="display:none" onchange="handleAdImgUpload(this)">
+            <div class="ad-img-preview-wrap" id="ad-img-preview-wrap" style="display:none">
+              <img id="ad-img-preview" src="" alt="プレビュー" class="ad-img-preview">
+              <button class="ad-img-remove-btn" onclick="removeAdImg(event)"><i class="ti ti-x"></i></button>
+            </div>
+          </div>
+
+          <div class="ad-field">
+            <label class="ad-label">課金額 <span class="ad-required">必須</span>
+              <span class="ad-label-note">— 高いほど上位に表示</span>
+            </label>
+            <div class="ad-yen-row">
+              <span class="ad-yen-sym">¥</span>
+              <input type="number" id="ad-budget-input" class="ad-input" placeholder="10000" min="100" max="9999999" step="100" oninput="updateAdPreview()">
+            </div>
+            <div class="ad-rank-preview" id="ad-rank-preview"></div>
+          </div>
+
+          <div class="ad-field">
+            <label class="ad-label">1人あたりの最大表示回数 <span class="ad-required">必須</span>
+              <span class="ad-label-note">— この回数を超えたユーザーには非表示</span>
+            </label>
+            <div class="ad-count-row">
+              <input type="number" id="ad-maxperuser-input" class="ad-input" value="2" min="1" max="2" style="width:90px" oninput="updateAdPreview()">
+              <span class="ad-count-unit">回 / 人</span>
+            </div>
+          </div>
+
+          <div class="ad-cost-box" id="ad-cost-box" style="display:none">
+            <div class="ad-cost-row"><span>課金額</span><b id="ad-cost-budget">¥—</b></div>
+            <div class="ad-cost-row"><span>1人あたり表示回数</span><b id="ad-cost-times">—回</b></div>
+            <div class="ad-cost-row ad-cost-total"><span>1人への最大費用</span><b id="ad-cost-total">¥—</b></div>
+          </div>
+
+          <div class="ad-field-err" id="ad-create-err" style="display:none">
+            <i class="ti ti-alert-circle"></i> <span id="ad-create-err-msg"></span>
+          </div>
+
+          <button class="kids-next-btn" style="margin-top:4px" onclick="submitNewAd()">
+            <i class="ti ti-speakerphone"></i> 出稿する
+          </button>
+        </div>
+      </section>
+    </div>
+
+  </main>
+</div>
+
+<!-- Ad Detail Modal -->
+<div class="modal-overlay" id="ad-detail-overlay" onclick="closeAdDetail()"></div>
+<div class="modal" id="ad-detail-modal">
+  <div class="modal-header">
+    <span class="modal-title"><i class="ti ti-speakerphone"></i> 広告詳細</span>
+    <button class="btn-icon" onclick="closeAdDetail()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body" id="ad-detail-body"></div>
+  <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;padding:12px 20px">
+    <button class="btn-sm" onclick="closeAdDetail()">閉じる</button>
+    <button class="btn-sm" style="background:var(--accent);color:#fff;border-color:transparent" onclick="closeAdDetail();showToast('外部サイトに移動します…','info')"><i class="ti ti-external-link"></i> サイトを見る</button>
+  </div>
+</div>
+
+<!-- Tweet Detail Modal -->
+<div class="modal-overlay" id="tweet-detail-overlay" onclick="closeTweetDetail()"></div>
+<div class="modal tweet-detail-modal" id="tweet-detail-modal">
+  <div class="modal-header">
+    <span class="modal-title">つぶやき詳細</span>
+    <button class="btn-icon" onclick="closeTweetDetail()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="tweet-detail-body" id="tweet-detail-body"></div>
+</div>
+
+<!-- Post Confirm Modal -->
+<div class="modal-overlay" id="post-confirm-overlay" onclick="cancelPost()"></div>
+<div class="modal" id="post-confirm-modal">
+  <div class="modal-header">
+    <span class="modal-title">AIの使用状況を選択</span>
+    <button class="btn-icon" onclick="cancelPost()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body">
+    <div class="confirm-tweet-preview" id="confirm-tweet-preview"></div>
+    <div class="confirm-choice-col">
+      <button class="ai-choice-btn" data-ai="none" onclick="selectAiChoice(this)">
+        <span class="ai-badge ai-none">AI未使用</span>
+        <span class="ai-choice-desc">AIは使っていない</span>
+      </button>
+      <button class="ai-choice-btn" data-ai="part" onclick="selectAiChoice(this)">
+        <span class="ai-badge ai-part">AI補助あり</span>
+        <span class="ai-choice-desc">一部AIで補助・編集した</span>
+      </button>
+      <button class="ai-choice-btn" data-ai="full" onclick="selectAiChoice(this)">
+        <span class="ai-badge ai-full">AIのみ</span>
+        <span class="ai-choice-desc">AIが生成した内容</span>
+      </button>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-sm" onclick="cancelPost()"><i class="ti ti-arrow-left"></i> キャンセル</button>
+  </div>
+</div>
+
+<!-- Category Detail Modal -->
+<div class="modal-overlay" id="cat-detail-overlay" onclick="closeCatDetail()"></div>
+<div class="modal" id="cat-detail-modal">
+  <div class="modal-header">
+    <span class="modal-title"><i class="ti ti-users"></i> カテゴリー詳細</span>
+    <button class="btn-icon" onclick="closeCatDetail()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body" id="cat-detail-body"></div>
+</div>
+
+<!-- Category Picker Modal -->
+<div class="modal-overlay" id="cat-picker-overlay" onclick="closeCatPicker()"></div>
+<div class="modal" id="cat-picker-modal">
+  <div class="modal-header">
+    <span class="modal-title"><i class="ti ti-tags"></i> カテゴリーを追加</span>
+    <button class="btn-icon" onclick="closeCatPicker()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body">
+    <p style="font-size:12px;color:var(--text3);margin-bottom:14px">カテゴリー名を自由に入力できます。他のユーザーが同意・否定票を投じます。</p>
+    <div class="cat-free-row">
+      <input type="text" id="cat-free-input" class="cat-free-input"
+        placeholder="例：ゲーマー、優しい人、詐欺師…"
+        maxlength="20"
+        onkeydown="if(event.key==='Enter')addMyCategoryFree()">
+      <button class="post-btn" style="padding:8px 18px;flex-shrink:0" onclick="addMyCategoryFree()">追加</button>
+    </div>
+    <div class="cat-free-note">最大20文字</div>
+    <div class="cat-free-msg" id="cat-free-msg"></div>
+  </div>
+</div>
+
+<!-- Reply Modal -->
+<div class="modal-overlay" id="reply-overlay" onclick="closeReplyModal()"></div>
+<div class="modal reply-modal" id="reply-modal">
+  <div class="modal-header">
+    <span class="modal-title"><i class="ti ti-message-circle"></i> 返信</span>
+    <button class="btn-icon" onclick="closeReplyModal()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="reply-modal-body">
+    <div id="reply-target-preview"></div>
+    <div class="reply-compose-row">
+      <div class="tweet-av" style="background:#dbeafe;color:#1e40af;flex-shrink:0">あ</div>
+      <textarea id="reply-input" class="reply-input" placeholder="返信を入力..." maxlength="140" rows="3" oninput="updateReplyCount()"></textarea>
+    </div>
+    <div class="reply-footer">
+      <span id="reply-char-count" class="reply-char">0/140</span>
+      <button class="post-btn" onclick="submitReply()"><i class="ti ti-send"></i> 返信する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- Logout Confirm Modal -->
+<div class="modal-overlay" id="logout-overlay"></div>
+<div class="modal" id="logout-modal">
+  <div class="modal-header">
+    <span class="modal-title"><i class="ti ti-logout" style="color:var(--danger,#ef4444)"></i> ログアウト</span>
+  </div>
+  <div class="modal-body" style="padding:18px 20px 4px">
+    <p style="font-size:14px;line-height:1.6;color:var(--text2)">このデバイスからログアウトします。<br>ログイン情報は保持されます。</p>
+  </div>
+  <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;padding:12px 20px">
+    <button class="btn-sm" onclick="closeLogoutModal()">キャンセル</button>
+    <button class="btn-sm" style="background:var(--danger,#ef4444);color:#fff;border-color:transparent" onclick="doLogout()"><i class="ti ti-logout"></i> ログアウト</button>
+  </div>
+</div>
+
+<!-- Phone Change Modal -->
+<div class="modal-overlay" id="phone-modal-overlay" onclick="closePhoneModal()"></div>
+<div class="modal" id="phone-modal">
+  <div class="modal-header">
+    <span class="modal-title"><i class="ti ti-device-mobile"></i> 電話番号の変更</span>
+    <button class="btn-icon" onclick="closePhoneModal()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body" id="phone-modal-body"></div>
+</div>
+
+<!-- Settings Edit Modal -->
+<div class="modal-overlay" id="settings-edit-overlay" onclick="closeSettingsEdit()"></div>
+<div class="modal" id="settings-edit-modal">
+  <div class="modal-header">
+    <span class="modal-title" id="settings-edit-title"></span>
+    <button class="btn-icon" onclick="closeSettingsEdit()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body" id="settings-edit-body"></div>
+  <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;padding:12px 20px">
+    <button class="btn-sm" onclick="closeSettingsEdit()">キャンセル</button>
+    <button class="btn-sm" style="background:var(--accent);color:#fff;border-color:transparent" onclick="saveSettingsEdit()"><i class="ti ti-check"></i> 保存する</button>
+  </div>
+</div>
+
+<!-- Avatar Crop Modal -->
+<div class="modal-overlay" id="av-crop-overlay" onclick="closeAvCrop()"></div>
+<div class="modal" id="av-crop-modal" style="max-width:500px">
+  <div class="modal-header">
+    <span class="modal-title">アイコン画像を調整</span>
+    <button class="btn-icon" onclick="closeAvCrop()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body" style="padding:20px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:20px">
+      <!-- Preview Canvas Area -->
+      <div style="display:flex;gap:20px;justify-content:center;align-items:flex-start">
+        <!-- Image Adjust Area -->
+        <div style="position:relative;width:300px;height:300px;background:var(--bg2);border-radius:8px;overflow:hidden;border:1px solid var(--border)">
+          <canvas id="av-crop-canvas" style="width:100%;height:100%;display:block"></canvas>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:140px;height:140px;border:2px dashed var(--accent);border-radius:50%;pointer-events:none"></div>
+        </div>
+        <!-- Circular Preview -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+          <div style="font-size:12px;color:var(--text3);text-align:center">実際の表示</div>
+          <div style="width:140px;height:140px;border-radius:50%;overflow:hidden;background:var(--bg2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center">
+            <canvas id="av-preview-canvas" style="width:100%;height:100%;display:block"></canvas>
+          </div>
+        </div>
+      </div>
+      <!-- Controls -->
+      <div style="width:100%;display:flex;flex-direction:column;gap:12px">
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <label style="font-size:12px;color:var(--text2)">ズーム</label>
+            <span style="font-size:12px;color:var(--text3)" id="av-zoom-value">100%</span>
+          </div>
+          <input type="range" id="av-zoom-slider" min="20" max="200" value="100" style="width:100%" oninput="updateAvCrop()">
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-sm" style="flex:1" onclick="rotateAvCropImage()"><i class="ti ti-rotate-clockwise"></i> 回転</button>
+          <button class="btn-sm" style="flex:1" onclick="resetAvCrop()"><i class="ti ti-refresh"></i> リセット</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;padding:12px 20px">
+    <button class="btn-sm" onclick="closeAvCrop()">キャンセル</button>
+    <button class="btn-sm" style="background:var(--accent);color:#fff;border-color:transparent" onclick="saveAvCrop()"><i class="ti ti-check"></i> 適用</button>
+  </div>
+</div>
+
+<!-- Favorite Picker Modal -->
+<div class="modal-overlay" id="fav-picker-overlay" onclick="closeFavoritePicker()"></div>
+<div class="modal" id="fav-picker-modal" style="max-width:420px;max-height:80vh;flex-direction:column">
+  <div class="modal-header">
+    <span id="fav-picker-title">推しユーザーを選択</span>
+    <button class="modal-close" onclick="closeFavoritePicker()"><i class="ti ti-x"></i></button>
+  </div>
+  <div style="padding:8px 12px">
+    <input type="text" id="fav-picker-search" class="test-input" placeholder="ユーザーを検索..." oninput="filterFavPicker(this.value)" style="width:100%;box-sizing:border-box">
+  </div>
+  <div id="fav-picker-list" style="overflow-y:auto;flex:1;padding-bottom:8px"></div>
+</div>
+
+<!-- Supabase CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="supabase-client.js"></script>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
