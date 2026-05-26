@@ -5817,6 +5817,10 @@ function renderDevPage() {
   renderDevAccountSection();
   renderDevBrandSection();
   renderDevAccountList();
+  // 開発者ページを開くたびに現在のブランド設定をSupabaseに同期（全端末共有）
+  if (typeof dbSaveAppConfig === 'function') {
+    dbSaveAppConfig(appName, appIcon);
+  }
 }
 
 // ── 登録アカウント一覧 ──

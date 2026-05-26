@@ -867,23 +867,17 @@ async function dbSaveAppConfig(name, icon) {
 async function initSupabase() {
   console.log('[DB] 初期化中...');
 
-  // ⓪ アプリブランドをDBから取得して全端末に反映
+  // ⓪ アプリブランドをDBから取得して全端末に反映（差異チェックなし・常に上書き）
   const _config = await dbFetchAppConfig();
   if (_config) {
-    const _newName = _config.app_name || 'Trendy';
-    const _newIcon = _config.app_icon || null;
-    // ローカルと差異があれば更新
-    if (_newName !== appName || _newIcon !== appIcon) {
-      appName = _newName;
-      appIcon = _newIcon;
-      if (appName !== 'Trendy') localStorage.setItem('trendy_app_name', appName);
-      else localStorage.removeItem('trendy_app_name');
-      if (appIcon) localStorage.setItem('trendy_app_icon', appIcon);
-      else localStorage.removeItem('trendy_app_icon');
-      if (typeof _applyAppBrand === 'function') _applyAppBrand();
-      if (typeof renderDevBrandSection === 'function') renderDevBrandSection();
-      console.log('[DB] アプリブランドを反映しました:', appName);
-    }
+    appName = _config.app_name || 'Trendy';
+    appIcon = _config.app_icon || null;
+    if (appName !== 'Trendy') localStorage.setItem('trendy_app_name', appName);
+    else localStorage.removeItem('trendy_app_name');
+    if (appIcon) localStorage.setItem('trendy_app_icon', appIcon);
+    else localStorage.removeItem('trendy_app_icon');
+    if (typeof _applyAppBrand === 'function') _applyAppBrand();
+    console.log('[DB] アプリブランドを反映しました:', appName);
   }
 
   // ① 広告をDBから読み込み
