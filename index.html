@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+<!-- ダークモードちらつき防止：CSSより前にテーマ適用 -->
+<script>if(localStorage.getItem('trendy_dark_mode')==='true')document.documentElement.setAttribute('data-theme','dark');</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Trendy — カテゴリートレンドSNS</title>
@@ -647,6 +649,13 @@
         </section>
         <section class="settings-section">
           <h2>表示モード</h2>
+          <div class="settings-row">
+            <span class="settings-key"><i class="ti ti-moon" style="vertical-align:-2px"></i> ダークモード</span>
+            <label class="toggle-wrap">
+              <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode(this)">
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            </label>
+          </div>
           <div class="settings-row">
             <span class="settings-key">R18モード</span>
             <label class="toggle-wrap">

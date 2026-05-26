@@ -3648,6 +3648,23 @@ function toggleCatVisible(id, btn) {
   btn.nextElementSibling.textContent = catVisible[id]?'表示':'非表示';
 }
 
+// ── ダークモード ──
+function _applyDarkMode(enable) {
+  if (enable) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  const toggle = document.getElementById('dark-mode-toggle');
+  if (toggle) toggle.checked = !!enable;
+}
+
+function toggleDarkMode(cb) {
+  const enable = cb.checked;
+  localStorage.setItem('trendy_dark_mode', enable ? 'true' : 'false');
+  _applyDarkMode(enable);
+}
+
 function toggleR18(cb) {
   if (cb.checked) {
     if (!confirm('R18コンテンツを表示します。18歳以上ですか？')) { cb.checked = false; return; }
@@ -6292,6 +6309,9 @@ async function testReset() {
 
 // ── Init ───────────────────────────────────────────────
 function init() {
+  // ── ダークモードを最初に復元（ちらつき防止） ──
+  _applyDarkMode(localStorage.getItem('trendy_dark_mode') === 'true');
+
   // ── アプリブランドを復元 ──
   appName = localStorage.getItem('trendy_app_name') || 'Trendy';
   appIcon = localStorage.getItem('trendy_app_icon') || null;
