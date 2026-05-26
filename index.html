@@ -689,7 +689,7 @@
       </div>
     </div>
 
-    <!-- DEVELOPER PAGE -->
+    <!-- ══ DEVELOPER HUB ══ -->
     <div class="page" id="page-dev">
       <div class="page-header">
         <button class="back-btn" onclick="goPage('settings',null)"><i class="ti ti-arrow-left"></i></button>
@@ -697,62 +697,138 @@
         <span class="dev-mode-badge">DEV</span>
       </div>
       <div class="settings-body">
+        <div class="dev-hub-grid">
+          <button class="dev-hub-card" onclick="goPage('dev-brand',null)">
+            <div class="dev-hub-icon" style="background:#fef3c7;color:#d97706"><i class="ti ti-palette"></i></div>
+            <div class="dev-hub-label">ブランド設定</div>
+            <div class="dev-hub-desc">サービス名・アイコン</div>
+            <i class="ti ti-chevron-right dev-hub-arrow"></i>
+          </button>
+          <button class="dev-hub-card" onclick="goPage('dev-announce',null)">
+            <div class="dev-hub-icon" style="background:#eff6ff;color:#2563eb"><i class="ti ti-speakerphone"></i></div>
+            <div class="dev-hub-label">お知らせ送信</div>
+            <div class="dev-hub-desc">全ユーザーへ通知</div>
+            <i class="ti ti-chevron-right dev-hub-arrow"></i>
+          </button>
+          <button class="dev-hub-card" onclick="goPage('dev-users',null)">
+            <div class="dev-hub-icon" style="background:#f0fdf4;color:#16a34a"><i class="ti ti-users"></i></div>
+            <div class="dev-hub-label">ユーザー管理</div>
+            <div class="dev-hub-desc">アカウント一覧・削除</div>
+            <i class="ti ti-chevron-right dev-hub-arrow"></i>
+          </button>
+          <button class="dev-hub-card" onclick="goPage('dev-stats',null)">
+            <div class="dev-hub-icon" style="background:#fdf4ff;color:#9333ea"><i class="ti ti-chart-bar"></i></div>
+            <div class="dev-hub-label">統計・ランキング</div>
+            <div class="dev-hub-desc">サブカテゴリー集計</div>
+            <i class="ti ti-chevron-right dev-hub-arrow"></i>
+          </button>
+          <button class="dev-hub-card" onclick="goPage('dev-config',null)">
+            <div class="dev-hub-icon" style="background:#eef2ff;color:#4338ca"><i class="ti ti-shield"></i></div>
+            <div class="dev-hub-label">開発者設定</div>
+            <div class="dev-hub-desc">アカウント権限・リセット</div>
+            <i class="ti ti-chevron-right dev-hub-arrow"></i>
+          </button>
+        </div>
+      </div>
+    </div>
 
-        <!-- ── SNSブランド設定 ── -->
+    <!-- ══ DEV: ブランド設定 ══ -->
+    <div class="page" id="page-dev-brand">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('dev',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1><i class="ti ti-palette" style="color:#d97706"></i> ブランド設定</h1>
+      </div>
+      <div class="settings-body">
         <section class="settings-section">
           <h2><i class="ti ti-palette" style="color:#f59e0b"></i> SNSブランド設定</h2>
           <div id="dev-brand-section"></div>
         </section>
+      </div>
+    </div>
 
-        <!-- ── 開発者アカウント ── -->
+    <!-- ══ DEV: お知らせ送信 ══ -->
+    <div class="page" id="page-dev-announce">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('dev',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1><i class="ti ti-speakerphone" style="color:#2563eb"></i> お知らせ送信</h1>
+      </div>
+      <div class="settings-body">
         <section class="settings-section">
-          <h2><i class="ti ti-shield" style="color:#6366f1"></i> 開発者アカウント</h2>
-          <div id="dev-account-section"></div>
-        </section>
-
-        <!-- ── テストモード ── -->
-        <section class="settings-section">
-          <h2><i class="ti ti-test-pipe" style="color:#f59e0b"></i> テストモード</h2>
-          <p class="settings-desc">投稿・通知・名前タグをすべて削除し、サービス開始直後の状態に戻します。<br><span style="color:#6366f1;font-size:11px"><i class="ti ti-info-circle"></i> 開発者アカウント設定はリセットされません</span></p>
-          <button class="btn-danger-full" onclick="testReset()"><i class="ti ti-trash"></i> サービス開始直後の状態にリセット</button>
-        </section>
-
-        <section class="settings-section">
-          <h2>👤 現在の操作ユーザー</h2>
-          <div id="test-active-user-card"></div>
-          <button class="btn-sm" style="margin-top:8px" onclick="testSwitchToSelf()"><i class="ti ti-home"></i> 自分に戻る</button>
-        </section>
-
-        <section class="settings-section">
-          <h2>🧑‍🤝‍🧑 ダミーユーザー管理</h2>
-          <div id="test-dummy-list"></div>
-          <div class="test-add-user-form" id="test-add-form" style="display:none">
-            <input type="text" id="test-dummy-name" placeholder="表示名（例：田中テスト）" class="test-input">
-            <input type="text" id="test-dummy-handle" placeholder="ハンドル（例：@tanaka_test）" class="test-input">
-            <div style="display:flex;gap:8px;margin-top:8px">
-              <button class="btn-sm" onclick="testAddDummyUser()"><i class="ti ti-check"></i> 追加</button>
-              <button class="btn-sm" onclick="document.getElementById('test-add-form').style.display='none'">キャンセル</button>
+          <h2><i class="ti ti-speakerphone" style="color:#2563eb"></i> 運営からのお知らせ</h2>
+          <p class="settings-desc">登録済みの全ユーザーの通知欄に届きます。</p>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+            <div>
+              <label class="settings-key" style="font-size:12px;display:block;margin-bottom:5px">タイトル（通知の本文）</label>
+              <input type="text" id="announce-title" class="test-input" placeholder="例：メンテナンスのお知らせ" maxlength="60" style="width:100%">
             </div>
+            <div>
+              <label class="settings-key" style="font-size:12px;display:block;margin-bottom:5px">詳細メッセージ（任意）</label>
+              <textarea id="announce-body" class="test-input" placeholder="例：5/30 深夜1時〜3時にメンテナンスを行います。" maxlength="200" style="width:100%;height:80px;resize:vertical"></textarea>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <div style="flex:1;min-width:0">
+                <label class="settings-key" style="font-size:12px;display:block;margin-bottom:5px">送信先（空欄 = 全員）</label>
+                <input type="text" id="announce-target" class="test-input" placeholder="@account_id（特定ユーザーのみ）" style="width:100%">
+              </div>
+            </div>
+            <button class="btn-primary" id="announce-send-btn" onclick="sendAnnouncement()" style="width:100%;justify-content:center;gap:8px">
+              <i class="ti ti-send"></i> 送信する
+            </button>
           </div>
-          <button class="btn-sm" style="margin-top:10px" onclick="document.getElementById('test-add-form').style.display=''">
-            <i class="ti ti-plus"></i> ダミーユーザーを追加
-          </button>
         </section>
-
-        <!-- ── 登録アカウント一覧 ── -->
         <section class="settings-section">
-          <h2><i class="ti ti-users" style="color:#6366f1"></i> 登録アカウント一覧 <span id="dev-accounts-count" style="background:var(--bg3);color:var(--text3);font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;margin-left:4px"></span></h2>
-          <p class="settings-desc">Supabase に登録されているすべてのアカウントを表示します。アカウントの確認・削除が行えます。</p>
+          <h2>送信履歴</h2>
+          <div id="announce-history"><p class="settings-desc">まだ送信履歴がありません</p></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ══ DEV: ユーザー管理 ══ -->
+    <div class="page" id="page-dev-users">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('dev',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1><i class="ti ti-users" style="color:#16a34a"></i> ユーザー管理</h1>
+      </div>
+      <div class="settings-body">
+        <section class="settings-section">
+          <h2><i class="ti ti-users" style="color:#6366f1"></i> 登録アカウント一覧 <span id="dev-accounts-count" style="background:var(--surface2);color:var(--text3);font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;margin-left:4px"></span></h2>
+          <p class="settings-desc">Supabase に登録されているすべてのアカウントを表示します。</p>
           <div id="dev-accounts-list"></div>
         </section>
+      </div>
+    </div>
 
-        <!-- ── サブカテゴリーランキング ── -->
+    <!-- ══ DEV: 統計・ランキング ══ -->
+    <div class="page" id="page-dev-stats">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('dev',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1><i class="ti ti-chart-bar" style="color:#9333ea"></i> 統計・ランキング</h1>
+      </div>
+      <div class="settings-body">
         <section class="settings-section">
           <h2>📊 サブカテゴリーランキング</h2>
           <p class="settings-desc">各メインカテゴリー内での投稿タグの集計（投稿数・いいね数ベースで自動ランキング）</p>
           <div id="dev-sub-ranking"></div>
         </section>
+      </div>
+    </div>
 
+    <!-- ══ DEV: 開発者設定 ══ -->
+    <div class="page" id="page-dev-config">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('dev',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1><i class="ti ti-shield" style="color:#4338ca"></i> 開発者設定</h1>
+      </div>
+      <div class="settings-body">
+        <section class="settings-section">
+          <h2><i class="ti ti-shield" style="color:#6366f1"></i> 開発者アカウント</h2>
+          <div id="dev-account-section"></div>
+        </section>
+        <section class="settings-section">
+          <h2><i class="ti ti-test-pipe" style="color:#f59e0b"></i> テストモード</h2>
+          <p class="settings-desc">投稿・通知・名前タグをすべて削除し、サービス開始直後の状態に戻します。<br><span style="color:#6366f1;font-size:11px"><i class="ti ti-info-circle"></i> 開発者アカウント設定はリセットされません</span></p>
+          <button class="btn-danger-full" onclick="testReset()"><i class="ti ti-trash"></i> サービス開始直後の状態にリセット</button>
+        </section>
       </div>
     </div>
 

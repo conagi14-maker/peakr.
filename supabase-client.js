@@ -786,6 +786,41 @@ async function dbSeedNotifs() { /* no-op */ }
 // 開発者ページ用：全アカウント一覧取得
 // ══════════════════════════════════════════
 
+// ══════════════════════════════════════════
+// 運営お知らせ通知
+// ══════════════════════════════════════════
+
+/** 全ユーザーにお知らせ通知を送信 */
+async function dbSendAnnouncement({ title, message, targetAccountId = null }) {
+  // 送信先を決定（指定あり→1人 / なし→全員）
+  let accountIds = [];
+  if (targetAccountId) {
+    accountIds = [targetAccountId];
+  } else {
+    const { data, error } = await db.from('profiles').select('account_id');
+    if (error) { console.error('[DB] お知らせ送信エラー（ユーザー取得）:', error.message); return { ok: false, count: 0 }; }
+    accountIds = (data || []).map(r => r.account_id);
+  }
+  if (!accountIds.length) return { ok: false, count: 0 };
+
+  const rows = accountIds.map(aid => ({
+    account_id   : aid,
+    account_type : 'main',
+    icon         : 'ti-speakerphone',
+    bg           : '#eff6ff',
+    tc           : '#1d4ed8',
+    text         : title,
+    hint         : message || '',
+    notif_type   : 'announce',
+    unread       : true,
+  }));
+
+  const { error } = await db.from('notifications').insert(rows);
+  if (error) { console.error('[DB] お知らせ送信エラー:', error.message); return { ok: false, count: 0 }; }
+  console.log('[DB] お知らせを送信しました:', accountIds.length, '件');
+  return { ok: true, count: accountIds.length };
+}
+
 /** 全プロフィールを取得（アバター・カバー画像は除外してデータ軽量化） */
 async function dbFetchAllAccounts() {
   const { data, error } = await db

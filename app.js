@@ -206,7 +206,12 @@ function goPage(id, btn) {
     if (nb) nb.classList.add('active');
   }
   if (id === 'test')         renderTestPage();
-  if (id === 'dev') renderDevPage();
+  if (id === 'dev')          renderDevPage();
+  if (id === 'dev-brand')    renderDevBrandSection();
+  if (id === 'dev-announce') renderDevAnnounce();
+  if (id === 'dev-users')    renderDevAccountList();
+  if (id === 'dev-stats')    renderDevSubRanking();
+  if (id === 'dev-config')   renderDevAccountSection();
   if (id === 'profile-edit') openProfileEdit();
   if (id === 'home')      _refreshHomeFeedFromDB();
   if (id === 'mypage')    { _refreshMypageStats(); loadUserFavorites(); _loadMypageSocialLinks(); }
@@ -5809,13 +5814,69 @@ function getTopSubTags(catId, limit = 8) {
 
 // ── 開発者ページ ──
 function renderDevPage() {
-  renderDevSubRanking();
-  renderDevAccountSection();
-  renderDevBrandSection();
-  renderDevAccountList();
-  // 開発者ページを開くたびに現在のブランド設定をSupabaseに同期（全端末共有）
-  if (typeof dbSaveAppConfig === 'function') {
-    dbSaveAppConfig(appName, appIcon);
+  // ハブページ：サブページへのナビカードのみ（個別レンダリング不要）
+}
+
+// ── お知らせ送信ページ ──
+function renderDevAnnounce() {
+  // 送信フォームはHTMLに静的定義済み。履歴をDBから取得して表示
+  _loadAnnounceHistory();
+}
+
+async function _loadAnnounceHistory() {
+  const el = document.getElementById('announce-history');
+  if (!el) return;
+  const { data, error } = await db
+    .from('notifications')
+    .select('text, hint, created_at')
+    .eq('notif_type', 'announce')
+    .order('created_at', { ascending: false })
+    .limit(10);
+  if (error || !data || !data.length) {
+    el.innerHTML = '<p class="settings-desc">まだ送信履歴がありません</p>';
+    return;
+  }
+  // 同じ text + 同日の重複を除去
+  const seen = new Set();
+  const unique = data.filter(r => {
+    const key = r.text + r.created_at?.slice(0, 10);
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+  el.innerHTML = unique.map(r => `
+    <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:13px;font-weight:600;color:var(--text)">${r.text}</div>
+      ${r.hint ? `<div style="font-size:12px;color:var(--text2);margin-top:3px">${r.hint}</div>` : ''}
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">${_relTime(r.created_at)}</div>
+    </div>`).join('');
+}
+
+function _relTime(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+async function sendAnnouncement() {
+  const title  = (document.getElementById('announce-title')?.value || '').trim();
+  const body   = (document.getElementById('announce-body')?.value  || '').trim();
+  const target = (document.getElementById('announce-target')?.value || '').trim().replace(/^@/, '');
+  if (!title) { showToast('タイトルを入力してください', 'error'); return; }
+
+  const btn = document.getElementById('announce-send-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> 送信中...'; }
+
+  const result = await dbSendAnnouncement({ title, message: body, targetAccountId: target || null });
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> 送信する'; }
+
+  if (result.ok) {
+    showToast(`✅ ${result.count}件のアカウントに送信しました`, 'success');
+    document.getElementById('announce-title').value  = '';
+    document.getElementById('announce-body').value   = '';
+    document.getElementById('announce-target').value = '';
+    _loadAnnounceHistory();
+  } else {
+    showToast('送信に失敗しました', 'error');
   }
 }
 
