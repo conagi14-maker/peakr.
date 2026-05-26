@@ -5816,6 +5816,81 @@ function renderDevPage() {
   renderDevSubRanking();
   renderDevAccountSection();
   renderDevBrandSection();
+  renderDevAccountList();
+}
+
+// ── 登録アカウント一覧 ──
+async function renderDevAccountList() {
+  const el = document.getElementById('dev-accounts-list');
+  if (!el) return;
+
+  el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3)"><i class="ti ti-loader-2" style="font-size:20px;animation:spin 1s linear infinite"></i><br><span style="font-size:12px">読み込み中...</span></div>`;
+
+  const accounts = await dbFetchAllAccounts();
+
+  if (!accounts.length) {
+    el.innerHTML = `<p style="color:var(--text3);font-size:13px;text-align:center;padding:16px">登録アカウントはありません</p>`;
+    return;
+  }
+
+  const myAccountId = localStorage.getItem('trendy_account_id');
+
+  el.innerHTML = accounts.map(a => {
+    const initial = (a.nickname || a.account_id || '?')[0].toUpperCase();
+    const isMe = a.account_id === myAccountId;
+    const regDate = a.created_at
+      ? new Date(a.created_at).toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit' })
+      : (a.updated_at ? new Date(a.updated_at).toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit' }) : '不明');
+
+    return `
+      <div class="dev-acct-item" id="dev-acct-${a.account_id}">
+        <div class="dev-acct-av">${initial}</div>
+        <div class="dev-acct-info">
+          <div class="dev-acct-name">
+            ${a.nickname || a.account_id}
+            ${a.is_dev ? `<span class="badge-dev" style="font-size:9px;padding:1px 5px"><i class="ti ti-code" style="font-size:9px"></i> 開発者</span>` : ''}
+            ${isMe ? `<span style="background:#dcfce7;color:#166534;font-size:9px;padding:1px 5px;border-radius:99px;font-weight:700">自分</span>` : ''}
+          </div>
+          <div class="dev-acct-handle">@${a.account_id}</div>
+          <div class="dev-acct-meta">登録日：${regDate}${a.region ? ` ／ ${a.region}` : ''}${a.gender ? ` ／ ${a.gender}` : ''}</div>
+        </div>
+        <button class="dev-acct-delete-btn" onclick="devDeleteAccount('${a.account_id}', '${(a.nickname || a.account_id).replace(/'/g, "\\'")}')" ${isMe ? 'disabled title="自分のアカウントは削除できません"' : ''}>
+          <i class="ti ti-trash"></i>
+        </button>
+      </div>`;
+  }).join('');
+
+  // 件数バッジを更新
+  const badge = document.getElementById('dev-accounts-count');
+  if (badge) badge.textContent = accounts.length + ' 件';
+}
+
+async function devDeleteAccount(accountId, nickname) {
+  if (!accountId) return;
+  const myAccountId = localStorage.getItem('trendy_account_id');
+  if (accountId === myAccountId) { showToast('自分のアカウントは削除できません', 'error'); return; }
+
+  if (!confirm(`「${nickname}」（@${accountId}）を完全削除しますか？\n\n投稿・フォロー・通知などすべてのデータが削除されます。\nこの操作は取り消せません。`)) return;
+
+  const el = document.getElementById(`dev-acct-${accountId}`);
+  if (el) el.style.opacity = '0.4';
+
+  const ok = await dbDeleteAccount(accountId);
+  if (!ok) {
+    if (el) el.style.opacity = '';
+    showToast('削除に失敗しました', 'error');
+    return;
+  }
+
+  if (el) el.remove();
+  showToast(`@${accountId} を削除しました`, 'success');
+
+  // 件数バッジを更新
+  const badge = document.getElementById('dev-accounts-count');
+  if (badge) {
+    const cur = parseInt(badge.textContent) || 0;
+    badge.textContent = Math.max(0, cur - 1) + ' 件';
+  }
 }
 
 function renderDevBrandSection() {

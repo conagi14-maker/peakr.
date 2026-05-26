@@ -783,6 +783,51 @@ async function dbSeedNotifs() { /* no-op */ }
 // ══════════════════════════════════════════
 // メイン初期化（app.js の init() から呼ぶ）
 // ══════════════════════════════════════════
+// 開発者ページ用：全アカウント一覧取得
+// ══════════════════════════════════════════
+
+/** 全プロフィールを取得（アバター・カバー画像は除外してデータ軽量化） */
+async function dbFetchAllAccounts() {
+  const { data, error } = await db
+    .from('profiles')
+    .select('account_id, nickname, bio, is_dev, name_tag, region, gender, dob, updated_at, created_at')
+    .order('created_at', { ascending: false });
+  if (error) { console.error('[DB] アカウント一覧取得エラー:', error.message); return []; }
+  return data || [];
+}
+
+/** アカウントを完全削除（プロフィール + 投稿 + 関連データ） */
+async function dbDeleteAccount(accountId) {
+  if (!accountId) return false;
+  try {
+    await Promise.all([
+      db.from('post_likes').delete().eq('account_id', accountId),
+      db.from('notifications').delete().eq('account_id', accountId),
+      db.from('follows').delete().eq('follower_id', accountId),
+      db.from('follows').delete().eq('following_id', accountId),
+      db.from('user_fan_levels').delete().eq('fan_account_id', accountId),
+      db.from('user_fan_levels').delete().eq('user_account_id', accountId),
+      db.from('user_favorites').delete().eq('account_id', accountId),
+    ]);
+    // 投稿削除（いいねを先に消す必要があるため順番に）
+    const { data: posts } = await db.from('posts').select('id').eq('user_handle', '@' + accountId);
+    if (posts && posts.length > 0) {
+      const postIds = posts.map(p => p.id);
+      await db.from('post_likes').delete().in('post_id', postIds);
+      await db.from('posts').delete().eq('user_handle', '@' + accountId);
+    }
+    // プロフィール削除
+    const { error } = await db.from('profiles').delete().eq('account_id', accountId);
+    if (error) { console.error('[DB] アカウント削除エラー:', error.message); return false; }
+    console.log('[DB] アカウントを削除しました:', accountId);
+    return true;
+  } catch(e) {
+    console.error('[DB] アカウント削除エラー:', e);
+    return false;
+  }
+}
+
+// ══════════════════════════════════════════
 // 現在のユーザーの通知を全削除（testReset 用）
 async function dbDeleteAllNotifs() {
   const accountId = localStorage.getItem('trendy_account_id');

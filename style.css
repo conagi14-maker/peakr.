@@ -1962,6 +1962,40 @@ body { background: var(--bg); color: var(--text); min-height: 100vh; }
 }
 .dev-account-desc { font-size: 11px; color: var(--text3); margin-top: 2px; }
 
+/* ── Dev Account List ──────────────────────────────── */
+.dev-acct-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  margin-bottom: 8px;
+  transition: opacity 0.3s;
+}
+.dev-acct-av {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #818cf8);
+  color: #fff; font-weight: 800; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.dev-acct-info { flex: 1; min-width: 0; }
+.dev-acct-name {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+}
+.dev-acct-handle { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.dev-acct-meta   { font-size: 10px; color: var(--text3); margin-top: 3px; }
+.dev-acct-delete-btn {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1.5px solid #fca5a5; background: #fff1f2;
+  color: #ef4444; font-size: 14px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.15s;
+}
+.dev-acct-delete-btn:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
+.dev-acct-delete-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
 /* ── User ID ──────────────────────────────────────── */
 .profile-userid {
   display: inline-flex;
