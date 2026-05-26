@@ -152,6 +152,15 @@ let homeLoaded = 0;
 const HOME_TWEETS = [];
 const myPosts = []; // 自分の投稿を保存する配列
 
+// ── Test Mode State ────────────────────────────────────
+let testDummyUsers = [];   // ダミーユーザーリスト
+let testActiveUser = null; // 現在操作中のダミーユーザー（nullなら自分）
+let testDummyCounter = 0;
+let useDummyData = localStorage.getItem('trendy_dummy_mode') === 'true'; // デフォルトOFF
+const TEST_COLORS = [
+  {bg:'#dbeafe',tc:'#1e40af'},{bg:'#d1fae5',tc:'#065f46'},{bg:'#ede9fe',tc:'#5b21b6'},
+  {bg:'#fce7f3',tc:'#be185d'},{bg:'#fef3c7',tc:'#92400e'},{bg:'#fee2e2',tc:'#991b1b'},
+  {bg:'#e0f2fe',tc:'#0369a1'},{bg:'#f0fdf4',tc:'#166534'},
 ];
 
 CATS_DATA.forEach(c => { catVisible[c.id] = true; catSelSubs[c.id] = '全体'; });
@@ -196,6 +205,7 @@ function goPage(id, btn) {
     const nb = document.querySelector(`[data-page="${id}"]`);
     if (nb) nb.classList.add('active');
   }
+  if (id === 'test')         renderTestPage();
   if (id === 'dev') renderDevPage();
   if (id === 'profile-edit') openProfileEdit();
   if (id === 'home')      _refreshHomeFeedFromDB();
@@ -220,6 +230,15 @@ function pillActive(btn, groupId) {
 }
 
 // ── Home Feed ──────────────────────────────────────────
+function initHomeTweets() {
+  for (let i = 0; i < 80; i++) {
+    const cat = CATS_DATA[i % CATS_DATA.length];
+    const t = genTweet(i+1, cat.id, 10);
+    t.user = FOLLOWS[i % FOLLOWS.length];
+    t.isDummy = true; // ダミーツイートの識別フラグ
+    HOME_TWEETS.push(t);
+  }
+}
 
 function homeTweetHTML(t) {
   const u = t.user;
@@ -650,7 +669,10 @@ function confirmPost() {
   cancelPost();
   if (!v && !pendingMedia) return;
   const isSub = myAccountType === 'sub';
-  const postUser = { n: isSub ? '匿名ユーザー' : (myNickname || 'あなた'), h: isSub ? '@anon_you' : myHandle, av: isSub ? '匿' : _myAvContent(), bg:'#dbeafe', tc:'#1e40af', sub: isSub, nameTag: isSub ? null : myNameTag || null };
+  // テストモード：ダミーユーザーとして投稿
+  const postUser = testActiveUser
+    ? { n: testActiveUser.n, h: testActiveUser.h, av: testActiveUser.av, bg: testActiveUser.bg, tc: testActiveUser.tc, sub: false, nameTag: null }
+    : { n: isSub ? '匿名ユーザー' : (myNickname || 'あなた'), h: isSub ? '@anon_you' : myHandle, av: isSub ? '匿' : _myAvContent(), bg:'#dbeafe', tc:'#1e40af', sub: isSub, nameTag: isSub ? null : myNameTag || null };
   const t = {
     rank: 0,
     user: postUser,
@@ -681,7 +703,7 @@ function confirmPost() {
   const _tags       = [...pendingTags];
 
   // ランキング入り通知（カテゴリー設定済み・自分アカウントのみ）
-  if (_catId && !isSub) {
+  if (_catId && !testActiveUser && !isSub) {
     setTimeout(() => checkRankingAndNotify(_catId), 1800);
   }
   // リセット
@@ -1722,8 +1744,12 @@ async function _renderMyStatsInner(aid, body) {
 
 function renderMyPosts() {
   const feed = document.getElementById('mypost-feed');
+  // ダミーユーザー操作中はそのユーザーの投稿、自分の時は@you/@anon_you
+  const activeHandle = testActiveUser ? testActiveUser.h : null;
   const posts = myPosts.filter(t =>
-    t.user.h === myHandle || t.user.h === '@anon_you'
+    activeHandle
+      ? t.user.h === activeHandle
+      : (t.user.h === myHandle || t.user.h === '@anon_you')
   );
   if (!posts.length) {
     feed.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text3)">
@@ -2052,9 +2078,11 @@ async function _refreshMypageStats() {
 // ── ホームフィード再読み込み（フォロー変更後に呼ぶ） ──────────
 async function _refreshHomeFeedFromDB() {
   if (typeof dbLoadAndMergePosts !== 'function') return;
-  const myLocals = HOME_TWEETS.filter(t => !t.db_id); // まだDB未保存のローカル投稿
+  // ダミーを保持しつつDB由来の実投稿のみリセット
+  const dummies  = HOME_TWEETS.filter(t => t.isDummy);
+  const myLocals = HOME_TWEETS.filter(t => !t.isDummy && !t.db_id); // まだDB未保存のローカル投稿
   HOME_TWEETS.length = 0;
-  HOME_TWEETS.push(...myLocals);
+  HOME_TWEETS.push(...dummies, ...myLocals);
   homeLoaded = 0;
   const feed = document.getElementById('home-feed');
   if (feed) feed.innerHTML = '';
@@ -5784,12 +5812,61 @@ function getTopSubTags(catId, limit = 8) {
 }
 
 // ── 開発者ページ ──
+// ── Dummy Mode Toggle ──────────────────────────────────
+function toggleDummyMode(enable) {
+  useDummyData = enable;
+  if (enable) {
+    localStorage.setItem('trendy_dummy_mode', 'true');
+    // ダミーツイートがまだなければ追加
+    if (!HOME_TWEETS.some(t => t.isDummy)) initHomeTweets();
+  } else {
+    localStorage.removeItem('trendy_dummy_mode');
+    // ダミーツイートをフィードから除去（実投稿は残す）
+    const real = HOME_TWEETS.filter(t => !t.isDummy);
+    HOME_TWEETS.length = 0;
+    HOME_TWEETS.push(...real);
+  }
+  // フィード再描画
+  const feed = document.getElementById('home-feed');
+  if (feed) feed.innerHTML = '';
+  homeLoaded = 0;
+  loadHomeMore();
+  renderDevDummyModeSection();
+  showToast(enable ? '🧪 ダミーモードをONにしました' : 'ダミーモードをOFFにしました', enable ? 'success' : '');
+}
 
+function renderDevDummyModeSection() {
+  const el = document.getElementById('dev-dummy-mode-section');
+  if (!el) return;
+  const dummyCount = HOME_TWEETS.filter(t => t.isDummy).length;
+  el.innerHTML = `
+    <div class="dev-account-card ${useDummyData ? 'active' : ''}">
+      <div class="dev-account-icon" style="${useDummyData ? 'background:#6366f1;color:#fff' : ''}">
+        <i class="ti ti-users"></i>
+      </div>
+      <div class="dev-account-info">
+        <div class="dev-account-title">ダミーアカウントモード</div>
+        <div class="dev-account-desc">
+          ${useDummyData
+            ? `ON中 — ${dummyCount}件のダミー投稿をホームに表示`
+            : 'OFF — ホームは実投稿のみ表示されます'}
+        </div>
+      </div>
+      ${useDummyData
+        ? `<button class="btn-sm" style="background:#fee2e2;color:#991b1b;border-color:#fca5a5"
+             onclick="toggleDummyMode(false)"><i class="ti ti-toggle-left"></i> OFF</button>`
+        : `<button class="btn-sm" style="background:#1e1b4b;color:#a5b4fc;border-color:#3730a3"
+             onclick="toggleDummyMode(true)"><i class="ti ti-toggle-right"></i> ON</button>`
+      }
+    </div>`;
+}
 
 function renderDevPage() {
+  renderTestPage(); // テストモード部分（共通）
   renderDevSubRanking();
   renderDevAccountSection();
   renderDevBrandSection();
+  renderDevDummyModeSection();
 }
 
 function renderDevBrandSection() {
@@ -5952,14 +6029,175 @@ function renderDevSubRanking() {
   }).filter(Boolean).join('') || `<p class="dev-empty">まだタグ付き投稿がありません。</p>`;
 }
 
+// ══════════════════════════════════════════
+// テストモード
+// ══════════════════════════════════════════
+
+function renderTestPage() {
+  renderTestActiveCard();
+  renderTestDummyList();
+}
+
+function renderTestActiveCard() {
+  const el = document.getElementById('test-active-user-card');
+  if (!el) return;
+  if (testActiveUser) {
+    el.innerHTML = `
+      <div class="test-active-card">
+        <div class="test-dummy-av" style="background:${testActiveUser.bg};color:${testActiveUser.tc}">${testActiveUser.av}</div>
+        <div class="test-dummy-info">
+          <div class="test-dummy-name">${testActiveUser.n}</div>
+          <div class="test-dummy-handle">${testActiveUser.h}</div>
+        </div>
+        <span style="background:#f59e0b;color:#fff;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700">操作中</span>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div class="test-self-card">
+        <div class="test-dummy-av" style="background:#dbeafe;color:#1e40af">あ</div>
+        <div class="test-dummy-info">
+          <div class="test-dummy-name">あなた（自分）</div>
+          <div class="test-dummy-handle">${myHandle}</div>
+        </div>
+        <span style="background:#d1fae5;color:#065f46;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700">操作中</span>
+      </div>`;
+  }
+}
+
+function renderTestDummyList() {
+  const el = document.getElementById('test-dummy-list');
+  if (!el) return;
+  if (!testDummyUsers.length) {
+    el.innerHTML = `<p style="color:var(--text3);font-size:13px;padding:8px 0">ダミーユーザーはまだいません</p>`;
+    return;
+  }
+  el.innerHTML = testDummyUsers.map(u => {
+    const isActive = testActiveUser && testActiveUser.id === u.id;
+    return `
+      <div class="test-dummy-item">
+        <div class="test-dummy-av" style="background:${u.bg};color:${u.tc}">${u.av}</div>
+        <div class="test-dummy-info">
+          <div class="test-dummy-name">${u.n} ${isActive ? '<span style="background:#f59e0b;color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;font-weight:700">操作中</span>' : ''}</div>
+          <div class="test-dummy-handle">${u.h}</div>
+        </div>
+        <div class="test-dummy-actions">
+          <button class="btn-sm" onclick="testSwitchUser(${u.id})" ${isActive ? 'style="background:var(--accent);color:#fff"' : ''}>${isActive ? '選択中' : '切り替え'}</button>
+          <button class="btn-sm" style="color:#ef4444;border-color:#fca5a5" onclick="testDeleteDummyUser(${u.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function testAddDummyUser() {
+  const name = document.getElementById('test-dummy-name').value.trim();
+  let handle = document.getElementById('test-dummy-handle').value.trim();
+  if (!name) { showToast('表示名を入力してください'); return; }
+  if (!handle) handle = '@user_' + (++testDummyCounter);
+  if (!handle.startsWith('@')) handle = '@' + handle;
+  const colors = TEST_COLORS[testDummyUsers.length % TEST_COLORS.length];
+  const u = { id: ++testDummyCounter, n: name, h: handle, av: name[0], ...colors };
+  testDummyUsers.push(u);
+  document.getElementById('test-dummy-name').value = '';
+  document.getElementById('test-dummy-handle').value = '';
+  document.getElementById('test-add-form').style.display = 'none';
+  renderTestDummyList();
+  showToast(`ダミーユーザー「${name}」を追加しました`);
+}
+
+function testDeleteDummyUser(id) {
+  testDummyUsers = testDummyUsers.filter(u => u.id !== id);
+  if (testActiveUser && testActiveUser.id === id) testSwitchToSelf();
+  renderTestDummyList();
+  showToast('ダミーユーザーを削除しました');
+}
+
+function testSwitchUser(id) {
+  const u = testDummyUsers.find(u => u.id === id);
+  if (!u) return;
+  testActiveUser = u;
+  updateTestBanner();
+  applyTestUser();
+  renderTestPage();
+  showToast(`「${u.n}」として操作中`);
+}
+
+function testSwitchToSelf() {
+  testActiveUser = null;
+  updateTestBanner();
+  applyTestUser();
+  renderTestPage();
+  showToast(`自分（${myHandle}）に戻りました`);
+}
+
+function applyTestUser() {
+  const u = testActiveUser;
+  // ダミーユーザー情報 or 自分の情報
+  const name   = u ? u.n   : (myNickname || 'あなた');
+  const handle = u ? u.h   : myHandle;
+  const av     = u ? u.av  : 'あ';
+  const bg     = u ? u.bg  : '#dbeafe';
+  const tc     = u ? u.tc  : '#1e40af';
+  const isDummy = !!u;
+
+  // ── サイドバー ──
+  const sideName  = document.getElementById('sidebar-user-name');
+  const sideHndl  = document.getElementById('sidebar-user-handle');
+  const sideChip  = document.getElementById('sidebar-acct-type');
+  if (sideName) sideName.textContent = name;
+  if (sideHndl) sideHndl.textContent = handle;
+  if (sideChip) {
+    sideChip.textContent = isDummy ? 'テスト' : (myAccountType === 'sub' ? 'サブ' : 'メイン');
+    sideChip.className = 'sidebar-acct-chip ' + (isDummy ? 'chip-sub' : (myAccountType === 'sub' ? 'chip-sub' : 'chip-main'));
+  }
+
+  // ── ホーム プロフィールバー ──
+  const homeAv   = document.getElementById('home-av-display');
+  const homeName = document.getElementById('home-profile-name');
+  if (homeAv) { homeAv.textContent = av; homeAv.style.background = bg; homeAv.style.color = tc; }
+  if (homeName) homeName.innerHTML = isDummy
+    ? `${name} <span class="badge-sub" style="font-size:10px">テスト</span>`
+    : (myNickname || 'あなた');
+
+  // ── 投稿欄のアバター ──
+  const composeAv = document.getElementById('home-compose-av');
+  if (composeAv) { composeAv.textContent = av; composeAv.style.background = bg; composeAv.style.color = tc; }
+
+  // ── マイページ ──
+  const myAv     = document.getElementById('my-av-display');
+  const myName   = document.getElementById('mypage-profile-name');
+  const myHandle = document.getElementById('mypage-profile-handle');
+  if (myAv)     { myAv.textContent = av; myAv.style.background = bg; myAv.style.color = tc; }
+  if (myName)   myName.innerHTML = isDummy
+    ? `${name} <span class="badge-sub" style="font-size:10px">テスト</span>`
+    : `${myNickname || 'あなた'} <span class="badge-main">メイン</span>`;
+  if (myHandle) myHandle.textContent = handle;
+
+  // ── マイページ投稿一覧を更新 ──
+  renderMyPosts();
+  renderMyRank();
+}
+
+function updateTestBanner() {
+  const banner = document.getElementById('test-active-banner');
+  const text   = document.getElementById('test-active-banner-text');
+  if (!banner) return;
+  if (testActiveUser) {
+    banner.style.display = 'flex';
+    text.textContent = `「${testActiveUser.n}」（${testActiveUser.h}）として操作中`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
 
 async function testReset() {
-  if (!confirm('投稿・通知・名前タグ・ファンレベル・広告表示回数をすべて削除します。\nプロフィール情報（アバター・カバー・自己紹介・ソーシャルリンク）もリセットされます。\nサービス開始直後の状態にリセットしますか？')) return;
+  if (!confirm('投稿・通知・名前タグ・広告表示回数をすべて削除します。\nサービス開始直後の状態にリセットしますか？')) return;
 
   // ── ローカルリセット ──
   HOME_TWEETS.length = 0;
   myPosts.length = 0;
   homeLoaded = 0;
+  useDummyData = false;
+  localStorage.removeItem('trendy_dummy_mode');
   const feed = document.getElementById('home-feed');
   if (feed) feed.innerHTML = '';
   loadHomeMore(); // 空フィード表示
@@ -6004,40 +6242,16 @@ async function testReset() {
   renderCatGrid();
 
   // ── Supabase リセット ──
-  const _myAccountId = localStorage.getItem('trendy_account_id');
   try {
-    const resetTasks = [
+    await Promise.all([
       db.from('posts').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
       db.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
       db.from('ad_impressions').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-      db.from('user_fan_levels').delete().neq('fan_account_id', '__none__'),
-      db.from('user_favorites').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-    ];
-    // 現在のユーザーのプロフィールをリセット（アバター・カバー・自己紹介・ソーシャルリンク）
-    if (_myAccountId) {
-      resetTasks.push(
-        db.from('profiles').update({
-          nickname: 'あなた',
-          bio: '',
-          avatar_data: null,
-          cover_data: null,
-          social_links: null,
-          name_tag: null,
-          updated_at: new Date().toISOString()
-        }).eq('account_id', _myAccountId)
-      );
-    }
-    await Promise.all(resetTasks);
+    ]);
     console.log('[TEST] DBリセット完了');
   } catch(e) {
     console.warn('[TEST] DBリセットエラー:', e);
   }
-
-  // ソーシャルリンク・推しユーザーUIもリセット
-  const myPageSocial = document.getElementById('mypage-social-links');
-  if (myPageSocial) myPageSocial.innerHTML = '';
-  if (typeof _loadMypageSocialLinks === 'function') _loadMypageSocialLinks();
-  if (typeof loadUserFavorites === 'function') loadUserFavorites();
 
   showToast('✅ サービス開始直後の状態にリセットしました');
   goPage('home', null);
@@ -6105,6 +6319,7 @@ function init() {
     if (bioDisplay) { bioDisplay.textContent = myBio; bioDisplay.className = ''; }
   }
 
+  if (useDummyData) initHomeTweets(); // ダミーモードがONの時のみ読み込む
   loadHomeMore();
   initComposeCatPills();
   renderCatGrid(); // まず空で描画
