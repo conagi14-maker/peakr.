@@ -854,14 +854,18 @@ async function dbFetchAppConfig() {
 
 /** アプリ設定を保存（開発者のみ実行） */
 async function dbSaveAppConfig(name, icon) {
+  console.log('[DB] アプリ設定保存中... name:', name, '/ icon:', icon ? '(データあり ' + Math.round((icon.length * 0.75)/1024) + 'KB)' : '(なし)');
   const { error } = await db.from('app_config').upsert({
     id         : 'main',
     app_name   : name || 'Trendy',
     app_icon   : icon !== undefined ? icon : null,
     updated_at : new Date().toISOString(),
   }, { onConflict: 'id' });
-  if (error) console.error('[DB] アプリ設定保存エラー:', error.message);
-  else console.log('[DB] アプリ設定を保存しました:', name);
+  if (error) {
+    console.error('[DB] アプリ設定保存エラー:', error.message, error);
+    throw new Error(error.message);
+  }
+  console.log('[DB] アプリ設定を保存しました ✅ name:', name);
 }
 
 async function initSupabase() {

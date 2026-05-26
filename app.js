@@ -5939,7 +5939,29 @@ function renderDevBrandSection() {
           onchange="handleAppIconUpload(this)">
       </div>
       <div class="settings-desc" style="margin-top:6px">正方形の画像推奨（PNG・JPG）。ロゴマーク・ウェルカム画面などに適用されます。</div>
+    </div>
+
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <button class="btn-primary" style="width:100%;justify-content:center;gap:8px" onclick="pushBrandToAllDevices()">
+        <i class="ti ti-world-upload"></i> 全端末に今すぐ反映
+      </button>
+      <div class="settings-desc" style="margin-top:6px;text-align:center">クリックするとサービス名・アイコンをSupabaseに保存し、他のアカウントに反映されます</div>
     </div>`;
+}
+
+async function pushBrandToAllDevices() {
+  const btn = document.querySelector('[onclick="pushBrandToAllDevices()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> 保存中...'; }
+  try {
+    await dbSaveAppConfig(appName, appIcon);
+    showToast(`✅ 反映しました。他の端末でページを再読み込みすると「${appName}」が表示されます`, 'success');
+    console.log('[Brand] DBに保存完了 name:', appName, '/ icon:', appIcon ? '(あり)' : '(なし)');
+  } catch(e) {
+    showToast('保存に失敗しました: ' + e.message, 'error');
+    console.error('[Brand] 保存エラー:', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-world-upload"></i> 全端末に今すぐ反映'; }
+  }
 }
 
 async function saveAppName() {
