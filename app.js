@@ -5812,61 +5812,10 @@ function getTopSubTags(catId, limit = 8) {
 }
 
 // ── 開発者ページ ──
-// ── Dummy Mode Toggle ──────────────────────────────────
-function toggleDummyMode(enable) {
-  useDummyData = enable;
-  if (enable) {
-    localStorage.setItem('trendy_dummy_mode', 'true');
-    // ダミーツイートがまだなければ追加
-    if (!HOME_TWEETS.some(t => t.isDummy)) initHomeTweets();
-  } else {
-    localStorage.removeItem('trendy_dummy_mode');
-    // ダミーツイートをフィードから除去（実投稿は残す）
-    const real = HOME_TWEETS.filter(t => !t.isDummy);
-    HOME_TWEETS.length = 0;
-    HOME_TWEETS.push(...real);
-  }
-  // フィード再描画
-  const feed = document.getElementById('home-feed');
-  if (feed) feed.innerHTML = '';
-  homeLoaded = 0;
-  loadHomeMore();
-  renderDevDummyModeSection();
-  showToast(enable ? '🧪 ダミーモードをONにしました' : 'ダミーモードをOFFにしました', enable ? 'success' : '');
-}
-
-function renderDevDummyModeSection() {
-  const el = document.getElementById('dev-dummy-mode-section');
-  if (!el) return;
-  const dummyCount = HOME_TWEETS.filter(t => t.isDummy).length;
-  el.innerHTML = `
-    <div class="dev-account-card ${useDummyData ? 'active' : ''}">
-      <div class="dev-account-icon" style="${useDummyData ? 'background:#6366f1;color:#fff' : ''}">
-        <i class="ti ti-users"></i>
-      </div>
-      <div class="dev-account-info">
-        <div class="dev-account-title">ダミーアカウントモード</div>
-        <div class="dev-account-desc">
-          ${useDummyData
-            ? `ON中 — ${dummyCount}件のダミー投稿をホームに表示`
-            : 'OFF — ホームは実投稿のみ表示されます'}
-        </div>
-      </div>
-      ${useDummyData
-        ? `<button class="btn-sm" style="background:#fee2e2;color:#991b1b;border-color:#fca5a5"
-             onclick="toggleDummyMode(false)"><i class="ti ti-toggle-left"></i> OFF</button>`
-        : `<button class="btn-sm" style="background:#1e1b4b;color:#a5b4fc;border-color:#3730a3"
-             onclick="toggleDummyMode(true)"><i class="ti ti-toggle-right"></i> ON</button>`
-      }
-    </div>`;
-}
-
 function renderDevPage() {
-  renderTestPage(); // テストモード部分（共通）
   renderDevSubRanking();
   renderDevAccountSection();
   renderDevBrandSection();
-  renderDevDummyModeSection();
 }
 
 function renderDevBrandSection() {
