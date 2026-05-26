@@ -4116,10 +4116,7 @@ function openUserPage(handle) {
   // Supabase からプロフィール情報を非同期取得（ページ表示後に上書き反映）
   const _upAccountId = handle.startsWith('@') ? handle.slice(1) : handle;
 
-  // 推しバッジ・推しアイコン・ソーシャルリンクをリセット
-  const avWrap = document.getElementById('user-page-av-wrap');
-  const existingBadge = avWrap && avWrap.querySelector('.fan-badge');
-  if (existingBadge) existingBadge.remove();
+  // 推しアイコン・ソーシャルリンクをリセット
   const oshiRow = document.getElementById('user-page-oshi-row');
   if (oshiRow) oshiRow.style.display = 'none';
   const socialEl = document.getElementById('user-page-social-links');
@@ -4160,24 +4157,6 @@ function openUserPage(handle) {
         renderUserPageCats(handle);
       }
     }).catch(() => {});
-  }
-
-  // 推しバッジ：自分の推しリストにいれば fan level バッジを表示
-  const myAid = localStorage.getItem('trendy_account_id');
-  if (myAid && _upAccountId && typeof dbGetFanLevel === 'function') {
-    const isFav = Object.values(_favSlots).includes(_upAccountId);
-    if (isFav) {
-      dbGetFanLevel(myAid, _upAccountId).then(data => {
-        const level = data?.fan_level ?? 0;
-        const wrap = document.getElementById('user-page-av-wrap');
-        if (!wrap) return;
-        wrap.querySelectorAll('.fan-badge').forEach(b => b.remove());
-        const badge = document.createElement('div');
-        badge.className = 'fan-badge';
-        badge.textContent = `レベル：${level}`;
-        wrap.appendChild(badge);
-      }).catch(() => {});
-    }
   }
 
   // そのユーザーの推しアイコンを表示
