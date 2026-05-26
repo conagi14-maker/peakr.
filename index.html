@@ -71,12 +71,6 @@
       <div class="page-header">
         <h1>ホーム</h1>
       </div>
-      <!-- テストモード操作中バナー -->
-      <div id="test-active-banner" style="display:none" class="test-active-banner">
-        <i class="ti ti-test-pipe"></i>
-        <span id="test-active-banner-text">ダミーユーザーとして操作中</span>
-        <button onclick="testSwitchToSelf()" class="test-banner-exit"><i class="ti ti-x"></i> 自分に戻る</button>
-      </div>
       <div class="home-profile-bar">
         <div class="home-av-sm" id="home-av-display">あ</div>
         <div>
@@ -695,13 +689,6 @@
           <div id="dev-brand-section"></div>
         </section>
 
-        <!-- ── ダミーアカウントモード ── -->
-        <section class="settings-section">
-          <h2><i class="ti ti-users" style="color:#6366f1"></i> ダミーアカウントモード</h2>
-          <p class="settings-desc">ONにすると80件のダミー投稿がホームフィードに表示されます。実際のサービス表示を確認したい場合はOFFのままにしてください。</p>
-          <div id="dev-dummy-mode-section"></div>
-        </section>
-
         <!-- ── 開発者アカウント ── -->
         <section class="settings-section">
           <h2><i class="ti ti-shield" style="color:#6366f1"></i> 開発者アカウント</h2>
@@ -713,28 +700,6 @@
           <h2><i class="ti ti-test-pipe" style="color:#f59e0b"></i> テストモード</h2>
           <p class="settings-desc">投稿・通知・名前タグをすべて削除し、サービス開始直後の状態に戻します。<br><span style="color:#6366f1;font-size:11px"><i class="ti ti-info-circle"></i> 開発者アカウント設定はリセットされません</span></p>
           <button class="btn-danger-full" onclick="testReset()"><i class="ti ti-trash"></i> サービス開始直後の状態にリセット</button>
-        </section>
-
-        <section class="settings-section">
-          <h2>👤 現在の操作ユーザー</h2>
-          <div id="test-active-user-card"></div>
-          <button class="btn-sm" style="margin-top:8px" onclick="testSwitchToSelf()"><i class="ti ti-home"></i> 自分に戻る</button>
-        </section>
-
-        <section class="settings-section">
-          <h2>🧑‍🤝‍🧑 ダミーユーザー管理</h2>
-          <div id="test-dummy-list"></div>
-          <div class="test-add-user-form" id="test-add-form" style="display:none">
-            <input type="text" id="test-dummy-name" placeholder="表示名（例：田中テスト）" class="test-input">
-            <input type="text" id="test-dummy-handle" placeholder="ハンドル（例：@tanaka_test）" class="test-input">
-            <div style="display:flex;gap:8px;margin-top:8px">
-              <button class="btn-sm" onclick="testAddDummyUser()"><i class="ti ti-check"></i> 追加</button>
-              <button class="btn-sm" onclick="document.getElementById('test-add-form').style.display='none'">キャンセル</button>
-            </div>
-          </div>
-          <button class="btn-sm" style="margin-top:10px" onclick="document.getElementById('test-add-form').style.display=''">
-            <i class="ti ti-plus"></i> ダミーユーザーを追加
-          </button>
         </section>
 
         <!-- ── サブカテゴリーランキング ── -->
