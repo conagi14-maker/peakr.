@@ -5938,7 +5938,7 @@ function renderDevBrandSection() {
     </div>`;
 }
 
-function saveAppName() {
+async function saveAppName() {
   const input = document.getElementById('dev-app-name-input');
   const name = (input?.value || '').trim();
   if (!name) { showToast('サービス名を入力してください'); return; }
@@ -5946,14 +5946,16 @@ function saveAppName() {
   localStorage.setItem('trendy_app_name', name);
   _applyAppBrand();
   renderDevBrandSection();
+  await dbSaveAppConfig(appName, appIcon);
   showToast(`サービス名を「${name}」に変更しました ✅`, 'success');
 }
 
-function resetAppName() {
+async function resetAppName() {
   appName = 'Trendy';
   localStorage.removeItem('trendy_app_name');
   _applyAppBrand();
   renderDevBrandSection();
+  await dbSaveAppConfig('Trendy', appIcon);
   showToast('サービス名をリセットしました');
 }
 
@@ -5961,22 +5963,24 @@ function handleAppIconUpload(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     appIcon = e.target.result;
     localStorage.setItem('trendy_app_icon', appIcon);
     _applyAppBrand();
     renderDevBrandSection();
+    await dbSaveAppConfig(appName, appIcon);
     showToast('アイコン画像を更新しました ✅', 'success');
   };
   reader.readAsDataURL(file);
 }
 
-function resetAppIcon() {
+async function resetAppIcon() {
   if (!confirm('アイコン画像を削除しますか？')) return;
   appIcon = null;
   localStorage.removeItem('trendy_app_icon');
   _applyAppBrand();
   renderDevBrandSection();
+  await dbSaveAppConfig(appName, null);
   showToast('アイコン画像を削除しました');
 }
 

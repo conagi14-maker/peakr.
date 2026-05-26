@@ -837,8 +837,54 @@ async function dbDeleteAllNotifs() {
   else console.log('[DB] 通知を削除しました（account_id:', accountId, '）');
 }
 
+// ══════════════════════════════════════════
+// アプリブランド設定（app_config）── 全端末共有
+// ══════════════════════════════════════════
+
+/** アプリ設定を取得（サービス名・アイコン） */
+async function dbFetchAppConfig() {
+  const { data, error } = await db
+    .from('app_config')
+    .select('app_name, app_icon')
+    .eq('id', 'main')
+    .maybeSingle();
+  if (error) { console.warn('[DB] アプリ設定取得エラー:', error.message); return null; }
+  return data;
+}
+
+/** アプリ設定を保存（開発者のみ実行） */
+async function dbSaveAppConfig(name, icon) {
+  const { error } = await db.from('app_config').upsert({
+    id         : 'main',
+    app_name   : name || 'Trendy',
+    app_icon   : icon !== undefined ? icon : null,
+    updated_at : new Date().toISOString(),
+  }, { onConflict: 'id' });
+  if (error) console.error('[DB] アプリ設定保存エラー:', error.message);
+  else console.log('[DB] アプリ設定を保存しました:', name);
+}
+
 async function initSupabase() {
   console.log('[DB] 初期化中...');
+
+  // ⓪ アプリブランドをDBから取得して全端末に反映
+  const _config = await dbFetchAppConfig();
+  if (_config) {
+    const _newName = _config.app_name || 'Trendy';
+    const _newIcon = _config.app_icon || null;
+    // ローカルと差異があれば更新
+    if (_newName !== appName || _newIcon !== appIcon) {
+      appName = _newName;
+      appIcon = _newIcon;
+      if (appName !== 'Trendy') localStorage.setItem('trendy_app_name', appName);
+      else localStorage.removeItem('trendy_app_name');
+      if (appIcon) localStorage.setItem('trendy_app_icon', appIcon);
+      else localStorage.removeItem('trendy_app_icon');
+      if (typeof _applyAppBrand === 'function') _applyAppBrand();
+      if (typeof renderDevBrandSection === 'function') renderDevBrandSection();
+      console.log('[DB] アプリブランドを反映しました:', appName);
+    }
+  }
 
   // ① 広告をDBから読み込み
   const ads = await dbLoadAds();
