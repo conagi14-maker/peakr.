@@ -244,7 +244,11 @@ function homeTweetHTML(t) {
   const u = t.user;
   const idx = _reg(t);
   const replyCount = (tweetReplies[idx] || []).length;
-  return `<div class="tweet-card" data-db-id="${t.db_id||''}">
+  const isOwn = (u.h === myHandle || u.h === '@anon_you');
+  const deleteBtn = isOwn && t.db_id
+    ? `<button class="tweet-delete-btn" onclick="event.stopPropagation();deletePost('${t.db_id}')" title="削除"><i class="ti ti-trash"></i></button>`
+    : '';
+  return `<div class="tweet-card" data-db-id="${t.db_id||''}" data-local-id="${t._localId||''}">
     <div class="tweet-av clickable" style="background:${u.bg};color:${u.tc};overflow:hidden" onclick="openUserPage('${u.h}')">${u.av}</div>
     <div class="tweet-body">
       <div class="tweet-top">
@@ -254,6 +258,7 @@ function homeTweetHTML(t) {
         ${u.sub ? subBadge() : ''}
         ${aiBadge(t.ai)}
         <span class="tweet-time">${t.time}</span>
+        ${deleteBtn}
       </div>
       <div class="tweet-clickable-body" onclick="openTweetDetail(${idx})">
         ${t.text ? `<div class="tweet-text">${t.text}</div>` : ''}
@@ -682,6 +687,7 @@ function confirmPost() {
   if (pendingCatId && pendingTags.length) {
     recordCatSubStats(pendingCatId, pendingTags);
   }
+  t._localId = `local_${Date.now()}`; // DOM追跡用の一時ID
   myPosts.unshift(t);       // 自分の投稿配列に追加（最新が先頭）
   HOME_TWEETS.unshift(t);   // ホームフィードにも追加
   document.getElementById('home-feed').insertAdjacentHTML('afterbegin', homeTweetHTML(t));
@@ -709,24 +715,64 @@ function confirmPost() {
   document.getElementById('compose-media-inner').innerHTML = '';
   resetComposeCat(); // カテゴリー・タグもリセット
   updateCompose();
-  // Supabase に保存（非同期・fire-and-forget）
+  // Supabase に保存 → db_id が確定したら DOM と配列に反映
   dbSavePost({
     handle    : isSub ? '@anon_you' : myHandle,
     name      : isSub ? '匿名ユーザー' : (myNickname || 'あなた'),
     isSub,
     content   : v,
     aiType    : pendingAi,
-    mediaData : _mediaData,   // ← リセット前にキャプチャした値を使用
+    mediaData : _mediaData,
     mediaType : _mediaType,
     nameTag   : isSub ? '' : (myNameTag || ''),
     catId     : _catId,
     tags      : _tags,
+  }).then(savedPost => {
+    if (savedPost?.id) {
+      t.db_id = savedPost.id;
+      // DOM の data-db-id を更新（ホームフィード等）
+      document.querySelectorAll(`[data-local-id="${t._localId}"]`).forEach(el => {
+        el.setAttribute('data-db-id', savedPost.id);
+        // 削除ボタンを注入
+        const topEl = el.querySelector('.tweet-top');
+        if (topEl && !topEl.querySelector('.tweet-delete-btn')) {
+          topEl.insertAdjacentHTML('beforeend',
+            `<button class="tweet-delete-btn" onclick="event.stopPropagation();deletePost('${savedPost.id}')" title="削除"><i class="ti ti-trash"></i></button>`
+          );
+        }
+      });
+      renderMyPosts();
+    }
   });
 }
 
 function cancelPost() {
   document.getElementById('post-confirm-overlay').classList.remove('show');
   document.getElementById('post-confirm-modal').classList.remove('show');
+}
+
+// ── 投稿削除 ────────────────────────────────────────────────
+async function deletePost(dbId) {
+  if (!dbId) { showToast('投稿を保存中です。少し待ってからお試しください', 'info'); return; }
+  if (!confirm('この投稿を削除しますか？\nこの操作は取り消せません。')) return;
+
+  const ok = await dbDeletePost(dbId);
+  if (!ok) { showToast('削除に失敗しました', 'error'); return; }
+
+  // メモリ配列から除去
+  const hIdx = HOME_TWEETS.findIndex(t => String(t.db_id) === String(dbId));
+  if (hIdx !== -1) HOME_TWEETS.splice(hIdx, 1);
+  const mIdx = myPosts.findIndex(t => String(t.db_id) === String(dbId));
+  if (mIdx !== -1) myPosts.splice(mIdx, 1);
+
+  // DOM から除去（ホーム・マイページ・ユーザーページ等すべて）
+  document.querySelectorAll(`[data-db-id="${dbId}"]`).forEach(el => el.remove());
+
+  // 関連ページを再描画
+  renderMyPosts();
+  renderMyRank();
+
+  showToast('投稿を削除しました', 'success');
 }
 
 // ── Compose Media ──────────────────────────────────────

@@ -417,6 +417,21 @@ body { background: var(--bg); color: var(--text); min-height: 100vh; }
 .tweet-name { font-size: 13px; font-weight: 700; }
 .tweet-handle { font-size: 12px; color: var(--text3); }
 .tweet-time { font-size: 11px; color: var(--text3); margin-left: auto; }
+.tweet-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.tweet-card:hover .tweet-delete-btn { opacity: 1; }
+.tweet-delete-btn:hover { color: #ef4444; }
 .tweet-text { font-size: 14px; line-height: 1.65; color: var(--text); margin-bottom: 8px; }
 .tweet-actions { display: flex; gap: 14px; align-items: center; margin-top: 6px; }
 /* つぶやき本文クリック領域 */

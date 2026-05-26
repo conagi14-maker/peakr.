@@ -185,6 +185,15 @@ async function dbFetchPosts(limit = 30) {
   return data || [];
 }
 
+/** 投稿を削除（関連いいねも削除） */
+async function dbDeletePost(postId) {
+  if (!postId) return false;
+  await db.from('post_likes').delete().eq('post_id', postId);
+  const { error } = await db.from('posts').delete().eq('id', postId);
+  if (error) { console.error('[DB] 投稿削除エラー:', error.message); return false; }
+  return true;
+}
+
 /** 特定ユーザーの投稿を取得 */
 async function dbFetchPostsByHandle(handle, limit = 50) {
   const { data, error } = await db
