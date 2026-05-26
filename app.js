@@ -878,6 +878,14 @@ async function _loadRankData(force = false) {
   }
 
   _rankCache = { period: rankPeriod, data: raw.map(p => _dbPostToTweet(p, avatarMap, nameTagMap)), fetchedAt: now };
+
+  // catSubStats をランキングデータから再構築（別アカウント・別端末でも同じサブカテゴリー列を表示するため）
+  Object.keys(catSubStats).forEach(k => delete catSubStats[k]);
+  _rankCache.data.forEach(t => {
+    if (t.catId && Array.isArray(t.tags) && t.tags.length) {
+      recordCatSubStats(t.catId, t.tags, t.likes || 0);
+    }
+  });
 }
 
 /** （後方互換）同期呼び出し用スタブ → 非同期ロード後に再描画 */
