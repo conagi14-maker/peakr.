@@ -736,20 +736,19 @@ function onDiveSearch(value) {
   if (clrBtn) clrBtn.style.display = recommendSearchQuery ? '' : 'none';
   clearTimeout(_diveSearchTimer);
 
-  if (_recommendRawTweets.length > 0) {
+  const reel = document.getElementById('recommend-reel');
+  if (reel) reel.innerHTML = '';
+  recommendLoaded = 0;
+
+  if (recommendSearchQuery.trim()) {
+    // 検索中は常にDB全文検索（ローカルフィルター結果に関わらず）
+    if (reel) reel.innerHTML = `<div class="reel-empty"><i class="ti ti-loader-2 spin"></i><p>「${recommendSearchQuery}」を検索中...</p></div>`;
+    _diveSearchTimer = setTimeout(() => _diveFullTextSearch(recommendSearchQuery.trim()), 400);
+  } else if (_recommendRawTweets.length > 0) {
     RECOMMEND_TWEETS = _applyDiveSearchFilter(_recommendRawTweets);
-    recommendLoaded  = 0;
-    const reel = document.getElementById('recommend-reel');
-    if (reel) reel.innerHTML = '';
-    if (RECOMMEND_TWEETS.length === 0 && recommendSearchQuery.trim()) {
-      // クライアント側0件 → DB全文検索へ
-      reel.innerHTML = `<div class="reel-empty"><i class="ti ti-loader-2 spin"></i><p>「${recommendSearchQuery}」を検索中...</p></div>`;
-      _diveSearchTimer = setTimeout(() => _diveFullTextSearch(recommendSearchQuery.trim()), 400);
-    } else {
-      _renderRecommendSlice();
-      _initReelVideoObserver();
-      _initReelInfiniteScroll();
-    }
+    _renderRecommendSlice();
+    _initReelVideoObserver();
+    _initReelInfiniteScroll();
     _fitReelHeight();
   }
 }
