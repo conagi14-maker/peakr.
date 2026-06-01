@@ -11,7 +11,7 @@ const PIXIV_HEADERS = {
 };
 
 async function fetchPage(page) {
-  const url = `https://www.pixiv.net/ranking.php?mode=daily&content=illust&p=${page}&format=json`;
+  const url = `https://www.pixiv.net/ranking.php?mode=weekly&content=illust&p=${page}&format=json`;
   const res = await fetch(url, { headers: PIXIV_HEADERS });
   if (!res.ok) throw new Error('pixiv HTTP ' + res.status);
   const data = await res.json();
