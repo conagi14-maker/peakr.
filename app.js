@@ -828,7 +828,8 @@ async function _loadRecommendFeed(reset = false) {
       const orParts = [];
       if (homeMediaFilters.has('text'))  orParts.push('media_type.eq.,media_type.is.null');
       if (homeMediaFilters.has('image')) orParts.push('media_type.eq.image');
-      if (homeMediaFilters.has('video')) orParts.push('media_type.eq.video');
+      // YouTube/Shorts は media_type=image だが動画として扱う
+      if (homeMediaFilters.has('video')) orParts.push('media_type.eq.video,ext_source.eq.youtube,ext_source.eq.shorts');
       if (orParts.length > 0) query = query.or(orParts.join(','));
     }
 
