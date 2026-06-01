@@ -262,37 +262,49 @@ async function dbFetchRankedPosts({ period = 'daily', catId = null, subTag = nul
   return posts;
 }
 
-/** 外部投稿を posts テーブルに挿入（既存 ext_url は除外して重複防止） */
+/** 外部投稿を posts テーブルに同期（新規はINSERT、既存はcreated_at+スコアをUPDATE） */
 async function dbUpsertExtPosts(posts) {
   if (!posts || !posts.length) return;
   const urls = posts.map(p => p.ext_url).filter(Boolean);
   if (!urls.length) return;
 
-  // 既存の ext_url を確認して新規分だけ INSERT
+  const now = new Date().toISOString();
+
+  // 既存 ext_url を確認
   const { data: existing } = await db.from('posts').select('ext_url').in('ext_url', urls);
   const existingSet = new Set((existing || []).map(p => p.ext_url));
-  const newPosts = posts.filter(p => p.ext_url && !existingSet.has(p.ext_url));
-  if (!newPosts.length) return;
 
-  const rows = newPosts.map(p => ({
-    user_handle   : p.user_handle,
-    user_name     : p.user_name,
-    content       : p.content,
-    cat_id        : p.cat_id        || null,
-    tags          : p.tags          || [],
-    media_type    : p.media_type    || null,
-    media_data    : p.media_data    || null,
-    image_link_url: p.image_link_url|| null,
-    link_url      : p.link_url      || null,
-    ai_type       : 'none',
-    is_sub        : false,
-    ext_source    : p.ext_source,
-    ext_url       : p.ext_url,
-    ext_pop_score : p.ext_pop_score || 0,
-    created_at    : p.created_at    || new Date().toISOString(),
-  }));
-  const { error } = await db.from('posts').insert(rows);
-  if (error) console.error('[ext] insert error:', error.message);
+  // 新規投稿を INSERT
+  const newPosts = posts.filter(p => p.ext_url && !existingSet.has(p.ext_url));
+  if (newPosts.length) {
+    const rows = newPosts.map(p => ({
+      user_handle   : p.user_handle,
+      user_name     : p.user_name,
+      content       : p.content,
+      cat_id        : p.cat_id        || null,
+      tags          : p.tags          || [],
+      media_type    : p.media_type    || null,
+      media_data    : p.media_data    || null,
+      image_link_url: p.image_link_url|| null,
+      link_url      : p.link_url      || null,
+      ai_type       : 'none',
+      is_sub        : false,
+      ext_source    : p.ext_source,
+      ext_url       : p.ext_url,
+      ext_pop_score : p.ext_pop_score || 0,
+      created_at    : now,
+    }));
+    const { error } = await db.from('posts').insert(rows);
+    if (error) console.error('[ext] insert error:', error.message);
+  }
+
+  // 既存投稿の created_at と ext_pop_score を更新（デイリーランキングに乗り続けるため）
+  const existingPosts = posts.filter(p => p.ext_url && existingSet.has(p.ext_url));
+  for (const p of existingPosts) {
+    await db.from('posts')
+      .update({ created_at: now, ext_pop_score: p.ext_pop_score || 0 })
+      .eq('ext_url', p.ext_url);
+  }
 }
 
 async function dbFetchPosts(limit = 30) {
