@@ -6964,19 +6964,24 @@ async function syncYoutubePosts() {
     const { items } = await res.json();
     if (!items?.length) throw new Error('empty');
 
-    const posts = items.map(item => ({
-      user_handle   : '@ext_youtube_' + item.video_id,
-      user_name     : item.channel || 'YouTube',
-      content       : item.title,
-      cat_id        : item.cat_id || 'video',
-      tags          : item.tags.map(t => '#' + t),
-      media_type    : 'image',
-      media_data    : item.thumb,
-      ext_source    : 'youtube',
-      ext_url       : item.url,
-      ext_pop_score : Math.max(10, 700 - item.rank * 3),
-      created_at    : item.published || new Date().toISOString(),
-    }));
+    const posts = items.map(item => {
+      // サーバー側カテゴリを優先しつつ、タイトル+タグでキーワード再判定
+      const kwCat = _detectCatId(item.title + ' ' + item.tags.join(' '));
+      const cat_id = item.cat_id || (kwCat !== 'tweet' ? kwCat : 'video');
+      return {
+        user_handle   : '@ext_youtube_' + item.video_id,
+        user_name     : item.channel || 'YouTube',
+        content       : item.title,
+        cat_id,
+        tags          : item.tags.map(t => '#' + t),
+        media_type    : 'image',
+        media_data    : item.thumb,
+        ext_source    : 'youtube',
+        ext_url       : item.url,
+        ext_pop_score : Math.max(10, 700 - item.rank * 3),
+        created_at    : item.published || new Date().toISOString(),
+      };
+    });
 
     await dbUpsertExtPosts(posts);
     _rankCache = { period: null, data: [], fetchedAt: 0 };

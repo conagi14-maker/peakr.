@@ -1,16 +1,11 @@
 // Netlify Function: YouTube 急上昇動画取得
 // YOUTUBE_API_KEY を Netlify 環境変数に設定してください
 
+// YouTube カテゴリID → PEAKR カテゴリ（大まかな分類のみ。細かい判定はクライアント側キーワードマッチングに委ねる）
 const YT_CAT_MAP = {
-  '1' : 'anime',    // Film & Animation
   '10': 'music',    // Music
   '20': 'game',     // Gaming
-  '22': 'tweet',    // People & Blogs
-  '23': 'tweet',    // Comedy
-  '24': 'tweet',    // Entertainment
   '25': 'politics', // News & Politics
-  '26': 'tweet',    // Howto & Style
-  '28': 'game',     // Science & Technology
 };
 
 async function fetchPage(apiKey, pageToken) {
