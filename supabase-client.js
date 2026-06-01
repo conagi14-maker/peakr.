@@ -313,6 +313,41 @@ async function dbUpsertExtPosts(posts) {
   }
 }
 
+/** キーワードでDB全体を全文検索（ダイブ用） */
+const _SEARCH_CAT_MAP = {
+  anime   : ['アニメ','イラスト','絵','マンガ','漫画','ジブリ','声優'],
+  manga   : ['漫画','マンガ','コミック','週刊'],
+  game    : ['ゲーム','ゲーミング','eスポーツ','任天堂','ポケモン'],
+  music   : ['音楽','歌','ライブ','コンサート','アルバム','ボカロ','Vtuber'],
+  video   : ['動画','映像','配信','YouTube','Netflix'],
+  politics: ['政治','選挙','国会','首相','政府','内閣','議員','与党','野党'],
+  voice   : ['声優','ラジオ','ボイス','ASMR'],
+  tweet   : ['つぶやき','日常','グルメ','旅行'],
+};
+
+async function dbSearchPosts(query, limit = 150) {
+  if (!query) return [];
+  const q = query.trim();
+
+  // キーワードに一致するカテゴリーIDを収集
+  const matchedCats = Object.entries(_SEARCH_CAT_MAP)
+    .filter(([, kws]) => kws.some(kw => kw.includes(q) || q.includes(kw)))
+    .map(([catId]) => catId);
+
+  // content / user_name の部分一致 + カテゴリーID一致
+  const conditions = [`content.ilike.%${q}%`, `user_name.ilike.%${q}%`];
+  matchedCats.forEach(cat => conditions.push(`cat_id.eq.${cat}`));
+
+  const { data, error } = await db
+    .from('posts')
+    .select('*')
+    .or(conditions.join(','))
+    .order('likes_count', { ascending: false })
+    .limit(limit);
+  if (error) { console.error('[DB] search error:', error.message); return []; }
+  return data || [];
+}
+
 async function dbFetchPosts(limit = 30) {
   const { data, error } = await db
     .from('posts')
@@ -2019,14 +2054,4 @@ async function dbSearchProfiles(query, limit = 20) {
   return data || [];
 }
 
-/** つぶやきを検索（content 部分一致） */
-async function dbSearchPosts(query, limit = 30) {
-  if (!query) return [];
-  const { data, error } = await db.from('posts')
-    .select('id, content, user_handle, user_name, created_at, likes_count, views_count, media_type, media_data, is_sub, name_tag, cat_id, tags, link_url, image_link_url, ai_type, rt_count')
-    .ilike('content', `%${query}%`)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) { console.error('[DB] つぶやき検索エラー:', error.message); return []; }
-  return data || [];
-}
+// dbSearchPosts は supabase-client.js 上部に統合済み（カテゴリー検索対応版）

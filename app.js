@@ -718,18 +718,23 @@ function _applyDiveSearchFilter(tweets) {
   );
 }
 
+let _diveSearchTimer = null;
+
 function onDiveSearch(value) {
   recommendSearchQuery = value || '';
   const clrBtn = document.getElementById('dive-search-clear');
   if (clrBtn) clrBtn.style.display = recommendSearchQuery ? '' : 'none';
-  // ロード済みデータがあればリアルタイムフィルター
+  clearTimeout(_diveSearchTimer);
+
   if (_recommendRawTweets.length > 0) {
     RECOMMEND_TWEETS = _applyDiveSearchFilter(_recommendRawTweets);
     recommendLoaded  = 0;
     const reel = document.getElementById('recommend-reel');
     if (reel) reel.innerHTML = '';
-    if (RECOMMEND_TWEETS.length === 0) {
-      reel.innerHTML = `<div class="reel-empty"><i class="ti ti-search" style="font-size:36px;color:var(--text3)"></i><p>「${recommendSearchQuery}」に一致する投稿がありません</p></div>`;
+    if (RECOMMEND_TWEETS.length === 0 && recommendSearchQuery.trim()) {
+      // クライアント側0件 → DB全文検索へ
+      reel.innerHTML = `<div class="reel-empty"><i class="ti ti-loader-2 spin"></i><p>「${recommendSearchQuery}」を検索中...</p></div>`;
+      _diveSearchTimer = setTimeout(() => _diveFullTextSearch(recommendSearchQuery.trim()), 400);
     } else {
       _renderRecommendSlice();
       _initReelVideoObserver();
@@ -737,6 +742,75 @@ function onDiveSearch(value) {
     }
     _fitReelHeight();
   }
+}
+
+async function _diveFullTextSearch(query) {
+  const reel = document.getElementById('recommend-reel');
+  if (!reel || !query) return;
+
+  const data = await dbSearchPosts(query, 150);
+
+  // 検索中にクエリが変わっていたら捨てる
+  if (recommendSearchQuery.trim() !== query) return;
+
+  if (!data.length) {
+    reel.innerHTML = `<div class="reel-empty"><i class="ti ti-search" style="font-size:36px;color:var(--text3)"></i><p>「${query}」に一致する投稿がありません</p></div>`;
+    _fitReelHeight();
+    return;
+  }
+
+  // アバター一括取得
+  const ids = [...new Set(data.map(p => p.user_handle?.slice(1)).filter(Boolean))];
+  const avatarMap = {};
+  if (ids.length) {
+    const { data: profs } = await db.from('profiles').select('account_id, avatar_data, name_tag').in('account_id', ids);
+    (profs || []).forEach(pr => {
+      avatarMap['@' + pr.account_id] = {
+        av     : pr.avatar_data ? `<img src="${pr.avatar_data}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : null,
+        nameTag: pr.name_tag || null,
+      };
+    });
+  }
+
+  const converted = data.map(p => {
+    const prof = avatarMap[p.user_handle] || {};
+    const avImg = p.is_sub ? null : prof.av;
+    return {
+      db_id    : p.id,
+      catId    : p.cat_id    || null,
+      text     : p.content,
+      likes    : p.likes_count  || 0,
+      rt       : p.rt_count     || 0,
+      views    : p.views_count  || 0,
+      time     : _relativeTime(p.created_at),
+      ai       : p.ai_type      || 'none',
+      mediaData   : p.media_data       || null,
+      mediaType   : p.media_type       || null,
+      linkUrl     : p.link_url         || null,
+      imageLinkUrl: p.image_link_url   || null,
+      tags     : Array.isArray(p.tags) ? p.tags : [],
+      extSource: p.ext_source || null,
+      extUrl   : p.ext_url    || null,
+      rank: 0, isDummy: false,
+      user: {
+        h      : p.user_handle,
+        n      : p.user_name,
+        av     : avImg || (p.user_name || '?')[0].toUpperCase(),
+        bg     : avImg ? 'transparent' : '#3b82f6',
+        tc     : avImg ? 'transparent' : '#ffffff',
+        sub    : p.is_sub,
+        nameTag: p.is_sub ? null : (p.name_tag || prof.nameTag || null),
+      },
+    };
+  });
+
+  RECOMMEND_TWEETS = converted;
+  recommendLoaded  = 0;
+  reel.innerHTML   = '';
+  _renderRecommendSlice();
+  _initReelVideoObserver();
+  _initReelInfiniteScroll();
+  _fitReelHeight();
 }
 
 function clearDiveSearch() {
