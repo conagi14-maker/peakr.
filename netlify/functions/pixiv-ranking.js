@@ -10,18 +10,23 @@ const PIXIV_HEADERS = {
   'Accept-Language': 'ja,en;q=0.9',
 };
 
-async function fetchPage(page) {
-  const url = `https://www.pixiv.net/ranking.php?mode=weekly&content=illust&p=${page}&format=json`;
+const ALLOWED_MODES = ['weekly', 'monthly', 'original', 'rookie', 'daily'];
+
+async function fetchPage(mode, page) {
+  const url = `https://www.pixiv.net/ranking.php?mode=${mode}&content=illust&p=${page}&format=json`;
   const res = await fetch(url, { headers: PIXIV_HEADERS });
   if (!res.ok) throw new Error('pixiv HTTP ' + res.status);
   const data = await res.json();
   return data.contents || [];
 }
 
-exports.handler = async () => {
+exports.handler = async (event) => {
+  const mode = (event.queryStringParameters?.mode || 'weekly');
+  const safeMode = ALLOWED_MODES.includes(mode) ? mode : 'weekly';
+
   try {
     // 4ページ並行取得（各50件 × 4 = 200件）
-    const pages = await Promise.all([1, 2, 3, 4].map(fetchPage));
+    const pages = await Promise.all([1, 2, 3, 4].map(p => fetchPage(safeMode, p)));
     const allContents = pages.flat();
 
     const items = allContents.map((item, i) => {

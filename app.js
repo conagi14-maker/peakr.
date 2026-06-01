@@ -6930,16 +6930,39 @@ function _detectCatFromPixivTags(tags) {
   return 'anime'; // pixiv はデフォルトをアニメ/イラストカテゴリーに
 }
 
+const _PIXIV_MODES = ['weekly', 'monthly', 'original', 'rookie'];
+
 async function syncPixivPosts() {
   if (Date.now() - _pixivSyncedAt < _PIXIV_SYNC_TTL) return;
   _pixivSyncedAt = Date.now();
   try {
-    const res = await fetch('/.netlify/functions/pixiv-ranking');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const { items } = await res.json();
-    if (!items?.length) throw new Error('empty');
+    // 4モードを並行取得（weekly/monthly/original/rookie 各200件 = 計最大800件）
+    const results = await Promise.allSettled(
+      _PIXIV_MODES.map(mode =>
+        fetch(`/.netlify/functions/pixiv-ranking?mode=${mode}`)
+          .then(r => r.ok ? r.json() : Promise.reject('HTTP ' + r.status))
+      )
+    );
 
-    const posts = items.map(item => ({
+    const allItems = results.flatMap((r, i) => {
+      if (r.status !== 'fulfilled') {
+        console.warn(`[ext] pixiv ${_PIXIV_MODES[i]} failed`);
+        return [];
+      }
+      return r.value.items || [];
+    });
+
+    if (!allItems.length) throw new Error('all modes failed');
+
+    // ext_url で重複除去（複数モードに同じ作品が入る場合）
+    const seen = new Set();
+    const unique = allItems.filter(item => {
+      if (seen.has(item.url)) return false;
+      seen.add(item.url);
+      return true;
+    });
+
+    const posts = unique.map(item => ({
       user_handle   : '@ext_pixiv_' + item.author_id,
       user_name     : item.author || 'pixiv作者',
       content       : item.title,
