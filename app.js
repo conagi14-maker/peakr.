@@ -866,6 +866,8 @@ async function _loadRecommendFeed(reset = false) {
         linkUrl     : p.link_url         || null,
         imageLinkUrl: p.image_link_url   || null,
         tags     : Array.isArray(p.tags) ? p.tags : [],
+        extSource: p.ext_source || null,
+        extUrl   : p.ext_url    || null,
         rank     : 0, isDummy: false,
         user: {
           h      : p.user_handle,
