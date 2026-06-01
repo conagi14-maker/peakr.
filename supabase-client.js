@@ -269,13 +269,15 @@ async function dbUpsertExtPosts(posts) {
   if (!urls.length) return;
 
   const now = new Date().toISOString();
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
-  // 既存 ext_url を確認
-  const { data: existing } = await db.from('posts').select('ext_url').in('ext_url', urls);
-  const existingSet = new Set((existing || []).map(p => p.ext_url));
+  // 既存 ext_url と最終更新日時を取得
+  const { data: existing } = await db
+    .from('posts').select('ext_url, created_at').in('ext_url', urls);
+  const existingMap = new Map((existing || []).map(p => [p.ext_url, p.created_at]));
 
   // 新規投稿を INSERT
-  const newPosts = posts.filter(p => p.ext_url && !existingSet.has(p.ext_url));
+  const newPosts = posts.filter(p => p.ext_url && !existingMap.has(p.ext_url));
   if (newPosts.length) {
     const rows = newPosts.map(p => ({
       user_handle   : p.user_handle,
@@ -298,12 +300,16 @@ async function dbUpsertExtPosts(posts) {
     if (error) console.error('[ext] insert error:', error.message);
   }
 
-  // 既存投稿の created_at と ext_pop_score を更新（デイリーランキングに乗り続けるため）
-  const existingPosts = posts.filter(p => p.ext_url && existingSet.has(p.ext_url));
-  for (const p of existingPosts) {
-    await db.from('posts')
-      .update({ created_at: now, ext_pop_score: p.ext_pop_score || 0 })
-      .eq('ext_url', p.ext_url);
+  // 既存投稿を並列UPDATE（1時間以内に更新済みはスキップ）
+  const toUpdate = posts.filter(p =>
+    p.ext_url && existingMap.has(p.ext_url) && (existingMap.get(p.ext_url) || '') < oneHourAgo
+  );
+  if (toUpdate.length) {
+    await Promise.all(toUpdate.map(p =>
+      db.from('posts')
+        .update({ created_at: now, ext_pop_score: p.ext_pop_score || 0 })
+        .eq('ext_url', p.ext_url)
+    ));
   }
 }
 
