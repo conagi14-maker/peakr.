@@ -969,7 +969,8 @@ function _reelYtPlay(thumbEl) {
   if (!iframe) return;
   iframe.src = card.dataset.embed;
   iframe.style.display = 'block';
-  thumbEl.style.display = 'none';
+  iframe.style.height = '60%'; // サムネイル部と同じ高さ
+  thumbEl.style.visibility = 'hidden';
 }
 
 function _reelAvWrap(u) {
@@ -1040,15 +1041,30 @@ function _reelCardHTML(group) {
     const embedSrc = isShorts && t.linkUrl
       ? t.linkUrl
       : `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&rel=0&playsinline=1`;
-    const srcBadge = `<span class="ctm-ext-badge ctm-ext-${t.extSource}" style="position:absolute;top:10px;left:10px;z-index:3;font-size:10px">${_extSourceLabel(t.extSource)}</span>`;
+    const liked = likedTweets.has(idx);
     return `<div class="reel-card reel-card--youtube${isShorts ? ' reel-card--shorts' : ''}" data-idx="${idx}" data-db-id="${t.db_id||''}" data-embed="${embedSrc}">
-      ${srcBadge}
-      <div class="reel-yt-thumb" style="background:#000;width:100%;height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="_reelYtPlay(this)">
+      <!-- サムネイル部 -->
+      <div class="reel-yt-thumb" onclick="_reelYtPlay(this)">
         <img src="${t.mediaData}" class="reel-yt-thumb-img" alt="${t.text}">
         <div class="reel-yt-play-btn"><i class="ti ti-player-play-filled"></i></div>
+        <span class="reel-yt-src-badge ctm-ext-badge ctm-ext-${t.extSource}">${_extSourceLabel(t.extSource)}</span>
       </div>
-      <iframe class="reel-yt-iframe" style="display:none;position:absolute;inset:0;width:100%;height:100%;border:none" allowfullscreen allow="autoplay;encrypted-media;picture-in-picture"></iframe>
-      ${_reelMediaOverlay(t, idx)}
+      <!-- プレイヤー（タップ後に差し替え） -->
+      <iframe class="reel-yt-iframe" style="display:none;position:absolute;top:0;left:0;width:100%;height:60%;border:none" allowfullscreen allow="autoplay;encrypted-media;picture-in-picture"></iframe>
+      <!-- 情報バー -->
+      <div class="reel-yt-info">
+        <div class="reel-yt-channel" onclick="event.stopPropagation();window.open('${t.extUrl}','_blank','noopener,noreferrer')">${t.user?.n || ''}</div>
+        <div class="reel-yt-title" onclick="event.stopPropagation();window.open('${t.extUrl}','_blank','noopener,noreferrer')">${t.text || ''}</div>
+        <div class="reel-yt-actions">
+          <button class="reel-action-btn" onclick="event.stopPropagation();openTweetDetail(${idx})">
+            <i class="ti ti-message-circle"></i><span>${(tweetReplies[idx]||[]).length||0}</span>
+          </button>
+          <button class="reel-action-btn${liked?' reel-liked':''}" id="reel-like-${idx}" onclick="event.stopPropagation();_reelToggleLike(${idx})">
+            <i class="ti ti-heart${liked?'-filled':''}" ${liked?'style="color:#ef4444"':''}></i><span id="reel-lc-${idx}">${fmt(t.likes)}</span>
+          </button>
+          <span class="reel-action-btn reel-stat"><i class="ti ti-eye"></i>${fmt(t.views)}</span>
+        </div>
+      </div>
     </div>`;
   }
   if (group.type === 'text') {

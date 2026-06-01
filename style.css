@@ -5194,25 +5194,72 @@ body { background: var(--bg); color: var(--text); min-height: 100vh; }
 
 /* ── YouTube リールカード ── */
 .reel-card--youtube {
-  background: #000;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+}
+/* サムネイル部（上60%） */
+.reel-yt-thumb {
   position: relative;
+  flex: 0 0 60%;
+  background: #000;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .reel-yt-thumb-img {
-  position: absolute; inset: 0;
   width: 100%; height: 100%;
-  object-fit: cover; opacity: 0.85;
+  object-fit: cover; opacity: 0.9;
 }
 .reel-yt-play-btn {
-  position: relative; z-index: 2;
-  width: 64px; height: 64px;
-  background: rgba(255,0,0,0.85);
+  position: absolute; z-index: 2;
+  width: 56px; height: 56px;
+  background: rgba(220,0,0,0.9);
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 28px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  color: #fff; font-size: 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
   transition: transform 0.15s;
 }
-.reel-yt-thumb:hover .reel-yt-play-btn { transform: scale(1.1); }
+.reel-yt-thumb:hover .reel-yt-play-btn,
+.reel-yt-thumb:active .reel-yt-play-btn { transform: scale(1.1); }
+.reel-yt-src-badge {
+  position: absolute; top: 8px; left: 8px; z-index: 3;
+}
+/* 情報バー（下40%） */
+.reel-yt-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px 14px 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.reel-yt-channel {
+  font-size: 11px; color: var(--text3);
+  font-weight: 600; margin-bottom: 4px;
+  cursor: pointer; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.reel-yt-channel:hover { color: var(--accent); }
+.reel-yt-title {
+  font-size: 13px; font-weight: 700;
+  color: var(--text1); line-height: 1.4;
+  cursor: pointer;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+  margin-bottom: 8px;
+}
+.reel-yt-title:hover { color: var(--accent); }
+.reel-yt-actions {
+  display: flex; gap: 8px; align-items: center;
+}
 
 /* ── オーバーレイ（画像・動画共通） ── */
 .reel-overlay {
