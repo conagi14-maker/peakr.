@@ -99,6 +99,7 @@ let recommendLoaded = 0;
 let recommendLoading = false;
 let recommendCatFilter = null;    // null = 全カテゴリー
 let recommendSearchQuery = '';    // キーワード検索文字列
+const _seenReelIds = new Set();   // セッション中に表示済みのdb_id
 
 let fsCat = null;
 let fsSub = '全体';
@@ -701,6 +702,10 @@ function setDiveCat(catId) {
 // ── ダイブ キーワード検索 ───────────────────────────────────
 function _applyDiveSearchFilter(tweets) {
   let result = tweets;
+  // 検索中でなければ表示済みを除外
+  if (!recommendSearchQuery.trim()) {
+    result = result.filter(t => !t.db_id || !_seenReelIds.has(String(t.db_id)));
+  }
   // ユーザーフィルター（フォロー中 / フォロワー）
   if (recommendUserFilter === 'following') {
     result = result.filter(t => t.user && followingSet.has(t.user.h));
@@ -716,6 +721,11 @@ function _applyDiveSearchFilter(tweets) {
     (t.user?.h || '').toLowerCase().includes(q) ||
     (t.tags || []).some(tag => tag.toLowerCase().includes(q))
   );
+}
+
+function resetReelSeen() {
+  _seenReelIds.clear();
+  _initRecommendPage();
 }
 
 let _diveSearchTimer = null;
@@ -1225,15 +1235,42 @@ function _renderRecommendSlice() {
   const reel = document.getElementById('recommend-reel');
   if (!reel) return;
   if (RECOMMEND_TWEETS.length === 0) {
-    reel.innerHTML = `<div class="reel-empty"><i class="ti ti-sparkles"></i><p>ダイブできる投稿がありません</p></div>`;
+    // 表示済みがあれば「一周」メッセージ、なければ「投稿なし」
+    if (_seenReelIds.size > 0 && !recommendSearchQuery.trim()) {
+      reel.innerHTML = `<div class="reel-lap-msg">
+        <i class="ti ti-rotate-clockwise-2" style="font-size:36px;color:var(--accent);display:block;margin-bottom:10px"></i>
+        <p style="font-weight:700;margin-bottom:6px">一周しました！</p>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:16px">${_seenReelIds.size}件の投稿を表示しました</p>
+        <button onclick="resetReelSeen()" class="reel-lap-btn">
+          <i class="ti ti-refresh"></i> もう一度見る
+        </button>
+      </div>`;
+    } else {
+      reel.innerHTML = `<div class="reel-empty"><i class="ti ti-sparkles"></i><p>ダイブできる投稿がありません</p></div>`;
+    }
     return;
   }
   // 次の20件をカードに変換して追記
   const slice  = RECOMMEND_TWEETS.slice(recommendLoaded, recommendLoaded + 20);
-  if (!slice.length) return;
+  if (!slice.length) {
+    // スクロール末尾で全件表示済み → 一周メッセージを追加
+    if (!recommendSearchQuery.trim() && !reel.querySelector('.reel-lap-msg')) {
+      reel.insertAdjacentHTML('beforeend', `<div class="reel-lap-msg">
+        <i class="ti ti-rotate-clockwise-2" style="font-size:36px;color:var(--accent);display:block;margin-bottom:10px"></i>
+        <p style="font-weight:700;margin-bottom:6px">一周しました！</p>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:16px">${_seenReelIds.size}件の投稿を表示しました</p>
+        <button onclick="resetReelSeen()" class="reel-lap-btn">
+          <i class="ti ti-refresh"></i> もう一度見る
+        </button>
+      </div>`);
+    }
+    return;
+  }
   const groups = _groupReelCards(slice);
   const html   = groups.map(g => _reelCardHTML(g)).join('');
   reel.insertAdjacentHTML('beforeend', html);
+  // 表示済みとして登録
+  slice.forEach(t => { if (t.db_id) _seenReelIds.add(String(t.db_id)); });
   recommendLoaded += slice.length;
   // 新しく追加した動画カードも監視
   if (_reelVideoObserver) {

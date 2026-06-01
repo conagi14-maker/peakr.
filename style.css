@@ -5393,6 +5393,21 @@ body { background: var(--bg); color: var(--text); min-height: 100vh; }
 }
 .reel-empty i { font-size: 52px; opacity: 0.3; }
 
+/* 一周メッセージ */
+.reel-lap-msg {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 300px; padding: 40px 20px;
+  color: var(--text1); text-align: center;
+}
+.reel-lap-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 24px; border-radius: 24px;
+  background: var(--accent); color: #fff;
+  border: none; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.reel-lap-btn:hover { opacity: 0.85; }
+
 /* フィルターバーをリール表示中は少し調整 */
 #recommend-reel ~ .load-more-btn { display: none !important; }
 
