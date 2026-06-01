@@ -944,11 +944,12 @@ function _groupReelCards(tweets) {
   const groups = [];
   let textBatch = [];
   for (const t of tweets) {
-    const isImg   = t.mediaType === 'image';
-    const isVideo = t.mediaType === 'video';
-    if (isImg || isVideo) {
+    const isYt    = t.extSource === 'youtube' || t.extSource === 'shorts';
+    const isImg   = !isYt && t.mediaType === 'image';
+    const isVideo = !isYt && t.mediaType === 'video';
+    if (isYt || isImg || isVideo) {
       if (textBatch.length) { groups.push({ type: 'text', items: textBatch }); textBatch = []; }
-      groups.push({ type: t.mediaType, item: t });
+      groups.push({ type: isYt ? 'youtube' : t.mediaType, item: t });
     } else {
       textBatch.push(t);
       if (textBatch.length >= 5) { groups.push({ type: 'text', items: textBatch }); textBatch = []; }
@@ -956,6 +957,16 @@ function _groupReelCards(tweets) {
   }
   if (textBatch.length) groups.push({ type: 'text', items: textBatch });
   return groups;
+}
+
+function _reelYtPlay(thumbEl) {
+  const card = thumbEl.closest('.reel-card--youtube');
+  if (!card) return;
+  const iframe = card.querySelector('.reel-yt-iframe');
+  if (!iframe) return;
+  iframe.src = card.dataset.embed;
+  iframe.style.display = 'block';
+  thumbEl.style.display = 'none';
 }
 
 function _reelAvWrap(u) {
@@ -1013,6 +1024,27 @@ function _reelCardHTML(group) {
       <video class="reel-video" muted playsinline loop src="${t.mediaData}"></video>
       <div class="reel-video-tap" onclick="_reelVideoTap(this)"></div>
       <div class="reel-pause-icon"><i class="ti ti-player-pause-filled"></i></div>
+      ${_reelMediaOverlay(t, idx)}
+    </div>`;
+  }
+  if (group.type === 'youtube') {
+    const t = group.item;
+    const idx = _reg(t);
+    const isShorts = t.extSource === 'shorts';
+    const videoId  = isShorts
+      ? (t.extUrl || '').split('/shorts/')[1]?.split('?')[0] || ''
+      : new URL(t.extUrl || 'https://x.com').searchParams.get('v') || '';
+    const embedSrc = isShorts && t.linkUrl
+      ? t.linkUrl
+      : `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&rel=0&playsinline=1`;
+    const srcBadge = `<span class="ctm-ext-badge ctm-ext-${t.extSource}" style="position:absolute;top:10px;left:10px;z-index:3;font-size:10px">${_extSourceLabel(t.extSource)}</span>`;
+    return `<div class="reel-card reel-card--youtube${isShorts ? ' reel-card--shorts' : ''}" data-idx="${idx}" data-db-id="${t.db_id||''}" data-embed="${embedSrc}">
+      ${srcBadge}
+      <div class="reel-yt-thumb" style="background:#000;width:100%;height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="_reelYtPlay(this)">
+        <img src="${t.mediaData}" class="reel-yt-thumb-img" alt="${t.text}">
+        <div class="reel-yt-play-btn"><i class="ti ti-player-play-filled"></i></div>
+      </div>
+      <iframe class="reel-yt-iframe" style="display:none;position:absolute;inset:0;width:100%;height:100%;border:none" allowfullscreen allow="autoplay;encrypted-media;picture-in-picture"></iframe>
       ${_reelMediaOverlay(t, idx)}
     </div>`;
   }
