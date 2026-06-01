@@ -6972,7 +6972,10 @@ async function syncPixivPosts() {
       media_data    : item.thumb,
       ext_source    : 'pixiv',
       ext_url       : item.url,
-      ext_pop_score : Math.max(10, 700 - item.rank * 3),
+      // ブックマーク数を対数スケールでスコア化（1万ブックマーク≒800点）
+      ext_pop_score : item.bookmarks > 0
+        ? Math.min(1000, Math.floor(Math.log10(item.bookmarks + 1) * 200))
+        : Math.max(10, 700 - item.rank * 3),
       created_at    : new Date().toISOString(),
     }));
 
@@ -7014,7 +7017,10 @@ async function syncYoutubePosts() {
         media_data    : item.thumb,
         ext_source    : 'youtube',
         ext_url       : item.url,
-        ext_pop_score : Math.max(10, 700 - item.rank * 3),
+        // 再生数を対数スケールでスコア化（100万再生≒900点）
+        ext_pop_score : item.views > 0
+          ? Math.min(1000, Math.floor(Math.log10(item.views + 1) * 150))
+          : Math.max(10, 700 - item.rank * 3),
         created_at    : item.published || new Date().toISOString(),
       };
     });
