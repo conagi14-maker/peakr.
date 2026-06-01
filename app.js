@@ -441,7 +441,7 @@ function goPage(id, btn) {
     // 非同期処理完了後にサブモードUIを再適用（カバー・カテゴリー・名前タグ等）
     setTimeout(() => selectAccount(myAccountType), 150);
   }
-  if (id === 'ranking')   { _updateRankRegionChip(); _loadRankData().then(() => { renderCatGrid(); renderAdStrip(); }); syncExternalPosts(); syncPixivPosts(); }
+  if (id === 'ranking')   { _updateRankRegionChip(); _loadRankData().then(() => { renderCatGrid(); renderAdStrip(); }); syncExternalPosts(); syncPixivPosts(); syncYoutubePosts(); }
   if (id === 'recommend') _initRecommendPage();
   if (id === 'ads') renderAdsPage();
   if (id === 'ad-create') renderAdCreatePage();
@@ -6947,6 +6947,44 @@ async function syncPixivPosts() {
   } catch (e) {
     _pixivSyncedAt = 0;
     console.warn('[ext] pixiv sync failed:', e.message);
+  }
+}
+
+// ── YouTube 急上昇同期 ──────────────────────────────────
+
+let _youtubeSyncedAt = 0;
+const _YOUTUBE_SYNC_TTL = 10 * 60 * 1000;
+
+async function syncYoutubePosts() {
+  if (Date.now() - _youtubeSyncedAt < _YOUTUBE_SYNC_TTL) return;
+  _youtubeSyncedAt = Date.now();
+  try {
+    const res = await fetch('/.netlify/functions/youtube-ranking');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const { items } = await res.json();
+    if (!items?.length) throw new Error('empty');
+
+    const posts = items.map(item => ({
+      user_handle   : '@ext_youtube_' + item.video_id,
+      user_name     : item.channel || 'YouTube',
+      content       : item.title,
+      cat_id        : item.cat_id || 'video',
+      tags          : item.tags.map(t => '#' + t),
+      media_type    : 'image',
+      media_data    : item.thumb,
+      ext_source    : 'youtube',
+      ext_url       : item.url,
+      ext_pop_score : Math.max(10, 700 - item.rank * 3),
+      created_at    : item.published || new Date().toISOString(),
+    }));
+
+    await dbUpsertExtPosts(posts);
+    _rankCache = { period: null, data: [], fetchedAt: 0 };
+    await _loadRankData(true);
+    renderCatGrid();
+  } catch (e) {
+    _youtubeSyncedAt = 0;
+    console.warn('[ext] YouTube sync failed:', e.message);
   }
 }
 
