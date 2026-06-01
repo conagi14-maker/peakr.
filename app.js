@@ -1370,7 +1370,12 @@ const RANK_CACHE_TTL = 60000; // 1分キャッシュ
 function _dbPostToTweet(p, avatarMap = {}, nameTagMap = {}, regionMap = {}, rookieMap = {}) {
   const avImg   = avatarMap[p.user_handle];
   const nameTag = p.name_tag || nameTagMap[p.user_handle] || null;
-  const score   = (p.likes_count || 0) * 10 + (p.rt_count || 0) * 5 + (p.views_count || 0) + (p.ext_pop_score || 0);
+  const isExt = !!p.ext_source;
+  const score = isExt
+    // 外部投稿: 閲覧数・BM数ベースのスコア
+    ? (p.ext_pop_score || 0)
+    // 内部投稿: エンゲージメント倍率2倍 + ベースボーナス250点（外部より入りやすくする）
+    : (p.likes_count || 0) * 20 + (p.rt_count || 0) * 10 + (p.views_count || 0) * 2 + 250;
   return {
     db_id    : p.id,
     catId    : p.cat_id   || null,
