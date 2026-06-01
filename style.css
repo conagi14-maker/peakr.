@@ -6991,6 +6991,17 @@ mark.hs-mark {
 /* ══════════════════════════════════════════
    外部投稿ソースバッジ
    ══════════════════════════════════════════ */
+/* YouTube 埋め込みプレイヤー */
+.td-yt-wrap {
+  position: relative; width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000; margin: 4px 0 8px;
+}
+.td-yt-player {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; border: none;
+}
+
 .ctm-ext-badge {
   display: inline-block; padding: 1px 5px; border-radius: 4px;
   font-size: 9px; font-weight: 700; letter-spacing: 0.03em;

@@ -3812,7 +3812,8 @@ async function _refreshHomeFeedFromDB() {
 function openTweetDetail(idx) {
   const t = _tc[idx];
   if (!t) return;
-  if (t.extUrl) { window.open(t.extUrl, '_blank', 'noopener,noreferrer'); return; }
+  // YouTube は埋め込みプレイヤーをモーダルで表示、それ以外の外部投稿は外部URLへ
+  if (t.extUrl && t.extSource !== 'youtube') { window.open(t.extUrl, '_blank', 'noopener,noreferrer'); return; }
   const u = t.user;
   const hasRank = t.rank > 0;
   // 自分のアバター（コメント入力欄用）
@@ -3823,8 +3824,13 @@ function openTweetDetail(idx) {
   const myAvBg = myAvData ? 'transparent' : '#dbeafe';
   const myAvTc = myAvData ? 'transparent' : '#1e40af';
 
+  // YouTube embed 用に video_id を抽出
+  const _ytVideoId = t.extSource === 'youtube' && t.extUrl
+    ? (new URL(t.extUrl).searchParams.get('v') || '')
+    : '';
+
   document.getElementById('tweet-detail-body').innerHTML = `
-    <div class="td-user-row clickable" onclick="closeTweetDetail();openUserPage('${u.h}')">
+    <div class="td-user-row clickable" onclick="${t.extUrl ? `window.open('${t.extUrl}','_blank','noopener,noreferrer')` : `closeTweetDetail();openUserPage('${u.h}')`}">
       ${_tweetAvHtml('tweet-av', `background:${u.bg};color:${u.tc};overflow:hidden;flex-shrink:0`, u.av, u)}
       <div style="flex:1;min-width:0">
         <div class="tweet-name" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
@@ -3838,12 +3844,19 @@ function openTweetDetail(idx) {
     </div>
     <div class="td-content" style="padding:10px 16px">
       ${t.text ? `<div class="td-text" style="font-size:15px;line-height:1.6;margin-bottom:8px">${_linkify(t.text)}</div>` : ''}
-      ${t.mediaData ? (t.mediaType === 'image'
-        ? `<div class="tweet-media" style="margin:4px 0 8px">${t.imageLinkUrl
-            ? `<a href="${encodeURI(t.imageLinkUrl)}" target="_blank" rel="noopener noreferrer"><img src="${t.mediaData}" alt="添付画像" class="tweet-media-img" style="cursor:pointer"></a>`
-            : `<img src="${t.mediaData}" alt="添付画像" class="tweet-media-img" onclick="event.stopPropagation();openImageViewer(this.src)">`
-          }</div>`
-        : `<div class="tweet-media" style="margin:4px 0 8px"><video src="${t.mediaData}" controls class="tweet-media-vid" preload="metadata"></video></div>`)
+      ${_ytVideoId
+        ? `<div class="td-yt-wrap">
+            <iframe class="td-yt-player"
+              src="https://www.youtube.com/embed/${_ytVideoId}?autoplay=1&rel=0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen loading="lazy"></iframe>
+          </div>`
+        : t.mediaData ? (t.mediaType === 'image'
+          ? `<div class="tweet-media" style="margin:4px 0 8px">${t.imageLinkUrl
+              ? `<a href="${encodeURI(t.imageLinkUrl)}" target="_blank" rel="noopener noreferrer"><img src="${t.mediaData}" alt="添付画像" class="tweet-media-img" style="cursor:pointer"></a>`
+              : `<img src="${t.mediaData}" alt="添付画像" class="tweet-media-img" onclick="event.stopPropagation();openImageViewer(this.src)">`
+            }</div>`
+          : `<div class="tweet-media" style="margin:4px 0 8px"><video src="${t.mediaData}" controls class="tweet-media-vid" preload="metadata"></video></div>`)
         : ''}
       ${t.linkUrl ? `<div style="margin-top:2px;margin-bottom:4px">${_urlBtnHTML(t.linkUrl)}</div>` : ''}
     </div>
