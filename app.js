@@ -826,9 +826,10 @@ async function _loadRecommendFeed(reset = false) {
     // コンテンツタイプ複数選択フィルター（空 = すべて表示）
     if (homeMediaFilters.size > 0) {
       const orParts = [];
-      if (homeMediaFilters.has('text'))  orParts.push('media_type.eq.,media_type.is.null');
-      if (homeMediaFilters.has('image')) orParts.push('media_type.eq.image');
-      // YouTube/Shorts は media_type=image だが動画として扱う
+      if (homeMediaFilters.has('text'))  orParts.push('and(media_type.is.null,ext_source.is.null)');
+      // 画像: media_type=image かつ YouTube/Shorts以外（ext_source is null）
+      if (homeMediaFilters.has('image')) orParts.push('and(media_type.eq.image,ext_source.is.null)');
+      // 動画: media_type=video または YouTube/Shorts
       if (homeMediaFilters.has('video')) orParts.push('media_type.eq.video,ext_source.eq.youtube,ext_source.eq.shorts');
       if (orParts.length > 0) query = query.or(orParts.join(','));
     }
