@@ -442,7 +442,7 @@ function goPage(id, btn) {
     // 非同期処理完了後にサブモードUIを再適用（カバー・カテゴリー・名前タグ等）
     setTimeout(() => selectAccount(myAccountType), 150);
   }
-  if (id === 'ranking')   { _updateRankRegionChip(); _loadRankData().then(() => { renderCatGrid(); renderAdStrip(); }); syncExternalPosts(); syncPixivPosts(); syncYoutubePosts(); syncYoutubeShortsPosts(); }
+  if (id === 'ranking')   { _updateRankRegionChip(); _loadRankData().then(() => { renderCatGrid(); renderAdStrip(); }); syncExternalPosts(); syncPixivPosts(); }
   if (id === 'recommend') _initRecommendPage();
   if (id === 'ads') renderAdsPage();
   if (id === 'ad-create') renderAdCreatePage();
@@ -2090,7 +2090,7 @@ function genRankTweets() {
   _loadRankData().then(() => { renderCatGrid(); });
 }
 
-const _EXT_SOURCE_LABELS = { nhk: 'NHK', pixiv: 'pixiv', x: 'X', youtube: 'YouTube', shorts: 'Shorts' };
+const _EXT_SOURCE_LABELS = { nhk: 'NHK', pixiv: 'pixiv', x: 'X' };
 function _extSourceLabel(src) { return _EXT_SOURCE_LABELS[src] || src; }
 
 function _catMiniTweets(tweets, bar, maxScore) {
@@ -3979,8 +3979,8 @@ async function _refreshHomeFeedFromDB() {
 function openTweetDetail(idx) {
   const t = _tc[idx];
   if (!t) return;
-  // YouTube/Shorts は埋め込みプレイヤーをモーダルで表示、それ以外の外部投稿は外部URLへ
-  if (t.extUrl && t.extSource !== 'youtube' && t.extSource !== 'shorts') { window.open(t.extUrl, '_blank', 'noopener,noreferrer'); return; }
+  // 外部投稿は外部URLへ
+  if (t.extUrl) { window.open(t.extUrl, '_blank', 'noopener,noreferrer'); return; }
   const u = t.user;
   const hasRank = t.rank > 0;
   // 自分のアバター（コメント入力欄用）
@@ -3990,17 +3990,6 @@ function openTweetDetail(idx) {
     : (myNickname || 'あ')[0];
   const myAvBg = myAvData ? 'transparent' : '#dbeafe';
   const myAvTc = myAvData ? 'transparent' : '#1e40af';
-
-  // YouTube embed 用に video_id を抽出
-  const _isShorts  = t.extSource === 'shorts';
-  const _ytVideoId = (t.extSource === 'youtube' || _isShorts) && t.extUrl
-    ? (_isShorts
-        ? t.extUrl.split('/shorts/')[1]?.split('?')[0] || ''
-        : new URL(t.extUrl).searchParams.get('v') || '')
-    : '';
-  const _embedUrl  = _isShorts && t.linkUrl ? t.linkUrl
-    : _ytVideoId ? `https://www.youtube.com/embed/${_ytVideoId}?autoplay=1&rel=0`
-    : '';
 
   document.getElementById('tweet-detail-body').innerHTML = `
     <div class="td-user-row clickable" onclick="${t.extUrl ? `window.open('${t.extUrl}','_blank','noopener,noreferrer')` : `closeTweetDetail();openUserPage('${u.h}')`}">
@@ -4017,14 +4006,7 @@ function openTweetDetail(idx) {
     </div>
     <div class="td-content" style="padding:10px 16px">
       ${t.text ? `<div class="td-text" style="font-size:15px;line-height:1.6;margin-bottom:8px">${_linkify(t.text)}</div>` : ''}
-      ${_embedUrl
-        ? `<div class="td-yt-wrap${_isShorts ? ' td-yt-shorts' : ''}">
-            <iframe class="td-yt-player"
-              src="${_embedUrl}"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen loading="lazy"></iframe>
-          </div>`
-        : t.mediaData ? (t.mediaType === 'image'
+      ${t.mediaData ? (t.mediaType === 'image'
           ? `<div class="tweet-media" style="margin:4px 0 8px">${t.imageLinkUrl
               ? `<a href="${encodeURI(t.imageLinkUrl)}" target="_blank" rel="noopener noreferrer"><img src="${t.mediaData}" alt="添付画像" class="tweet-media-img" style="cursor:pointer"></a>`
               : `<img src="${t.mediaData}" alt="添付画像" class="tweet-media-img" onclick="event.stopPropagation();openImageViewer(this.src)">`
@@ -7162,95 +7144,6 @@ async function syncPixivPosts() {
   }
 }
 
-// ── YouTube 急上昇同期 ──────────────────────────────────
-
-let _youtubeSyncedAt = 0;
-const _YOUTUBE_SYNC_TTL = 10 * 60 * 1000;
-
-async function syncYoutubePosts() {
-  if (Date.now() - _youtubeSyncedAt < _YOUTUBE_SYNC_TTL) return;
-  _youtubeSyncedAt = Date.now();
-  try {
-    const res = await fetch('/.netlify/functions/youtube-ranking');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const { items } = await res.json();
-    if (!items?.length) throw new Error('empty');
-
-    const posts = items.map(item => {
-      // サーバー側カテゴリを優先しつつ、タイトル+タグでキーワード再判定
-      const kwCat = _detectCatId(item.title + ' ' + item.tags.join(' '));
-      const cat_id = item.cat_id || (kwCat !== 'tweet' ? kwCat : 'video');
-      return {
-        user_handle   : '@ext_youtube_' + item.video_id,
-        user_name     : item.channel || 'YouTube',
-        content       : item.title,
-        cat_id,
-        tags          : item.tags.map(t => '#' + t),
-        media_type    : 'image',
-        media_data    : item.thumb,
-        ext_source    : 'youtube',
-        ext_url       : item.url,
-        // 再生数を対数スケールでスコア化（100万再生≒900点）
-        ext_pop_score : item.views > 0
-          ? Math.min(1000, Math.floor(Math.log10(item.views + 1) * 150))
-          : Math.max(10, 700 - item.rank * 3),
-        created_at    : item.published || new Date().toISOString(),
-      };
-    });
-
-    await dbUpsertExtPosts(posts);
-    _rankCache = { period: null, data: [], fetchedAt: 0 };
-    await _loadRankData(true);
-    renderCatGrid();
-  } catch (e) {
-    _youtubeSyncedAt = 0;
-    console.warn('[ext] YouTube sync failed:', e.message);
-  }
-}
-
-// ── YouTube Shorts 同期 ──────────────────────────────────
-
-let _shortsSyncedAt = 0;
-const _SHORTS_SYNC_TTL = 60 * 60 * 1000; // 1時間（APIユニット節約）
-
-async function syncYoutubeShortsPosts() {
-  if (Date.now() - _shortsSyncedAt < _SHORTS_SYNC_TTL) return;
-  _shortsSyncedAt = Date.now();
-  try {
-    const res = await fetch('/.netlify/functions/youtube-shorts');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const { items } = await res.json();
-    if (!items?.length) throw new Error('empty');
-
-    const posts = items.map(item => {
-      const kwCat = _detectCatId(item.title + ' ' + item.tags.join(' '));
-      return {
-        user_handle   : '@ext_shorts_' + item.video_id,
-        user_name     : item.channel || 'YouTube',
-        content       : item.title,
-        cat_id        : kwCat !== 'tweet' ? kwCat : 'video',
-        tags          : item.tags.map(t => '#' + t),
-        media_type    : 'image',
-        media_data    : item.thumb,
-        ext_source    : 'shorts',
-        ext_url       : item.url,
-        link_url      : item.embed_url, // 縦型プレイヤー用 embed URL を保存
-        ext_pop_score : item.views > 0
-          ? Math.min(1000, Math.floor(Math.log10(item.views + 1) * 150))
-          : Math.max(10, 700 - item.rank * 10),
-        created_at    : new Date().toISOString(),
-      };
-    });
-
-    await dbUpsertExtPosts(posts);
-    _rankCache = { period: null, data: [], fetchedAt: 0 };
-    await _loadRankData(true);
-    renderCatGrid();
-  } catch (e) {
-    _shortsSyncedAt = 0;
-    console.warn('[ext] Shorts sync failed:', e.message);
-  }
-}
 
 // 旧互換
 function loadExternalTrends() { syncExternalPosts(); }
