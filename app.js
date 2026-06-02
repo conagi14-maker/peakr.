@@ -10211,9 +10211,9 @@ async function resetEverything() {
   // メモリリセット
   _resetMemoryState();
 
-  // Supabase：コンテンツ系テーブルを全削除
+  // Supabase：コンテンツ系テーブルを全削除（posts以外）
   await _clearTables([
-    'posts', 'post_likes', 'post_views', 'comments',
+    'post_likes', 'post_views', 'comments',
     'notifications', 'follows', 'user_saved_items', 'user_announcements',
     'user_activity', 'user_fan_levels', 'user_favorites', 'badge_requests',
     'dm_settings', 'dm_rooms', 'direct_messages',
@@ -10221,6 +10221,14 @@ async function resetEverything() {
     'feedback_opinions', 'feedback_votes',
     'peak_points', 'referral_records',
   ]);
+
+  // posts：開発者の投稿（user_handle = '@' + devId）は保持し、それ以外を削除
+  const _devId = localStorage.getItem('trendy_account_id');
+  if (_devId) {
+    await db.from('posts').delete().neq('user_handle', '@' + _devId);
+  } else {
+    await _clearTables(['posts']);
+  }
 
   // profiles：開発者アカウント（is_dev = true）は保持し、それ以外を削除
   await db.from('profiles').delete().neq('is_dev', true);
