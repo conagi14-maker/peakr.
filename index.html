@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
 <!-- ダークモードちらつき防止：CSSより前にテーマ適用 -->
@@ -53,9 +53,6 @@
       <button class="nav-item" data-page="dm" onclick="goPage('dm',this)">
         <i class="ti ti-mail"></i><span>DM</span>
         <span class="nav-badge" id="dm-nav-badge" style="display:none"></span>
-      </button>
-      <button class="nav-item" data-page="supporter" onclick="goPage('supporter',this)">
-        <i class="ti ti-robot"></i><span>サポーター</span>
       </button>
       <button class="nav-item" data-page="feedback" onclick="goPage('feedback',this)">
         <i class="ti ti-bulb"></i><span>意見箱</span>
@@ -914,12 +911,6 @@
             <div class="dev-hub-desc">メインカテゴリーの追加・削除</div>
             <i class="ti ti-chevron-right dev-hub-arrow"></i>
           </button>
-          <button class="dev-hub-card" onclick="goPage('dev-supporter',null)">
-            <div class="dev-hub-icon" style="background:#f0fdf4;color:#15803d"><i class="ti ti-robot"></i></div>
-            <div class="dev-hub-label">サポーター管理</div>
-            <div class="dev-hub-desc">データリセット</div>
-            <i class="ti ti-chevron-right dev-hub-arrow"></i>
-          </button>
           <button class="dev-hub-card" onclick="goPage('dev-config',null)">
             <div class="dev-hub-icon" style="background:#eef2ff;color:#4338ca"><i class="ti ti-shield"></i></div>
             <div class="dev-hub-label">開発者設定</div>
@@ -927,29 +918,6 @@
             <i class="ti ti-chevron-right dev-hub-arrow"></i>
           </button>
         </div>
-      </div>
-    </div>
-
-    <!-- ══ DEV: サポーター管理 ══ -->
-    <div class="page" id="page-dev-supporter">
-      <div class="page-header">
-        <button class="back-btn" onclick="goPage('dev',null)"><i class="ti ti-arrow-left"></i></button>
-        <h1><i class="ti ti-robot" style="color:#15803d"></i> サポーター管理</h1>
-      </div>
-      <div class="settings-body">
-        <section class="settings-section">
-          <h2><i class="ti ti-refresh" style="color:#ef4444"></i> サポーターリセット</h2>
-          <p class="settings-desc">指定ユーザーのサポーターデータ（プロフィール・好み・おすすめ履歴）をすべて削除します。</p>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <input id="dev-sp-reset-id" class="settings-input" type="text" placeholder="account_id を入力" style="flex:1">
-            <button class="btn-danger" onclick="devResetSupporter()">リセット</button>
-          </div>
-          <p style="font-size:11px;color:var(--text3);margin-top:6px">自分のサポーターをリセットする場合は空欄のまま実行</p>
-        </section>
-        <section class="settings-section" id="dev-sp-list-section">
-          <h2><i class="ti ti-list" style="color:#15803d"></i> サポーター所持ユーザー一覧</h2>
-          <div id="dev-sp-list">読み込み中…</div>
-        </section>
       </div>
     </div>
 
@@ -1967,29 +1935,6 @@
       <div id="peak-points-content"></div>
     </div>
 
-    <!-- ══ サポーターページ ══ -->
-    <div class="page" id="page-supporter">
-      <div class="page-header">
-        <h1><i class="ti ti-robot"></i> サポーター</h1>
-        <button class="btn-icon" id="sp-settings-btn" onclick="goPage('supporter-settings',null)" style="display:none" title="設定">
-          <i class="ti ti-settings"></i>
-        </button>
-      </div>
-      <div class="supporter-page-body" id="supporter-content">
-        <!-- JS で描画 -->
-      </div>
-    </div>
-
-    <!-- ══ サポーター設定ページ ══ -->
-    <div class="page" id="page-supporter-settings">
-      <div class="page-header">
-        <button class="back-btn" onclick="goPage('supporter',null)"><i class="ti ti-arrow-left"></i></button>
-        <h1>サポーター設定</h1>
-      </div>
-      <div class="supporter-page-body" id="supporter-settings-content">
-        <!-- JS で描画 -->
-      </div>
-    </div>
 
     <!-- ══ DM LIST PAGE ══ -->
     <div class="page" id="page-dm">
@@ -2433,3 +2378,4 @@
 <script src="app.js"></script>
 </body>
 </html>
+
