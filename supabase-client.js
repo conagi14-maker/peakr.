@@ -232,9 +232,10 @@ async function dbFetchRankedPosts({ period = 'daily', catId = null, subTag = nul
   // ── 通常ランキング ──
   const startDate = new Date(now - (periodMs[period] || periodMs.daily));
 
+  // 外部投稿(ext_source IS NOT NULL)は日付フィルターに関わらず常に含める
   let query = db.from('posts')
     .select('*')
-    .gte('created_at', startDate.toISOString())
+    .or(`created_at.gte.${startDate.toISOString()},ext_source.not.is.null`)
     .limit(limit);
 
   if (catId && catId !== 'all') query = query.eq('cat_id', catId);
