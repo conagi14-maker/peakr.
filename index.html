@@ -54,6 +54,10 @@
         <i class="ti ti-mail"></i><span>DM</span>
         <span class="nav-badge" id="dm-nav-badge" style="display:none"></span>
       </button>
+      <button class="nav-item" data-page="gacha" onclick="goPage('gacha',this)">
+        <i class="ti ti-dice"></i><span>ガチャ</span>
+        <span class="nav-badge" id="gacha-nav-badge" style="display:none"></span>
+      </button>
       <button class="nav-item" data-page="feedback" onclick="goPage('feedback',this)">
         <i class="ti ti-bulb"></i><span>意見箱</span>
       </button>
@@ -1935,6 +1939,47 @@
       <div id="peak-points-content"></div>
     </div>
 
+
+    <!-- ══ ガチャページ ══ -->
+    <div class="page" id="page-gacha">
+      <div class="page-header">
+        <h1><i class="ti ti-dice" style="color:var(--accent)"></i> ガチャ</h1>
+      </div>
+      <div class="gacha-page-body">
+        <!-- チケット残数 -->
+        <div class="gacha-ticket-bar">
+          <i class="ti ti-ticket"></i>
+          <span>チケット：</span>
+          <span id="gacha-ticket-count" class="gacha-ticket-num">0</span> 枚
+        </div>
+        <!-- ガチャ演出エリア -->
+        <div class="gacha-stage" id="gacha-stage">
+          <div class="gacha-icon-wrap" id="gacha-icon-wrap">
+            <i class="ti ti-dice-5" id="gacha-dice-icon"></i>
+          </div>
+          <div class="gacha-result" id="gacha-result" style="display:none"></div>
+        </div>
+        <!-- ボタン -->
+        <div class="gacha-btn-row">
+          <button class="gacha-btn gacha-btn-1" onclick="doGacha(1)">
+            <i class="ti ti-ticket"></i> 1回 <span class="gacha-cost">×1枚</span>
+          </button>
+          <button class="gacha-btn gacha-btn-10" onclick="doGacha(10)">
+            <i class="ti ti-tickets"></i> 10回 <span class="gacha-cost">×10枚</span>
+          </button>
+        </div>
+        <!-- 排出率 -->
+        <div class="gacha-rates">
+          <div class="gacha-rate-title">排出率</div>
+          <div class="gacha-rate-row"><span class="rarity-ssr">SSR</span><span>ブーストSSR（+100閲覧）</span><span class="gacha-pct">3%</span></div>
+          <div class="gacha-rate-row"><span class="rarity-sr">SR</span><span>ブーストSR（+30閲覧）</span><span class="gacha-pct">12%</span></div>
+          <div class="gacha-rate-row"><span class="rarity-r">R</span><span>ブーストR（+5閲覧）</span><span class="gacha-pct">35%</span></div>
+          <div class="gacha-rate-row"><span class="rarity-n">N</span><span>ブーストN（+1閲覧）</span><span class="gacha-pct">50%</span></div>
+        </div>
+        <!-- 所持アイテム -->
+        <div class="gacha-inventory" id="gacha-inventory"></div>
+      </div>
+    </div>
 
     <!-- ══ DM LIST PAGE ══ -->
     <div class="page" id="page-dm">

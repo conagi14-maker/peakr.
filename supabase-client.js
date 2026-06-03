@@ -1775,6 +1775,54 @@ function dbSubscribeAnnouncements(onNewAnnouncement) {
 
 
 
+// ── ガチャ / アイテム ──────────────────────────────────
+
+/** ユーザーのアイテム一覧を取得 */
+async function dbGetUserItems(accountId) {
+  if (!accountId) return {};
+  const { data } = await db.from('user_items').select('item_type,quantity').eq('account_id', accountId);
+  const map = {};
+  (data || []).forEach(r => { map[r.item_type] = r.quantity || 0; });
+  return map;
+}
+
+/** アイテムを加算（upsert） */
+async function dbAddItem(accountId, itemType, amount = 1) {
+  if (!accountId || amount <= 0) return false;
+  const { data: cur } = await db.from('user_items').select('quantity').eq('account_id', accountId).eq('item_type', itemType).maybeSingle();
+  const newQty = (cur?.quantity || 0) + amount;
+  const { error } = await db.from('user_items').upsert(
+    { account_id: accountId, item_type: itemType, quantity: newQty, updated_at: new Date().toISOString() },
+    { onConflict: 'account_id,item_type' }
+  );
+  if (error) { console.error('[DB] アイテム加算エラー:', error.message); return false; }
+  return true;
+}
+
+/** アイテムを消費（quantity を減らす） */
+async function dbConsumeItem(accountId, itemType, amount = 1) {
+  if (!accountId) return false;
+  const { data: cur } = await db.from('user_items').select('quantity').eq('account_id', accountId).eq('item_type', itemType).maybeSingle();
+  const curQty = cur?.quantity || 0;
+  if (curQty < amount) return false;
+  const { error } = await db.from('user_items').upsert(
+    { account_id: accountId, item_type: itemType, quantity: curQty - amount, updated_at: new Date().toISOString() },
+    { onConflict: 'account_id,item_type' }
+  );
+  if (error) { console.error('[DB] アイテム消費エラー:', error.message); return false; }
+  return true;
+}
+
+/** 投稿にブーストスコアを加算 */
+async function dbApplyBoost(postId, boostAmount) {
+  if (!postId || boostAmount <= 0) return false;
+  const { data: cur } = await db.from('posts').select('boost_score').eq('id', postId).maybeSingle();
+  const newScore = (cur?.boost_score || 0) + boostAmount;
+  const { error } = await db.from('posts').update({ boost_score: newScore }).eq('id', postId);
+  if (error) { console.error('[DB] ブースト適用エラー:', error.message); return false; }
+  return true;
+}
+
 // ── ピークポイント ──────────────────────────────────────
 async function dbGetMyPoints(accountId) {
   if (!accountId) return { points: 0, total_earned: 0 };

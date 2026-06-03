@@ -450,6 +450,7 @@ function goPage(id, btn) {
   if (id === 'ad-report') renderAdReportPage();
   if (id === 'peak-points') renderPeakPointsPage();
   if (id === 'feedback') openFeedbackPage();
+  if (id === 'gacha')    renderGachaPage();
   if (id === 'follows') renderFollows();
   if (id === 'settings') { renderCatSettings(); _loadDmSettingsIntoUI(); _initSettingsRegionBtns(); }
   if (id === 'acct-switch') renderAcctSwitch();
@@ -1374,6 +1375,12 @@ function confirmPost() {
     if (_postAid && typeof dbAddPoints === 'function') {
       dbAddPoints(_postAid, 10).then(() => { _loadMyPoints?.(); }).catch(() => {});
     }
+    // 投稿でガチャチケット +1
+    if (_postAid && typeof dbAddItem === 'function') {
+      dbAddItem(_postAid, 'gacha_ticket', 1).then(() => {
+        showToast('🎫 ガチャチケットを1枚獲得しました！', 'success');
+      }).catch(() => {});
+    }
   }
 
   // Supabase に保存 → db_id が確定したら DOM と配列に反映
@@ -1533,8 +1540,8 @@ function _dbPostToTweet(p, avatarMap = {}, nameTagMap = {}, regionMap = {}, rook
   const score = isExt
     // 外部投稿: 閲覧数・BM数ベースのスコア
     ? (p.ext_pop_score || 0)
-    // 内部投稿: エンゲージメント倍率2倍 + ベースボーナス250点（外部より入りやすくする）
-    : (p.likes_count || 0) * 20 + (p.rt_count || 0) * 10 + (p.views_count || 0) * 2 + 250;
+    // 内部投稿: エンゲージメント倍率2倍 + ブーストスコア + ベースボーナス250点
+    : (p.likes_count || 0) * 20 + (p.rt_count || 0) * 10 + ((p.views_count || 0) + (p.boost_score || 0)) * 2 + 250;
   return {
     db_id    : p.id,
     catId    : p.cat_id   || null,
@@ -1549,8 +1556,9 @@ function _dbPostToTweet(p, avatarMap = {}, nameTagMap = {}, regionMap = {}, rook
     linkUrl     : p.link_url         || null,
     imageLinkUrl: p.image_link_url   || null,
     tags     : Array.isArray(p.tags) ? p.tags : [],
-    extSource: p.ext_source   || null,
-    extUrl   : p.ext_url      || null,
+    extSource : p.ext_source   || null,
+    extUrl    : p.ext_url      || null,
+    boostScore: p.boost_score  || 0,
     score,
     rank     : 0,
     prev     : '初登場',
@@ -4015,10 +4023,30 @@ function openTweetDetail(idx) {
     <div class="td-stats-row" style="padding:8px 16px;display:flex;align-items:center;gap:14px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
       <button class="td-action-btn like-btn${likedTweets.has(idx)?' liked':''}" onclick="toggleLike(${idx},this)"><i class="ti ti-heart"></i><span class="like-count" id="td-like-${idx}">${fmt(t.likes)}</span></button>
       <span style="color:var(--text3);font-size:13px"><i class="ti ti-eye"></i> ${fmt(t.views)}</span>
+      ${t.boostScore > 0 ? `<span style="font-size:11px;color:#f59e0b"><i class="ti ti-rocket"></i>+${t.boostScore}</span>` : ''}
       ${aiBadge(t.ai)}
       ${favStar(idx)}
       ${hasRank ? `<span class="rank-badge-card ${rc(t.rank)}" style="margin-left:auto">#${t.rank}位</span>${prevBadge(t.prev)}` : ''}
     </div>
+    ${(() => {
+      const myH = localStorage.getItem('trendy_account_id');
+      const isMyPost = myH && (u.h === '@' + myH || u.h === myH);
+      if (!isMyPost || !t.db_id || t.extSource) return '';
+      const inv = typeof _gachaItems !== 'undefined' ? _gachaItems : {};
+      const boostItems = [
+        { id:'boost_ssr', label:'SSR+100', qty: inv['boost_ssr']||0 },
+        { id:'boost_sr',  label:'SR+30',   qty: inv['boost_sr'] ||0 },
+        { id:'boost_r',   label:'R+5',     qty: inv['boost_r']  ||0 },
+        { id:'boost_n',   label:'N+1',     qty: inv['boost_n']  ||0 },
+      ].filter(b => b.qty > 0);
+      if (!boostItems.length) return `<div style="padding:8px 16px;font-size:12px;color:var(--text3)"><i class="ti ti-rocket"></i> ブーストアイテムなし（ガチャで獲得できます）</div>`;
+      return `<div style="padding:8px 16px;border-bottom:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--text2)"><i class="ti ti-rocket"></i> ブースト適用</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${boostItems.map(b=>`<button onclick="applyBoostToPost('${t.db_id}','${b.id}')" style="padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);font-size:12px;cursor:pointer">${b.label}（残${b.qty}）</button>`).join('')}
+        </div>
+      </div>`;
+    })()}
     <div class="td-comment-compose" style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)">
       <div class="tweet-av" style="background:${myAvBg};color:${myAvTc};overflow:hidden;flex-shrink:0;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700">${myAvHtml}</div>
       <div style="flex:1;display:flex;flex-direction:column;gap:6px">
@@ -7141,6 +7169,170 @@ async function syncPixivPosts() {
   }
 }
 
+
+// ══════════════════════════════════════════
+// 🎲 ガチャ
+// ══════════════════════════════════════════
+
+const GACHA_ITEMS = [
+  { id: 'boost_ssr', label: 'ブーストSSR', rarity: 'SSR', boost: 100, prob: 0.03 },
+  { id: 'boost_sr',  label: 'ブーストSR',  rarity: 'SR',  boost: 30,  prob: 0.12 },
+  { id: 'boost_r',   label: 'ブーストR',   rarity: 'R',   boost: 5,   prob: 0.35 },
+  { id: 'boost_n',   label: 'ブーストN',   rarity: 'N',   boost: 1,   prob: 0.50 },
+];
+
+const BOOST_AMOUNTS = { boost_ssr: 100, boost_sr: 30, boost_r: 5, boost_n: 1 };
+const RARITY_COLORS = { SSR: '#f59e0b', SR: '#8b5cf6', R: '#3b82f6', N: '#6b7280' };
+
+let _gachaItems = {}; // キャッシュ
+
+function _rollOne() {
+  const r = Math.random();
+  let cum = 0;
+  for (const item of GACHA_ITEMS) {
+    cum += item.prob;
+    if (r < cum) return item;
+  }
+  return GACHA_ITEMS[GACHA_ITEMS.length - 1];
+}
+
+async function renderGachaPage() {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) return;
+  _gachaItems = await dbGetUserItems(aid);
+  const tickets = _gachaItems['gacha_ticket'] || 0;
+  const ticketEl = document.getElementById('gacha-ticket-count');
+  if (ticketEl) ticketEl.textContent = tickets;
+  _renderGachaInventory();
+  _updateGachaNavBadge();
+}
+
+function _renderGachaInventory() {
+  const el = document.getElementById('gacha-inventory');
+  if (!el) return;
+  const items = GACHA_ITEMS.filter(i => (_gachaItems[i.id] || 0) > 0);
+  if (!items.length) {
+    el.innerHTML = '<div class="gacha-inv-empty">所持アイテムなし</div>';
+    return;
+  }
+  el.innerHTML = `<div class="gacha-inv-title"><i class="ti ti-backpack"></i> 所持アイテム</div>` +
+    items.map(i => `
+      <div class="gacha-inv-row">
+        <span class="rarity-${i.rarity.toLowerCase()}">${i.rarity}</span>
+        <span class="gacha-inv-label">${i.label}（+${i.boost}閲覧）</span>
+        <span class="gacha-inv-qty">${_gachaItems[i.id]}枚</span>
+      </div>`).join('');
+}
+
+function _updateGachaNavBadge() {
+  const badge = document.getElementById('gacha-nav-badge');
+  if (!badge) return;
+  const tickets = _gachaItems['gacha_ticket'] || 0;
+  if (tickets > 0) {
+    badge.textContent = tickets > 99 ? '99+' : tickets;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+async function doGacha(count) {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) return;
+  const tickets = _gachaItems['gacha_ticket'] || 0;
+  if (tickets < count) {
+    showToast(`チケットが足りません（所持: ${tickets}枚）`, 'error'); return;
+  }
+  // チケット消費
+  const ok = await dbConsumeItem(aid, 'gacha_ticket', count);
+  if (!ok) { showToast('チケットの消費に失敗しました', 'error'); return; }
+  _gachaItems['gacha_ticket'] = (tickets - count);
+  const ticketEl = document.getElementById('gacha-ticket-count');
+  if (ticketEl) ticketEl.textContent = _gachaItems['gacha_ticket'];
+
+  // 抽選
+  const results = Array.from({ length: count }, () => _rollOne());
+
+  // アイテム加算
+  const gained = {};
+  for (const item of results) {
+    gained[item.id] = (gained[item.id] || 0) + 1;
+  }
+  await Promise.all(Object.entries(gained).map(([id, qty]) => dbAddItem(aid, id, qty)));
+  for (const [id, qty] of Object.entries(gained)) {
+    _gachaItems[id] = (_gachaItems[id] || 0) + qty;
+  }
+
+  // 演出
+  _showGachaResult(results);
+  _renderGachaInventory();
+  _updateGachaNavBadge();
+}
+
+function _showGachaResult(results) {
+  const stage = document.getElementById('gacha-stage');
+  const iconWrap = document.getElementById('gacha-icon-wrap');
+  const resultEl = document.getElementById('gacha-result');
+  if (!stage || !resultEl) return;
+
+  iconWrap.style.display = 'none';
+  resultEl.style.display = '';
+
+  // 最高レアリティを判定
+  const rarityOrder = { SSR: 4, SR: 3, R: 2, N: 1 };
+  const best = results.reduce((a, b) => rarityOrder[a.rarity] >= rarityOrder[b.rarity] ? a : b);
+  const color = RARITY_COLORS[best.rarity];
+
+  if (results.length === 1) {
+    resultEl.innerHTML = `
+      <div class="gacha-result-single" style="--rarity-color:${color}">
+        <div class="gacha-result-rarity" style="color:${color}">${best.rarity}</div>
+        <div class="gacha-result-name">${best.label}</div>
+        <div class="gacha-result-desc">+${best.boost} 閲覧スコア</div>
+      </div>
+      <button class="gacha-close-btn" onclick="_resetGachaStage()">閉じる</button>`;
+  } else {
+    const rows = results.map(r =>
+      `<div class="gacha-result-item" style="border-color:${RARITY_COLORS[r.rarity]}">
+        <span class="rarity-${r.rarity.toLowerCase()}">${r.rarity}</span>
+        <span>${r.label}</span>
+        <span style="color:var(--text3);font-size:11px">+${r.boost}</span>
+      </div>`
+    ).join('');
+    resultEl.innerHTML = `
+      <div class="gacha-result-multi">${rows}</div>
+      <button class="gacha-close-btn" onclick="_resetGachaStage()">閉じる</button>`;
+  }
+}
+
+function _resetGachaStage() {
+  document.getElementById('gacha-icon-wrap').style.display = '';
+  const r = document.getElementById('gacha-result');
+  if (r) { r.style.display = 'none'; r.innerHTML = ''; }
+}
+
+// ブーストを投稿に適用
+async function applyBoostToPost(postDbId, itemId) {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid || !postDbId || !itemId) return;
+  const boostAmt = BOOST_AMOUNTS[itemId];
+  if (!boostAmt) return;
+  const qty = _gachaItems[itemId] || 0;
+  if (qty <= 0) { showToast('アイテムがありません', 'error'); return; }
+  const ok1 = await dbConsumeItem(aid, itemId, 1);
+  if (!ok1) { showToast('消費に失敗しました', 'error'); return; }
+  const ok2 = await dbApplyBoost(postDbId, boostAmt);
+  if (!ok2) {
+    // ロールバック
+    await dbAddItem(aid, itemId, 1);
+    showToast('ブーストの適用に失敗しました', 'error'); return;
+  }
+  _gachaItems[itemId] = qty - 1;
+  showToast(`🚀 ブースト適用！ +${boostAmt} 閲覧スコアが加算されました`, 'success');
+  // ランキングキャッシュをリセットして再取得
+  _rankCache = { period: null, data: [], fetchedAt: 0 };
+  _loadRankData();
+}
 
 // 旧互換
 function loadExternalTrends() { syncExternalPosts(); }
