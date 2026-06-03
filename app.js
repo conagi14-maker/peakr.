@@ -10728,10 +10728,6 @@ async function _loadMyPoints() {
   if (el) el.textContent = `${_myPoints.toLocaleString()} pt`;
 }
 
-
-
-}
-
 // ピークポイントページ
 async function renderPeakPointsPage() {
   await _loadMyPoints();
