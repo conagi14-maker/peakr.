@@ -980,6 +980,27 @@
           </div>
         </section>
 
+        <!-- ランキング報酬 -->
+        <section class="settings-section">
+          <h2><i class="ti ti-trophy" style="color:#fbbf24"></i> ランキング報酬</h2>
+          <p class="settings-desc">ランキング入りした投稿者にコインを付与します。順位帯別の報酬と倍率を調整できます。</p>
+          <div id="dev-rank-rewards">
+            <div class="dev-cutin-row"><label>1位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-1" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
+            <div class="dev-cutin-row"><label>2位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-2" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
+            <div class="dev-cutin-row"><label>3位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-3" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
+            <div class="dev-cutin-row"><label>4〜10位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-4_10" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
+            <div class="dev-cutin-row"><label>11〜50位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-11_50" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
+            <div class="dev-cutin-row"><label>51〜100位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-51_100" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
+            <div class="dev-cutin-row"><label>全体倍率</label><input type="number" min="0" step="0.1" class="dev-input" id="dev-rank-allMult" style="width:100px"><span style="color:var(--text3);font-size:12px">× （全体ランキング入りに適用）</span></div>
+            <div class="dev-cutin-row"><label>カテゴリー倍率</label><input type="number" min="0" step="0.1" class="dev-input" id="dev-rank-catMult" style="width:100px"><span style="color:var(--text3);font-size:12px">× （カテゴリー別ランキング入りに適用）</span></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:14px">
+            <button class="btn-primary" onclick="saveRankRewards()">保存</button>
+            <button class="btn-secondary" onclick="resetRankRewards()">デフォルトに戻す</button>
+          </div>
+          <p style="margin-top:10px;font-size:11px;color:var(--text3)">同じ投稿×同じランキングでは1度だけ付与されます。期間はデイリー単位です。</p>
+        </section>
+
         <!-- カットイン演出確率 -->
         <section class="settings-section">
           <h2><i class="ti ti-bolt" style="color:#d97706"></i> カットイン演出確率</h2>

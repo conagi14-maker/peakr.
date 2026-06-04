@@ -455,7 +455,7 @@ function goPage(id, btn) {
   if (id === 'peak-points') renderPeakPointsPage();
   if (id === 'feedback') openFeedbackPage();
   if (id === 'gacha')    renderGachaPage();
-  if (id === 'dev-gacha') { renderDevGachaList(); setTimeout(() => _loadCutinRatesUI(), 100); }
+  if (id === 'dev-gacha') { renderDevGachaList(); setTimeout(() => { _loadCutinRatesUI(); _loadRankRewardsUI(); }, 100); }
   if (id === 'follows') renderFollows();
   if (id === 'settings') { renderCatSettings(); _loadDmSettingsIntoUI(); _initSettingsRegionBtns(); }
   if (id === 'acct-switch') renderAcctSwitch();
@@ -1671,6 +1671,43 @@ async function _loadRankData(force = false) {
 
   // 自分の投稿がランキングに入っていれば通知
   _notifyMyRankings();
+
+  // ランキング報酬を全ユーザー対象で付与（重複防止はDBで担保）
+  _processRankRewards();
+}
+
+// ── ランキング報酬の付与（_rankCache から自動算出） ──
+async function _processRankRewards() {
+  const data = _rankCache.data;
+  if (!data || !data.length) return;
+
+  // 全体ランキング: スコア順
+  const allSorted = [...data].filter(t => !t.isDummy && !t.extSource)
+    .sort((a, b) => b.score - a.score);
+  for (let i = 0; i < Math.min(100, allSorted.length); i++) {
+    const t = allSorted[i];
+    if (!t.db_id) continue;
+    const accountId = t.user?.h?.startsWith('@') ? t.user.h.slice(1) : t.user?.h;
+    if (!accountId) continue;
+    grantRankReward(t.db_id, accountId, i + 1, 'all', null);
+  }
+
+  // カテゴリー別ランキング
+  const byCat = {};
+  data.filter(t => !t.isDummy && !t.extSource && t.catId).forEach(t => {
+    if (!byCat[t.catId]) byCat[t.catId] = [];
+    byCat[t.catId].push(t);
+  });
+  for (const [catId, posts] of Object.entries(byCat)) {
+    const sorted = posts.sort((a, b) => b.score - a.score);
+    for (let i = 0; i < Math.min(100, sorted.length); i++) {
+      const t = sorted[i];
+      if (!t.db_id) continue;
+      const accountId = t.user?.h?.startsWith('@') ? t.user.h.slice(1) : t.user?.h;
+      if (!accountId) continue;
+      grantRankReward(t.db_id, accountId, i + 1, 'cat', catId);
+    }
+  }
 }
 
 /**
@@ -7515,6 +7552,68 @@ const _RARITY_ASCEND = ['N','R','SR','SSR','LG'];
 const _ITEM_BY_RARITY = { N:'boost_n', R:'boost_r', SR:'boost_sr', SSR:'boost_ssr', LG:'boost_lg' };
 const _BOOST_BY_RARITY = { N:1, R:5, SR:30, SSR:100, LG:1000 };
 
+// ── ランキング報酬設定（開発者画面で変更可能） ──
+const _RANK_REWARDS_DEFAULT = {
+  rank1:   1000,   // 1位
+  rank2:   500,    // 2位
+  rank3:   300,    // 3位
+  rank4_10: 100,   // 4〜10位
+  rank11_50: 50,   // 11〜50位
+  rank51_100: 10,  // 51〜100位
+  allMult: 2.0,    // 全体ランキング倍率
+  catMult: 1.0,    // カテゴリーランキング倍率
+};
+let _rankRewards = { ..._RANK_REWARDS_DEFAULT };
+try {
+  const saved = JSON.parse(localStorage.getItem('trendy_rank_rewards') || 'null');
+  if (saved) _rankRewards = { ..._RANK_REWARDS_DEFAULT, ...saved };
+} catch(e) {}
+
+function _coinsByRank(rank) {
+  if (rank === 1) return _rankRewards.rank1;
+  if (rank === 2) return _rankRewards.rank2;
+  if (rank === 3) return _rankRewards.rank3;
+  if (rank >= 4  && rank <= 10) return _rankRewards.rank4_10;
+  if (rank >= 11 && rank <= 50) return _rankRewards.rank11_50;
+  if (rank >= 51 && rank <= 100) return _rankRewards.rank51_100;
+  return 0;
+}
+
+/**
+ * ランキング報酬を付与（重複防止）
+ * @param {string} postId, @param {string} accountId, @param {number} rank, @param {string} kind 'all'|'cat', @param {string} catId
+ */
+async function grantRankReward(postId, accountId, rank, kind, catId) {
+  if (!postId || !accountId || rank > 100) return;
+  const baseCoins = _coinsByRank(rank);
+  if (baseCoins <= 0) return;
+  const mult = kind === 'all' ? _rankRewards.allMult : _rankRewards.catMult;
+  const coins = Math.round(baseCoins * mult);
+  if (coins <= 0) return;
+
+  // 既に同じ post×period×kind×cat で付与済みかチェック
+  const { data: existing } = await db.from('rank_rewards')
+    .select('id').eq('post_id', postId).eq('period','daily').eq('kind', kind)
+    .eq('cat_id', catId || '').maybeSingle();
+  if (existing) return; // すでに付与済み
+
+  const { error } = await db.from('rank_rewards').insert({
+    account_id: accountId, post_id: postId, period: 'daily',
+    kind, cat_id: catId || '', rank, coins,
+  });
+  if (error) {
+    if (!error.message.includes('duplicate')) console.warn('[rank_rewards]', error.message);
+    return;
+  }
+  // コインを付与
+  await dbAddPoints(accountId, coins);
+  // 自分なら _myPoints も更新
+  if (accountId === localStorage.getItem('trendy_account_id')) {
+    _myPoints += coins;
+    showToast(`🏆 ランキング${rank}位達成！ ${coins}コイン獲得`, 'success');
+  }
+}
+
 // カットイン確率（開発者ページで変更可能）
 const _CUTIN_RATES_DEFAULT = {
   shake:      0.10, // ページ振動の発動率
@@ -7970,6 +8069,42 @@ async function devResetUserItems() {
   } else {
     showToast('削除に失敗しました: ' + error.message, 'error');
   }
+}
+
+// ── ランキング報酬設定の編集 ──
+function _loadRankRewardsUI() {
+  document.getElementById('dev-rank-1').value         = _rankRewards.rank1;
+  document.getElementById('dev-rank-2').value         = _rankRewards.rank2;
+  document.getElementById('dev-rank-3').value         = _rankRewards.rank3;
+  document.getElementById('dev-rank-4_10').value      = _rankRewards.rank4_10;
+  document.getElementById('dev-rank-11_50').value     = _rankRewards.rank11_50;
+  document.getElementById('dev-rank-51_100').value    = _rankRewards.rank51_100;
+  document.getElementById('dev-rank-allMult').value   = _rankRewards.allMult;
+  document.getElementById('dev-rank-catMult').value   = _rankRewards.catMult;
+}
+
+function saveRankRewards() {
+  const r = {
+    rank1:      parseInt(document.getElementById('dev-rank-1').value || 0),
+    rank2:      parseInt(document.getElementById('dev-rank-2').value || 0),
+    rank3:      parseInt(document.getElementById('dev-rank-3').value || 0),
+    rank4_10:   parseInt(document.getElementById('dev-rank-4_10').value || 0),
+    rank11_50:  parseInt(document.getElementById('dev-rank-11_50').value || 0),
+    rank51_100: parseInt(document.getElementById('dev-rank-51_100').value || 0),
+    allMult:    parseFloat(document.getElementById('dev-rank-allMult').value || 0),
+    catMult:    parseFloat(document.getElementById('dev-rank-catMult').value || 0),
+  };
+  _rankRewards = r;
+  localStorage.setItem('trendy_rank_rewards', JSON.stringify(r));
+  showToast('✅ ランキング報酬設定を保存しました', 'success');
+}
+
+function resetRankRewards() {
+  if (!confirm('ランキング報酬設定をデフォルトに戻しますか？')) return;
+  _rankRewards = { ..._RANK_REWARDS_DEFAULT };
+  localStorage.removeItem('trendy_rank_rewards');
+  _loadRankRewardsUI();
+  showToast('デフォルトに戻しました', 'success');
 }
 
 // ── カットイン確率の編集 ──
