@@ -7387,14 +7387,15 @@ function _playSingleCutin(cutin) {
       </div>
     `;
 
-    if (cutin.type === 'shake') {
-      document.body.classList.add('gacha-page-shake');
+    const stage = document.getElementById('gacha-stage');
+    if (cutin.type === 'shake' && stage) {
+      stage.classList.add('gacha-stage-shake-strong');
     }
 
     setTimeout(() => {
       overlay.style.display = 'none';
-      if (cutin.type === 'shake') {
-        document.body.classList.remove('gacha-page-shake');
+      if (cutin.type === 'shake' && stage) {
+        stage.classList.remove('gacha-stage-shake-strong');
       }
       resolve();
     }, cfg.dur);
