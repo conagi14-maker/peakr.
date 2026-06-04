@@ -7758,10 +7758,14 @@ function _applyGachaCutins(results, cutins) {
 
   let newRarity = results[bestIdx].rarity;
   if (hasBlackout) {
-    newRarity = 'SSR';
+    // ブラックアウトは LG 確定
+    newRarity = 'LG';
   } else if (totalAscend > 0) {
     const curIdx = _RARITY_ASCEND.indexOf(newRarity);
-    const newIdx = Math.min(_RARITY_ASCEND.length - 1, curIdx + totalAscend);
+    // 確変系は UR で打ち止め（LG はブラックアウトのみ到達）
+    const urIdx = _RARITY_ASCEND.indexOf('UR');
+    const upperLimit = Math.max(curIdx, urIdx);
+    const newIdx = Math.min(upperLimit, curIdx + totalAscend);
     newRarity = _RARITY_ASCEND[newIdx];
   }
 
