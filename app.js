@@ -10611,6 +10611,7 @@ async function renderDevStatsAll() {
   _renderTimeStats(stats);
   _renderTopUsers(stats);
   _renderEconomyStats(stats);
+  _renderGachaStats(stats);
   _renderExtStats(stats);
 }
 
@@ -10887,6 +10888,109 @@ function _renderEconomyStats(s) {
       <span class="dev-stat-label">コイン保有者</span><span class="dev-stat-pill">${coinHolders}人</span>
       <span class="dev-stat-label">TOP10シェア</span><span class="dev-stat-pill">${top10Share}%</span>
     </div>
+  `;
+}
+
+function _renderGachaStats(s) {
+  const el = document.getElementById('dev-gacha-stats');
+  if (!el) return;
+
+  // 所持アイテム集計
+  const ownedByRarity = { LG: 0, SSR: 0, SR: 0, R: 0, N: 0 };
+  const ownedEmojisByRarity = { LG: 0, SSR: 0, SR: 0 };
+  const ownedBoostByRarity = { LG: 0, SSR: 0, SR: 0, R: 0, N: 0 };
+  s.items.forEach(i => {
+    if (i.quantity <= 0) return;
+    if (i.item_type.startsWith('boost_')) {
+      const rar = i.item_type.replace('boost_','').toUpperCase();
+      ownedBoostByRarity[rar] = (ownedBoostByRarity[rar] || 0) + i.quantity;
+      ownedByRarity[rar] = (ownedByRarity[rar] || 0) + i.quantity;
+    } else if (i.item_type.startsWith('emoji_')) {
+      // emoji_LG_001 形式
+      const parts = i.item_type.split('_');
+      const rar = parts[1];
+      if (ownedEmojisByRarity[rar] !== undefined) {
+        ownedEmojisByRarity[rar] += i.quantity;
+        ownedByRarity[rar] = (ownedByRarity[rar] || 0) + i.quantity;
+      }
+    }
+  });
+  const totalOwned = Object.values(ownedByRarity).reduce((a,b)=>a+b,0);
+
+  // ブースト適用回数（投稿のboost_score > 0）
+  const boostApplied = s.posts.filter(p => !p.ext_source && (p.boost_score || 0) > 0).length;
+  const boostTotalScore = s.posts.reduce((a, p) => a + (p.boost_score || 0), 0);
+
+  // 累計ガチャ回数の推定
+  // 累計ガチャ消費コイン = 累計獲得 - 現在所持 - 投稿でもらった分（推定）
+  const totalEarned = s.coins.reduce((a, c) => a + (c.total_earned || 0), 0);
+  const currentCoins = s.coins.reduce((a, c) => a + (c.points || 0), 0);
+  const estSpentCoins = totalEarned - currentCoins;
+  const estGachaCount = Math.floor(estSpentCoins / 100);
+
+  // 絵文字種類別所持率
+  const uniqueEmojiOwned = new Set();
+  s.items.forEach(i => { if (i.item_type.startsWith('emoji_') && i.quantity > 0) uniqueEmojiOwned.add(i.item_type); });
+  const totalEmojiTypes = 100; // 全種類
+
+  // いいね絵文字使用統計（posts.like_emoji）
+  const emojiUsage = {};
+  s.posts.filter(p => !p.ext_source && p.like_emoji && p.like_emoji !== '❤️').forEach(p => {
+    emojiUsage[p.like_emoji] = (emojiUsage[p.like_emoji] || 0) + 1;
+  });
+  const popularEmojis = Object.entries(emojiUsage).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const customEmojiPosts = s.posts.filter(p => !p.ext_source && p.like_emoji && p.like_emoji !== '❤️').length;
+  const defaultEmojiPosts = s.posts.filter(p => !p.ext_source).length - customEmojiPosts;
+
+  // 排出レアリティ分布（現在所持から推定）
+  const totalAcc = totalOwned || 1;
+  const rarityDist = {
+    LG:  ((ownedByRarity.LG / totalAcc) * 100).toFixed(2),
+    SSR: ((ownedByRarity.SSR / totalAcc) * 100).toFixed(2),
+    SR:  ((ownedByRarity.SR / totalAcc) * 100).toFixed(2),
+    R:   ((ownedByRarity.R / totalAcc) * 100).toFixed(2),
+    N:   ((ownedByRarity.N / totalAcc) * 100).toFixed(2),
+  };
+
+  el.innerHTML = `
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">推定ガチャ回数</span>
+      <span class="dev-stat-pill">${estGachaCount.toLocaleString()} 回</span>
+      <span class="dev-stat-label">消費コイン</span>
+      <span class="dev-stat-pill">${estSpentCoins.toLocaleString()}</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">累計獲得アイテム</span>
+      <span class="dev-stat-pill">${totalOwned}個（現在所持）</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">所持LG</span><span class="dev-stat-pill">${ownedByRarity.LG} (${rarityDist.LG}%)</span>
+      <span class="dev-stat-label">SSR</span><span class="dev-stat-pill">${ownedByRarity.SSR} (${rarityDist.SSR}%)</span>
+      <span class="dev-stat-label">SR</span><span class="dev-stat-pill">${ownedByRarity.SR} (${rarityDist.SR}%)</span>
+      <span class="dev-stat-label">R</span><span class="dev-stat-pill">${ownedByRarity.R} (${rarityDist.R}%)</span>
+      <span class="dev-stat-label">N</span><span class="dev-stat-pill">${ownedByRarity.N} (${rarityDist.N}%)</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">ブースト適用</span>
+      <span class="dev-stat-pill">${boostApplied}件の投稿</span>
+      <span class="dev-stat-label">合計スコア</span>
+      <span class="dev-stat-pill">+${boostTotalScore.toLocaleString()}</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">絵文字コレクション</span>
+      <span class="dev-stat-pill">${uniqueEmojiOwned.size} / ${totalEmojiTypes} 種類</span>
+      <span class="dev-stat-pill">LG ${ownedEmojisByRarity.LG} / SSR ${ownedEmojisByRarity.SSR} / SR ${ownedEmojisByRarity.SR}</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">絵文字いいね設定</span>
+      <span class="dev-stat-pill">カスタム ${customEmojiPosts}件</span>
+      <span class="dev-stat-pill">デフォルト❤️ ${defaultEmojiPosts}件</span>
+    </div>
+    ${popularEmojis.length ? `
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">人気いいね絵文字</span>
+      ${popularEmojis.map(([e,c]) => `<span class="dev-stat-pill" style="font-size:14px">${e} ${c}</span>`).join('')}
+    </div>` : ''}
   `;
 }
 
