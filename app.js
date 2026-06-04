@@ -1393,9 +1393,6 @@ function confirmPost() {
   const urlBtn = document.getElementById('compose-url-toggle-btn');
   if (urlBtn) urlBtn.classList.remove('compose-url-btn-active');
   resetComposeCat(); // カテゴリー・タグもリセット
-  pendingLikeEmoji = '❤️';
-  const _ceEl = document.getElementById('compose-like-emoji-current');
-  if (_ceEl) _ceEl.textContent = '❤️';
   updateCompose();
   // 投稿でピークコイン +100
   if (!testActiveUser && !isSub) {
@@ -1412,6 +1409,21 @@ function confirmPost() {
   // 投稿には常に絵文字を紐づける（未選択時はデフォルト❤️）
   const _likeEmoji = pendingLikeEmoji || '❤️';
   t.likeEmoji = _likeEmoji;
+  // ホームフィードに表示済みのlikeEmojiも更新
+  const _localDom = document.querySelector(`[data-local-id="${t._localId}"]`);
+  if (_localDom) {
+    const likeBtn = _localDom.querySelector('.like-btn i, .like-btn .like-emoji-display');
+    if (likeBtn) {
+      const span = document.createElement('span');
+      span.className = 'like-emoji-display';
+      span.textContent = _likeEmoji;
+      likeBtn.replaceWith(span);
+    }
+  }
+  // 投稿フォームの絵文字ボタンをデフォルトに戻す
+  pendingLikeEmoji = '❤️';
+  const _ceEl = document.getElementById('compose-like-emoji-current');
+  if (_ceEl) _ceEl.textContent = '❤️';
   dbSavePost({
     handle       : isSub ? subAccountHandle : myHandle,
     name         : isSub ? subAccountName : (myNickname || 'あなた'),
