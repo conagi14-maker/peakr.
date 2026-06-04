@@ -7260,13 +7260,16 @@ async function doGacha(count) {
   const postCutins = cutins.filter(c => c.type === 'henpen' || c.type === 'chain');
 
   // pre演出（振動・ブラックアウト）→ 結果書き換え
+  const hasBlackout = preCutins.some(c => c.type === 'blackout');
   if (preCutins.length) {
     await _playGachaCutins(preCutins);
     results = _applyGachaCutins(results, preCutins);
   }
 
-  // タメ演出（2秒）→ 結果表示
-  await _playGachaSuspense(results);
+  // タメ演出（2秒）→ 結果表示。ブラックアウト時はタメをスキップして即結果
+  if (!hasBlackout) {
+    await _playGachaSuspense(results);
+  }
   _showGachaResult(results);
 
   // post演出：確変・連続確変があればクリック待ち → 結果上書き
