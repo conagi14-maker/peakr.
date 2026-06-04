@@ -451,6 +451,7 @@ function goPage(id, btn) {
   if (id === 'peak-points') renderPeakPointsPage();
   if (id === 'feedback') openFeedbackPage();
   if (id === 'gacha')    renderGachaPage();
+  if (id === 'dev-gacha') renderDevGachaList();
   if (id === 'follows') renderFollows();
   if (id === 'settings') { renderCatSettings(); _loadDmSettingsIntoUI(); _initSettingsRegionBtns(); }
   if (id === 'acct-switch') renderAcctSwitch();
@@ -7331,6 +7332,130 @@ async function applyBoostToPost(postDbId, itemId) {
   // ランキングキャッシュをリセットして再取得
   _rankCache = { period: null, data: [], fetchedAt: 0 };
   _loadRankData();
+}
+
+// ══════════════════════════════════════════
+// 🛠️ 開発者ガチャ管理
+// ══════════════════════════════════════════
+
+const _DEV_ITEM_LABELS = {
+  gacha_ticket: '🎫 ガチャチケット',
+  boost_ssr:    'SSR ブースト',
+  boost_sr:     'SR ブースト',
+  boost_r:      'R ブースト',
+  boost_n:      'N ブースト',
+};
+
+async function devBulkGiveItem() {
+  const itemType = document.getElementById('dev-gacha-bulk-item')?.value;
+  const qty = parseInt(document.getElementById('dev-gacha-bulk-qty')?.value || '1', 10);
+  if (!itemType || qty <= 0) { showToast('数量が無効です', 'error'); return; }
+  if (!confirm(`全ユーザーに「${_DEV_ITEM_LABELS[itemType]}」を ${qty}個 配布しますか？`)) return;
+
+  const { data: profs } = await db.from('profiles').select('account_id');
+  if (!profs || !profs.length) { showToast('対象ユーザーがいません', 'error'); return; }
+
+  showToast(`${profs.length}人に配布中...`, 'info');
+  await Promise.all(profs.map(p => dbAddItem(p.account_id, itemType, qty)));
+  showToast(`✅ ${profs.length}人に配布完了`, 'success');
+  renderDevGachaList();
+  // 自分宛なら _gachaItems も更新
+  if (profs.some(p => p.account_id === localStorage.getItem('trendy_account_id'))) {
+    const aid = localStorage.getItem('trendy_account_id');
+    _gachaItems = await dbGetUserItems(aid);
+    _updateGachaNavBadge();
+  }
+}
+
+async function devGiveItem() {
+  const aid = document.getElementById('dev-gacha-target-id')?.value.trim();
+  const itemType = document.getElementById('dev-gacha-target-item')?.value;
+  const qty = parseInt(document.getElementById('dev-gacha-target-qty')?.value || '1', 10);
+  if (!aid) { showToast('account_id を入力してください', 'error'); return; }
+  if (!itemType || qty <= 0) { showToast('数量が無効です', 'error'); return; }
+
+  const ok = await dbAddItem(aid, itemType, qty);
+  if (ok) {
+    showToast(`✅ ${aid} に「${_DEV_ITEM_LABELS[itemType]}」を ${qty}個 付与`, 'success');
+    renderDevGachaList();
+    if (aid === localStorage.getItem('trendy_account_id')) {
+      _gachaItems = await dbGetUserItems(aid);
+      _updateGachaNavBadge();
+    }
+  } else {
+    showToast('付与に失敗しました', 'error');
+  }
+}
+
+async function devTakeItem() {
+  const aid = document.getElementById('dev-gacha-target-id')?.value.trim();
+  const itemType = document.getElementById('dev-gacha-target-item')?.value;
+  const qty = parseInt(document.getElementById('dev-gacha-target-qty')?.value || '1', 10);
+  if (!aid) { showToast('account_id を入力してください', 'error'); return; }
+
+  const ok = await dbConsumeItem(aid, itemType, qty);
+  if (ok) {
+    showToast(`✅ ${aid} から「${_DEV_ITEM_LABELS[itemType]}」を ${qty}個 削減`, 'success');
+    renderDevGachaList();
+    if (aid === localStorage.getItem('trendy_account_id')) {
+      _gachaItems = await dbGetUserItems(aid);
+      _updateGachaNavBadge();
+    }
+  } else {
+    showToast('削減に失敗しました（所持数不足）', 'error');
+  }
+}
+
+async function devResetUserItems() {
+  const aid = document.getElementById('dev-gacha-target-id')?.value.trim();
+  if (!aid) { showToast('account_id を入力してください', 'error'); return; }
+  if (!confirm(`「${aid}」の所持アイテムを全て削除しますか？`)) return;
+
+  const { error } = await db.from('user_items').delete().eq('account_id', aid);
+  if (!error) {
+    showToast('✅ 全アイテムを削除しました', 'success');
+    renderDevGachaList();
+    if (aid === localStorage.getItem('trendy_account_id')) {
+      _gachaItems = {};
+      _updateGachaNavBadge();
+    }
+  } else {
+    showToast('削除に失敗しました: ' + error.message, 'error');
+  }
+}
+
+async function renderDevGachaList() {
+  const el = document.getElementById('dev-gacha-list');
+  if (!el) return;
+  el.innerHTML = '<p style="color:var(--text3)">読み込み中...</p>';
+
+  const { data, error } = await db
+    .from('user_items')
+    .select('account_id, item_type, quantity')
+    .gt('quantity', 0)
+    .order('account_id');
+
+  if (error) { el.innerHTML = '<p style="color:#ef4444">エラー: ' + error.message + '</p>'; return; }
+  if (!data || !data.length) { el.innerHTML = '<p style="color:var(--text3)">所持アイテムがあるユーザーはいません</p>'; return; }
+
+  // account_id ごとにグループ化
+  const grouped = {};
+  data.forEach(r => {
+    if (!grouped[r.account_id]) grouped[r.account_id] = [];
+    grouped[r.account_id].push(r);
+  });
+
+  el.innerHTML = Object.entries(grouped).map(([aid, items]) => `
+    <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="font-weight:700;font-size:13px;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+        <i class="ti ti-user"></i> ${aid}
+        <button class="btn-sm" style="margin-left:auto;font-size:11px;color:var(--text3)" onclick="document.getElementById('dev-gacha-target-id').value='${aid}'">編集対象に設定</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px">
+        ${items.map(i => `<span style="background:var(--bg2);padding:3px 8px;border-radius:6px">${_DEV_ITEM_LABELS[i.item_type] || i.item_type}: <b>${i.quantity}</b></span>`).join('')}
+      </div>
+    </div>
+  `).join('');
 }
 
 // 旧互換

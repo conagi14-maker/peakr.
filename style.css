@@ -7251,3 +7251,15 @@ mark.hs-mark {
   box-shadow: 0 2px 6px rgba(107,114,128,0.35);
 }
 
+
+/* 開発者ガチャ管理 input */
+.dev-input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg2);
+  color: var(--text1);
+  font-size: 13px;
+  font-family: inherit;
+}
+.dev-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }

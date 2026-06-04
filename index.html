@@ -915,6 +915,12 @@
             <div class="dev-hub-desc">メインカテゴリーの追加・削除</div>
             <i class="ti ti-chevron-right dev-hub-arrow"></i>
           </button>
+          <button class="dev-hub-card" onclick="goPage('dev-gacha',null)">
+            <div class="dev-hub-icon" style="background:#fef3c7;color:#d97706"><i class="ti ti-ticket"></i></div>
+            <div class="dev-hub-label">ガチャ管理</div>
+            <div class="dev-hub-desc">チケット配布・所持アイテム管理</div>
+            <i class="ti ti-chevron-right dev-hub-arrow"></i>
+          </button>
           <button class="dev-hub-card" onclick="goPage('dev-config',null)">
             <div class="dev-hub-icon" style="background:#eef2ff;color:#4338ca"><i class="ti ti-shield"></i></div>
             <div class="dev-hub-label">開発者設定</div>
@@ -922,6 +928,63 @@
             <i class="ti ti-chevron-right dev-hub-arrow"></i>
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- ══ DEV: ガチャ管理 ══ -->
+    <div class="page" id="page-dev-gacha">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('dev',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1><i class="ti ti-ticket" style="color:#d97706"></i> ガチャ管理</h1>
+      </div>
+      <div class="settings-body">
+        <!-- 全員配布 -->
+        <section class="settings-section">
+          <h2><i class="ti ti-users" style="color:#d97706"></i> 全ユーザーに一括配布</h2>
+          <p class="settings-desc">全登録ユーザーにアイテムを一括で配布します。</p>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
+            <select id="dev-gacha-bulk-item" class="dev-input" style="flex:1">
+              <option value="gacha_ticket">🎫 ガチャチケット</option>
+              <option value="boost_ssr">SSR ブースト（+100閲覧）</option>
+              <option value="boost_sr">SR ブースト（+30閲覧）</option>
+              <option value="boost_r">R ブースト（+5閲覧）</option>
+              <option value="boost_n">N ブースト（+1閲覧）</option>
+            </select>
+            <input id="dev-gacha-bulk-qty" type="number" min="1" value="1" class="dev-input" style="width:80px" placeholder="数量">
+            <button class="btn-primary" onclick="devBulkGiveItem()">配布</button>
+          </div>
+        </section>
+
+        <!-- 個別操作 -->
+        <section class="settings-section">
+          <h2><i class="ti ti-user-edit" style="color:#d97706"></i> 個別ユーザー操作</h2>
+          <p class="settings-desc">アカウントIDを指定してアイテムを増減します。</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+            <input id="dev-gacha-target-id" class="dev-input" placeholder="account_id（例: kanri0614）">
+            <select id="dev-gacha-target-item" class="dev-input">
+              <option value="gacha_ticket">🎫 ガチャチケット</option>
+              <option value="boost_ssr">SSR ブースト</option>
+              <option value="boost_sr">SR ブースト</option>
+              <option value="boost_r">R ブースト</option>
+              <option value="boost_n">N ブースト</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="dev-gacha-target-qty" type="number" min="1" value="1" class="dev-input" style="width:90px">
+            <button class="btn-primary" onclick="devGiveItem()">付与</button>
+            <button class="btn-secondary" onclick="devTakeItem()">削減</button>
+            <button class="btn-danger" onclick="devResetUserItems()">全消去</button>
+          </div>
+        </section>
+
+        <!-- 一覧 -->
+        <section class="settings-section">
+          <h2>
+            <i class="ti ti-list" style="color:#d97706"></i> 所持状況一覧
+            <button class="btn-sm" style="margin-left:auto" onclick="renderDevGachaList()"><i class="ti ti-refresh"></i></button>
+          </h2>
+          <div id="dev-gacha-list" style="font-size:13px"></div>
+        </section>
       </div>
     </div>
 
