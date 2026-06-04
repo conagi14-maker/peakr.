@@ -1864,7 +1864,16 @@ function _saveEarnedBadges(list) {
 }
 /** 表示中バッジ ID（最大3, null 可）を取得 */
 function _loadDisplayBadgeIds() {
-  try { return JSON.parse(localStorage.getItem('trendy_display_badges') || '[null,null,null]'); } catch(e) { return [null,null,null]; }
+  try {
+    const raw = JSON.parse(localStorage.getItem('trendy_display_badges') || '[null,null,null]');
+    // 正規化: オブジェクトなら .id を取り出す（後方互換）
+    const arr = raw.map(b => {
+      if (typeof b === 'object' && b !== null) return b.id || null;
+      return b;
+    });
+    while (arr.length < 3) arr.push(null);
+    return arr.slice(0, 3);
+  } catch(e) { return [null,null,null]; }
 }
 /** 表示中バッジ ID を保存 */
 function _saveDisplayBadgeIds(ids) {
@@ -2069,13 +2078,27 @@ function toggleBadgeSelect(badgeId) {
 }
 
 /** マイページのバッジスロット描画 */
+function _titleBadgeCardHTML(title, compact = true) {
+  const info = Object.values(TITLE_INFO).find(t => t.title === title);
+  const rar = info?.rarity || 'SR';
+  return `<div class="title-badge-display-card rarity-bg-${rar.toLowerCase()}">
+    <span class="rarity-${rar.toLowerCase()}">${rar}</span>
+    <span class="title-badge-display-text">${title}</span>
+  </div>`;
+}
+
 function _renderDisplayBadges() {
   const ids    = _loadDisplayBadgeIds();
   const earned = _loadEarnedBadges();
   for (let i = 0; i < 3; i++) {
     const el = document.getElementById(`dbadge-${i}`);
     if (!el) continue;
-    const bid   = ids[i];
+    const bid = ids[i];
+    if (typeof bid === 'string' && bid.startsWith('title:')) {
+      el.innerHTML = _titleBadgeCardHTML(bid.slice(6));
+      el.classList.add('has-badge');
+      continue;
+    }
     const badge = bid ? earned.find(b => b.id === bid) : null;
     if (badge) {
       el.innerHTML = _renderBadgeCard(badge, false, true);
@@ -2088,9 +2111,13 @@ function _renderDisplayBadges() {
   // プロフィール編集プレビュー
   const preview = document.getElementById('pe-badge-preview');
   if (preview) {
-    const displayed = ids.map(bid => bid ? earned.find(b => b.id === bid) : null).filter(Boolean);
-    preview.innerHTML = displayed.length
-      ? displayed.map(b => _renderBadgeCard(b, false, true)).join('')
+    const items = ids.map(bid => {
+      if (typeof bid === 'string' && bid.startsWith('title:')) return { type: 'title', title: bid.slice(6) };
+      const b = bid ? earned.find(b => b.id === bid) : null;
+      return b ? { type: 'badge', badge: b } : null;
+    }).filter(Boolean);
+    preview.innerHTML = items.length
+      ? items.map(it => it.type === 'title' ? _titleBadgeCardHTML(it.title) : _renderBadgeCard(it.badge, false, true)).join('')
       : `<span style="font-size:12px;color:var(--text3)">バッジが選択されていません</span>`;
   }
 }
@@ -2111,16 +2138,21 @@ async function _renderGachaTitleBadgesSection() {
     .filter(([id]) => (_gachaItems[id] || 0) > 0)
     .map(([id, info]) => ({ id, ...info }));
 
-  // 現在の称号表示
+  // 現在表示中のバッジスロットを確認
+  const ids = _loadDisplayBadgeIds();
+  const slottedTitles = ids.filter(i => typeof i === 'string' && i.startsWith('title:')).map(i => i.slice(6));
+
+  // 現在のスロット状況表示
   const cur = document.getElementById('gacha-title-current-display');
   if (cur) {
-    cur.innerHTML = myTitleBadge
-      ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border-radius:10px;border:1px solid var(--border)">
-          <span class="profile-title-badge"><i class="ti ti-medal"></i>${myTitleBadge}</span>
-          <span style="font-size:12px;color:var(--text3)">現在の称号</span>
-          <button class="btn-sm" style="margin-left:auto" onclick="selectTitleBadge('')">外す</button>
-        </div>`
-      : `<div style="padding:10px 14px;background:var(--bg2);border-radius:10px;border:1px dashed var(--border);font-size:12px;color:var(--text3);text-align:center">称号は未設定</div>`;
+    if (slottedTitles.length === 0) {
+      cur.innerHTML = `<div style="padding:8px 14px;background:var(--bg2);border-radius:10px;border:1px dashed var(--border);font-size:12px;color:var(--text3)">バッジ枠に追加された称号: なし</div>`;
+    } else {
+      cur.innerHTML = `<div style="padding:10px 14px;background:var(--bg2);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text3);font-weight:700">バッジ枠に追加中:</span>
+        ${slottedTitles.map(t => `<span class="profile-title-badge"><i class="ti ti-medal"></i>${t}</span>`).join('')}
+      </div>`;
+    }
   }
 
   // 所持称号一覧
@@ -2150,21 +2182,56 @@ async function _renderGachaTitleBadgesSection() {
           <span style="color:var(--text3);font-size:11px">${grouped[rar].length}種</span>
         </div>
         <div class="title-picker-grid">
-          ${grouped[rar].map(t => `
-            <button class="title-picker-btn ${myTitleBadge === t.title ? 'selected' : ''}" onclick="selectTitleBadgeAndRefresh('${t.title}')">
+          ${grouped[rar].map(t => {
+            const isInSlot = slottedTitles.includes(t.title);
+            return `
+            <button class="title-picker-btn ${isInSlot ? 'selected' : ''}" onclick="toggleTitleBadgeSlot('${t.title.replace(/'/g, "\\'")}')">
               <span class="rarity-${rar.toLowerCase()}">${rar}</span>
               <span class="title-picker-text">${t.title}</span>
-            </button>
-          `).join('')}
+              ${isInSlot ? '<i class="ti ti-check" style="margin-left:auto;color:var(--accent);font-size:14px"></i>' : ''}
+            </button>`;
+          }).join('')}
         </div>
       </div>`;
   }
   grid.innerHTML = html;
 }
 
-async function selectTitleBadgeAndRefresh(title) {
-  await selectTitleBadge(title);
+/** ガチャ称号バッジを表示スロットに追加/削除（toggle） */
+async function toggleTitleBadgeSlot(title) {
+  const slotId = 'title:' + title;
+  const ids = _loadDisplayBadgeIds();
+
+  if (ids.includes(slotId)) {
+    // 既に入っている → 外す
+    const newIds = ids.map(i => i === slotId ? null : i);
+    _saveDisplayBadgeIds(newIds);
+    showToast(`称号「${title}」を外しました`, 'info');
+  } else {
+    // 空きスロットに追加
+    const emptyIdx = ids.findIndex(i => !i);
+    if (emptyIdx === -1) {
+      showToast('バッジ枠が満杯です。先に他のバッジを外してください', 'error');
+      return;
+    }
+    ids[emptyIdx] = slotId;
+    _saveDisplayBadgeIds(ids);
+    showToast(`称号「${title}」をバッジ枠に追加しました`, 'success');
+  }
+
+  // myTitleBadge との同期（後方互換）
+  const remainingTitles = _loadDisplayBadgeIds().filter(i => typeof i === 'string' && i.startsWith('title:'));
+  myTitleBadge = remainingTitles.length ? remainingTitles[0].slice(6) : '';
+  localStorage.setItem('trendy_title_badge', myTitleBadge);
+  const aid = localStorage.getItem('trendy_account_id');
+  if (aid) {
+    try { await db.from('profiles').update({ title_badge: myTitleBadge || null, display_badges: _loadDisplayBadgeIds() }).eq('account_id', aid); } catch(e) {}
+  }
+
+  // 再描画
   _renderGachaTitleBadgesSection();
+  _renderBadgesDisplaySlots();
+  _renderDisplayBadges();
 }
 
 function _renderBadgesDisplaySlots() {
@@ -2173,7 +2240,21 @@ function _renderBadgesDisplaySlots() {
   const ids    = _loadDisplayBadgeIds();
   const earned = _loadEarnedBadges();
   el.innerHTML = [0,1,2].map(i => {
-    const bid   = ids[i];
+    const bid = ids[i];
+    // ガチャ称号バッジ
+    if (typeof bid === 'string' && bid.startsWith('title:')) {
+      const title = bid.slice(6);
+      const info = Object.values(TITLE_INFO).find(t => t.title === title);
+      const rar = info?.rarity || 'SR';
+      return `<div class="badge-dslot badge-dslot--filled" onclick="toggleTitleBadgeSlot('${title.replace(/'/g, "\\'")}')">
+        <div class="title-badge-display-card rarity-bg-${rar.toLowerCase()}">
+          <span class="rarity-${rar.toLowerCase()}">${rar}</span>
+          <span class="title-badge-display-text">${title}</span>
+        </div>
+        <div class="badge-dslot-remove">タップで外す</div>
+      </div>`;
+    }
+    // ランキング入賞バッジ
     const badge = bid ? earned.find(b => b.id === bid) : null;
     if (badge) {
       return `<div class="badge-dslot badge-dslot--filled" onclick="toggleBadgeSelect('${badge.id}')">
