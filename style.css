@@ -7871,3 +7871,59 @@ mark.hs-mark {
   from { opacity: 1; }
   to   { opacity: 0; }
 }
+
+/* LGレアリティバッジ（伝説の赤） */
+.rarity-lg {
+  position: relative;
+  background: linear-gradient(135deg, #fecaca 0%, #ef4444 30%, #b91c1c 65%, #450a0a 100%);
+  color: #fff; padding: 4px 11px; border-radius: 7px;
+  font-size: 11px; font-weight: 900; letter-spacing: 1.5px;
+  box-shadow:
+    0 0 14px rgba(239,68,68,0.85),
+    0 0 28px rgba(239,68,68,0.5),
+    0 2px 8px rgba(127,29,29,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,200,200,0.6);
+  animation: rarity-lg-glow 1.5s ease-in-out infinite alternate;
+}
+@keyframes rarity-lg-glow {
+  to {
+    box-shadow:
+      0 0 22px rgba(239,68,68,1),
+      0 0 44px rgba(239,68,68,0.7),
+      0 2px 10px rgba(127,29,29,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.6);
+  }
+}
+
+/* LGチャージ：オーブが赤く脈動 */
+.gacha-orb.gacha-charge-lg .gacha-orb-core {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,1) 0%, transparent 40%),
+    conic-gradient(from 0deg,
+      #fecaca 0%, #ef4444 20%, #b91c1c 40%,
+      #f59e0b 50%, #b91c1c 60%, #ef4444 80%, #fecaca 100%) !important;
+  box-shadow:
+    0 0 140px rgba(239,68,68,0.98),
+    0 0 80px rgba(245,158,11,0.6),
+    inset 0 -10px 20px rgba(0,0,0,0.3) !important;
+  animation: gacha-lg-spin 0.3s linear infinite !important;
+}
+@keyframes gacha-lg-spin {
+  to { filter: hue-rotate(-90deg) brightness(1.2); }
+}
+.gacha-orb.gacha-charge-lg .gacha-orb-glow {
+  background: radial-gradient(circle, rgba(239,68,68,0.95) 0%, rgba(245,158,11,0.5) 35%, transparent 70%) !important;
+  animation: gacha-lg-glow-pulse 0.2s ease-in-out infinite !important;
+}
+@keyframes gacha-lg-glow-pulse {
+  0%,100% { opacity: 0.8; transform: scale(1.1); }
+  50%     { opacity: 1;   transform: scale(1.8); }
+}
+
+/* LG結果カードのキラ＋赤グロー */
+.gacha-result-single[style*="--rarity-color:#ef4444"]::before,
+.gacha-result-item[style*="border-color:#ef4444"] {
+  filter: drop-shadow(0 0 8px rgba(239,68,68,0.4));
+}

@@ -7176,14 +7176,15 @@ async function syncPixivPosts() {
 // ══════════════════════════════════════════
 
 const GACHA_ITEMS = [
-  { id: 'boost_ssr', label: 'ブーストSSR', rarity: 'SSR', boost: 100, prob: 0.03 },
-  { id: 'boost_sr',  label: 'ブーストSR',  rarity: 'SR',  boost: 30,  prob: 0.12 },
-  { id: 'boost_r',   label: 'ブーストR',   rarity: 'R',   boost: 5,   prob: 0.35 },
-  { id: 'boost_n',   label: 'ブーストN',   rarity: 'N',   boost: 1,   prob: 0.50 },
+  { id: 'boost_lg',  label: 'ブーストLG',  rarity: 'LG',  boost: 1000, prob: 0.0001 },
+  { id: 'boost_ssr', label: 'ブーストSSR', rarity: 'SSR', boost: 100,  prob: 0.0299 },
+  { id: 'boost_sr',  label: 'ブーストSR',  rarity: 'SR',  boost: 30,   prob: 0.12 },
+  { id: 'boost_r',   label: 'ブーストR',   rarity: 'R',   boost: 5,    prob: 0.35 },
+  { id: 'boost_n',   label: 'ブーストN',   rarity: 'N',   boost: 1,    prob: 0.5 },
 ];
 
-const BOOST_AMOUNTS = { boost_ssr: 100, boost_sr: 30, boost_r: 5, boost_n: 1 };
-const RARITY_COLORS = { SSR: '#f59e0b', SR: '#8b5cf6', R: '#3b82f6', N: '#6b7280' };
+const BOOST_AMOUNTS = { boost_lg: 1000, boost_ssr: 100, boost_sr: 30, boost_r: 5, boost_n: 1 };
+const RARITY_COLORS = { LG: '#ef4444', SSR: '#f59e0b', SR: '#8b5cf6', R: '#3b82f6', N: '#6b7280' };
 
 let _gachaItems = {}; // キャッシュ
 
@@ -7346,9 +7347,9 @@ function _waitForKakuhenClick(results, postCutins) {
 // カットイン演出
 // ══════════════════════════════════════════
 
-const _RARITY_ASCEND = ['N','R','SR','SSR'];
-const _ITEM_BY_RARITY = { N:'boost_n', R:'boost_r', SR:'boost_sr', SSR:'boost_ssr' };
-const _BOOST_BY_RARITY = { N:1, R:5, SR:30, SSR:100 };
+const _RARITY_ASCEND = ['N','R','SR','SSR','LG'];
+const _ITEM_BY_RARITY = { N:'boost_n', R:'boost_r', SR:'boost_sr', SSR:'boost_ssr', LG:'boost_lg' };
+const _BOOST_BY_RARITY = { N:1, R:5, SR:30, SSR:100, LG:1000 };
 
 /** カットインを抽選（順序: 振動 → ブラックアウト → 確変 → 連続確変） */
 function _rollGachaCutins() {
@@ -7389,7 +7390,7 @@ function _applyGachaCutins(results, cutins) {
   const totalAscend = henpen + chain;
 
   // 最高レアの結果1つに効果適用（10連の場合）
-  const rarityOrder = { SSR: 4, SR: 3, R: 2, N: 1 };
+  const rarityOrder = { LG: 5, SSR: 4, SR: 3, R: 2, N: 1 };
   let bestIdx = 0;
   results.forEach((r, i) => {
     if (rarityOrder[r.rarity] > rarityOrder[results[bestIdx].rarity]) bestIdx = i;
@@ -7477,7 +7478,7 @@ function _playBlackoutCutin() {
 // ── 2秒のタメ演出（期待感を煽る） ──
 function _playGachaSuspense(results) {
   return new Promise(resolve => {
-    const rarityOrder = { SSR: 4, SR: 3, R: 2, N: 1 };
+    const rarityOrder = { LG: 5, SSR: 4, SR: 3, R: 2, N: 1 };
     const best = results.reduce((a, b) => rarityOrder[a.rarity] >= rarityOrder[b.rarity] ? a : b);
 
     const orb     = document.querySelector('.gacha-orb');
@@ -7537,7 +7538,7 @@ function _showGachaResult(results) {
   resultEl.style.display = '';
 
   // 最高レアリティを判定
-  const rarityOrder = { SSR: 4, SR: 3, R: 2, N: 1 };
+  const rarityOrder = { LG: 5, SSR: 4, SR: 3, R: 2, N: 1 };
   const best = results.reduce((a, b) => rarityOrder[a.rarity] >= rarityOrder[b.rarity] ? a : b);
   const color = RARITY_COLORS[best.rarity];
 
@@ -7598,6 +7599,7 @@ async function applyBoostToPost(postDbId, itemId) {
 
 const _DEV_ITEM_LABELS = {
   gacha_ticket: '🎫 ガチャチケット',
+  boost_lg:     'LG ブースト',
   boost_ssr:    'SSR ブースト',
   boost_sr:     'SR ブースト',
   boost_r:      'R ブースト',
