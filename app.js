@@ -7252,7 +7252,14 @@ async function doGacha(count) {
   if (ticketEl) ticketEl.textContent = _gachaItems['gacha_ticket'];
 
   // 抽選
-  const results = Array.from({ length: count }, () => _rollOne());
+  let results = Array.from({ length: count }, () => _rollOne());
+
+  // カットイン抽選 → 演出 → 結果書き換え
+  const cutins = _rollGachaCutins();
+  if (cutins.length) {
+    await _playGachaCutins(cutins);
+    results = _applyGachaCutins(results, cutins);
+  }
 
   // アイテム加算
   const gained = {};
@@ -7269,6 +7276,128 @@ async function doGacha(count) {
   _showGachaResult(results);
   _renderGachaInventory();
   _updateGachaNavBadge();
+}
+
+// ══════════════════════════════════════════
+// カットイン演出
+// ══════════════════════════════════════════
+
+const _RARITY_ASCEND = ['N','R','SR','SSR'];
+const _ITEM_BY_RARITY = { N:'boost_n', R:'boost_r', SR:'boost_sr', SSR:'boost_ssr' };
+const _BOOST_BY_RARITY = { N:1, R:5, SR:30, SSR:100 };
+
+/** カットインを抽選（順序: 振動 → ブラックアウト → 確変 → 連続確変） */
+function _rollGachaCutins() {
+  const cutins = [];
+  let extra = 0; // 振動効果で他の確率に +20%
+
+  // 1) ページ振動（10%）
+  if (Math.random() < 0.10) {
+    cutins.push({ type: 'shake' });
+    extra = 0.20;
+  }
+
+  // 2) ブラックアウト（10% + extra）→ 確定SSR
+  if (Math.random() < 0.10 + extra) {
+    cutins.push({ type: 'blackout' });
+  }
+
+  // 3) 確変（10% + extra）→ レアリティ +1
+  if (Math.random() < 0.10 + extra) {
+    cutins.push({ type: 'henpen' });
+    // 4) 連続確変（10% + extra）→ 追加で +1〜
+    // 連続して引き続き判定（最大2回）
+    let chains = 0;
+    while (Math.random() < 0.10 + extra && chains < 2) {
+      chains++;
+    }
+    if (chains > 0) cutins.push({ type: 'chain', count: chains });
+  }
+
+  return cutins;
+}
+
+/** カットイン効果を結果に適用 */
+function _applyGachaCutins(results, cutins) {
+  const hasBlackout = cutins.some(c => c.type === 'blackout');
+  const henpen = cutins.find(c => c.type === 'henpen') ? 1 : 0;
+  const chain = cutins.find(c => c.type === 'chain')?.count || 0;
+  const totalAscend = henpen + chain;
+
+  // 最高レアの結果1つに効果適用（10連の場合）
+  const rarityOrder = { SSR: 4, SR: 3, R: 2, N: 1 };
+  let bestIdx = 0;
+  results.forEach((r, i) => {
+    if (rarityOrder[r.rarity] > rarityOrder[results[bestIdx].rarity]) bestIdx = i;
+  });
+
+  let newRarity = results[bestIdx].rarity;
+  if (hasBlackout) {
+    newRarity = 'SSR';
+  } else if (totalAscend > 0) {
+    const curIdx = _RARITY_ASCEND.indexOf(newRarity);
+    const newIdx = Math.min(_RARITY_ASCEND.length - 1, curIdx + totalAscend);
+    newRarity = _RARITY_ASCEND[newIdx];
+  }
+
+  if (newRarity !== results[bestIdx].rarity) {
+    results[bestIdx] = {
+      rarity: newRarity,
+      label : 'ブースト' + newRarity,
+      boost : _BOOST_BY_RARITY[newRarity],
+      id    : _ITEM_BY_RARITY[newRarity],
+    };
+  }
+
+  return results;
+}
+
+/** カットイン演出を順番に再生 */
+async function _playGachaCutins(cutins) {
+  for (const c of cutins) {
+    await _playSingleCutin(c);
+  }
+}
+
+function _playSingleCutin(cutin) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('gacha-cutin');
+    if (!overlay) { resolve(); return; }
+
+    const config = {
+      shake:    { label: 'ページ振動', sub: 'EXCITING!',    color: '#fbbf24', dur: 1400 },
+      blackout: { label: 'BLACKOUT',   sub: '確定SSR！',    color: '#fff',    dur: 1700 },
+      henpen:   { label: '確 変',      sub: 'レアリティUP', color: '#a78bfa', dur: 1400 },
+      chain:    { label: '連続確変',   sub: `×${cutin.count} レアリティUP`, color: '#ec4899', dur: 1500 },
+    };
+    const cfg = config[cutin.type] || config.henpen;
+
+    overlay.className = 'gacha-cutin gacha-cutin-' + cutin.type;
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `
+      <div class="gacha-cutin-bg"></div>
+      <div class="gacha-cutin-streak gacha-cutin-streak-1"></div>
+      <div class="gacha-cutin-streak gacha-cutin-streak-2"></div>
+      <div class="gacha-cutin-streak gacha-cutin-streak-3"></div>
+      <div class="gacha-cutin-content" style="--cutin-color:${cfg.color}">
+        <div class="gacha-cutin-label">${cfg.label}</div>
+        <div class="gacha-cutin-sub">${cfg.sub}</div>
+      </div>
+    `;
+
+    // 振動効果はbodyを揺らす
+    if (cutin.type === 'shake') {
+      document.body.classList.add('gacha-page-shake');
+    }
+
+    setTimeout(() => {
+      overlay.style.display = 'none';
+      if (cutin.type === 'shake') {
+        document.body.classList.remove('gacha-page-shake');
+      }
+      resolve();
+    }, cfg.dur);
+  });
 }
 
 // ── 2秒のタメ演出（期待感を煽る） ──
