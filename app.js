@@ -455,9 +455,11 @@ function goPage(id, btn) {
   if (id === 'peak-points') renderPeakPointsPage();
   if (id === 'feedback') openFeedbackPage();
   if (id === 'gacha')    renderGachaPage();
-  if (id === 'dev-gacha') { renderDevGachaList(); setTimeout(() => { _loadCutinRatesUI(); _loadRankRewardsUI(); }, 100); }
+  if (id === 'dev-gacha') { renderDevGachaList(); setTimeout(() => { _loadCutinRatesUI(); }, 100); }
+  if (id === 'dev-rank-rewards') { setTimeout(() => _loadRankRewardsUI(), 100); }
   if (id === 'follows') renderFollows();
-  if (id === 'settings') { renderCatSettings(); _loadDmSettingsIntoUI(); _initSettingsRegionBtns(); }
+  if (id === 'settings') { renderCatSettings(); _initSettingsRegionBtns(); }
+  if (id === 'dm-settings') { _loadDmSettingsIntoUI(); }
   if (id === 'acct-switch') renderAcctSwitch();
   if (id === 'notif') { _notifPageTab = 'notif'; renderNotifs(); switchNotifPageTab('notif'); }
   if (id === 'favs') { _syncFavFromSupabase(); initFavsPage(); }

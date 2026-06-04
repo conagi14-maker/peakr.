@@ -848,21 +848,6 @@
           </div>
         </section>
 
-        <section class="settings-section">
-          <h2><i class="ti ti-mail" style="color:#3b82f6"></i> DM受信設定</h2>
-          <p class="settings-desc">誰からのダイレクトメッセージを受け取るか設定できます。</p>
-          <div class="settings-row">
-            <span class="settings-key">受信を許可する相手</span>
-            <select id="dm-allow-select" class="settings-select" onchange="saveDmSettingsFromSelect()">
-              <option value="all">全員</option>
-              <option value="followers">フォロワーのみ</option>
-              <option value="verified">認証アカウントのみ</option>
-              <option value="corporate">企業アカウントのみ</option>
-              <option value="none">受け付けない</option>
-            </select>
-          </div>
-        </section>
-
         <!-- ログアウト -->
         <section class="settings-section">
           <button class="settings-logout-btn" onclick="confirmLogout()">
@@ -924,6 +909,12 @@
             <div class="dev-hub-desc">チケット配布・所持アイテム管理</div>
             <i class="ti ti-chevron-right dev-hub-arrow"></i>
           </button>
+          <button class="dev-hub-card" onclick="goPage('dev-rank-rewards',null)">
+            <div class="dev-hub-icon" style="background:#fef9c3;color:#fbbf24"><i class="ti ti-trophy"></i></div>
+            <div class="dev-hub-label">ランキング報酬管理</div>
+            <div class="dev-hub-desc">順位帯別の報酬コイン・倍率を調整</div>
+            <i class="ti ti-chevron-right dev-hub-arrow"></i>
+          </button>
           <button class="dev-hub-card" onclick="goPage('dev-config',null)">
             <div class="dev-hub-icon" style="background:#eef2ff;color:#4338ca"><i class="ti ti-shield"></i></div>
             <div class="dev-hub-label">開発者設定</div>
@@ -978,27 +969,6 @@
             <button class="btn-secondary" onclick="devTakeItem()">削減</button>
             <button class="btn-danger" onclick="devResetUserItems()">全消去</button>
           </div>
-        </section>
-
-        <!-- ランキング報酬 -->
-        <section class="settings-section">
-          <h2><i class="ti ti-trophy" style="color:#fbbf24"></i> ランキング報酬</h2>
-          <p class="settings-desc">ランキング入りした投稿者にコインを付与します。順位帯別の報酬と倍率を調整できます。</p>
-          <div id="dev-rank-rewards">
-            <div class="dev-cutin-row"><label>1位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-1" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
-            <div class="dev-cutin-row"><label>2位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-2" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
-            <div class="dev-cutin-row"><label>3位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-3" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
-            <div class="dev-cutin-row"><label>4〜10位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-4_10" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
-            <div class="dev-cutin-row"><label>11〜50位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-11_50" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
-            <div class="dev-cutin-row"><label>51〜100位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-51_100" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
-            <div class="dev-cutin-row"><label>全体倍率</label><input type="number" min="0" step="0.1" class="dev-input" id="dev-rank-allMult" style="width:100px"><span style="color:var(--text3);font-size:12px">× （全体ランキング入りに適用）</span></div>
-            <div class="dev-cutin-row"><label>カテゴリー倍率</label><input type="number" min="0" step="0.1" class="dev-input" id="dev-rank-catMult" style="width:100px"><span style="color:var(--text3);font-size:12px">× （カテゴリー別ランキング入りに適用）</span></div>
-          </div>
-          <div style="display:flex;gap:6px;margin-top:14px">
-            <button class="btn-primary" onclick="saveRankRewards()">保存</button>
-            <button class="btn-secondary" onclick="resetRankRewards()">デフォルトに戻す</button>
-          </div>
-          <p style="margin-top:10px;font-size:11px;color:var(--text3)">同じ投稿×同じランキングでは1度だけ付与されます。期間はデイリー単位です。</p>
         </section>
 
         <!-- カットイン演出確率 -->
@@ -1185,6 +1155,41 @@
       </div>
     </div>
 
+
+    <!-- ══ DEV: ランキング報酬管理 ══ -->
+    <div class="page" id="page-dev-rank-rewards">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('dev',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1><i class="ti ti-trophy" style="color:#fbbf24"></i> ランキング報酬管理</h1>
+      </div>
+      <div class="settings-body">
+        <section class="settings-section">
+          <h2><i class="ti ti-coins" style="color:#fbbf24"></i> 順位帯別の報酬コイン</h2>
+          <p class="settings-desc">ランキング入りした投稿者にコインを付与します。順位帯別の報酬と倍率を調整できます。</p>
+          <div id="dev-rank-rewards">
+            <div class="dev-cutin-row"><label>1位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-1" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
+            <div class="dev-cutin-row"><label>2位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-2" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
+            <div class="dev-cutin-row"><label>3位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-3" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
+            <div class="dev-cutin-row"><label>4〜10位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-4_10" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
+            <div class="dev-cutin-row"><label>11〜50位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-11_50" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
+            <div class="dev-cutin-row"><label>51〜100位</label><input type="number" min="0" step="10" class="dev-input" id="dev-rank-51_100" style="width:100px"><span style="color:var(--text3);font-size:12px">コイン</span></div>
+          </div>
+        </section>
+        <section class="settings-section">
+          <h2><i class="ti ti-x" style="color:#fbbf24"></i> 倍率設定</h2>
+          <p class="settings-desc">ランキング種別ごとに報酬を倍率で調整します。</p>
+          <div>
+            <div class="dev-cutin-row"><label>全体倍率</label><input type="number" min="0" step="0.1" class="dev-input" id="dev-rank-allMult" style="width:100px"><span style="color:var(--text3);font-size:12px">× （全体ランキング入りに適用）</span></div>
+            <div class="dev-cutin-row"><label>カテゴリー倍率</label><input type="number" min="0" step="0.1" class="dev-input" id="dev-rank-catMult" style="width:100px"><span style="color:var(--text3);font-size:12px">× （カテゴリー別ランキング入りに適用）</span></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:14px">
+            <button class="btn-primary" onclick="saveRankRewards()">保存</button>
+            <button class="btn-secondary" onclick="resetRankRewards()">デフォルトに戻す</button>
+          </div>
+          <p style="margin-top:10px;font-size:11px;color:var(--text3)">同じ投稿×同じランキングでは1度だけ付与されます。期間はデイリー単位です。</p>
+        </section>
+      </div>
+    </div>
 
     <!-- ══ DEV: 統計ダッシュボード ══ -->
     <div class="page" id="page-dev-stats">
@@ -2248,8 +2253,35 @@
       <div class="page-header">
         <button class="back-btn" onclick="goPage('home',null)"><i class="ti ti-arrow-left"></i></button>
         <h1><i class="ti ti-mail" style="color:#3b82f6"></i> ダイレクトメッセージ</h1>
+        <button class="btn-icon" onclick="goPage('dm-settings',null)" title="DM受信設定" style="margin-left:auto;font-size:18px;color:var(--text3)">
+          <i class="ti ti-settings"></i>
+        </button>
       </div>
       <div id="dm-rooms-list" style="padding:0"></div>
+    </div>
+
+    <!-- ══ DM SETTINGS PAGE ══ -->
+    <div class="page" id="page-dm-settings">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('dm',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1><i class="ti ti-settings" style="color:#3b82f6"></i> DM受信設定</h1>
+      </div>
+      <div class="settings-body">
+        <section class="settings-section">
+          <h2><i class="ti ti-mail" style="color:#3b82f6"></i> 受信を許可する相手</h2>
+          <p class="settings-desc">誰からのダイレクトメッセージを受け取るか設定できます。</p>
+          <div class="settings-row">
+            <span class="settings-key">受信ルール</span>
+            <select id="dm-allow-select" class="settings-select" onchange="saveDmSettingsFromSelect()">
+              <option value="all">全員</option>
+              <option value="followers">フォロワーのみ</option>
+              <option value="verified">認証アカウントのみ</option>
+              <option value="corporate">企業アカウントのみ</option>
+              <option value="none">受け付けない</option>
+            </select>
+          </div>
+        </section>
+      </div>
     </div>
 
     <!-- ══ DM CHAT PAGE ══ -->
