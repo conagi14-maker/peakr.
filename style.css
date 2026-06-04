@@ -7959,10 +7959,10 @@ mark.hs-mark {
 
 /* 絵文字ピッカーモーダル */
 .like-emoji-modal-card {
-  max-width: 480px; width: 92%;
+  max-width: 480px !important;
   max-height: 85vh;
-  display: flex; flex-direction: column;
 }
+.like-emoji-modal-card.show { display: flex !important; flex-direction: column; }
 .like-emoji-modal-card .modal-body {
   overflow-y: auto;
   flex: 1;

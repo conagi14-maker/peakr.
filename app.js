@@ -7806,12 +7806,13 @@ async function openLikeEmojiPicker() {
   }
 
   body.innerHTML = html;
-  document.getElementById('like-emoji-modal').style.display = 'flex';
+  document.getElementById('like-emoji-modal')?.classList.add('show');
+  document.getElementById('like-emoji-overlay')?.classList.add('show');
 }
 
 function closeLikeEmojiPicker() {
-  const el = document.getElementById('like-emoji-modal');
-  if (el) el.style.display = 'none';
+  document.getElementById('like-emoji-modal')?.classList.remove('show');
+  document.getElementById('like-emoji-overlay')?.classList.remove('show');
 }
 
 async function selectLikeEmoji(emoji) {

@@ -2367,15 +2367,14 @@
 </div>
 
 <!-- いいね絵文字ピッカーモーダル -->
-<div class="modal-backdrop" id="like-emoji-modal" style="display:none" onclick="closeLikeEmojiPicker()">
-  <div class="modal-card like-emoji-modal-card" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <span class="modal-title"><i class="ti ti-mood-smile" style="color:#ef4444"></i> いいねの絵文字を選択</span>
-      <button class="modal-close" onclick="closeLikeEmojiPicker()"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body" id="like-emoji-modal-body">
-      <!-- JSで描画 -->
-    </div>
+<div class="modal-overlay" id="like-emoji-overlay" onclick="closeLikeEmojiPicker()"></div>
+<div class="modal like-emoji-modal-card" id="like-emoji-modal">
+  <div class="modal-header">
+    <span class="modal-title"><i class="ti ti-mood-smile" style="color:#ef4444"></i> いいねの絵文字を選択</span>
+    <button class="modal-close" onclick="closeLikeEmojiPicker()" style="background:none;border:none;cursor:pointer;font-size:18px;padding:6px;color:var(--text2)"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body" id="like-emoji-modal-body">
+    <!-- JSで描画 -->
   </div>
 </div>
 
