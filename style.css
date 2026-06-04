@@ -8172,3 +8172,65 @@ mark.hs-mark {
   color: var(--text2); margin-bottom: 6px;
   letter-spacing: 0.05em;
 }
+
+/* ガチャ排出率の「内容」ボタン */
+.gacha-rate-detail-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 999px;
+  background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.3);
+  color: #fde68a;
+  font-size: 11px; font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.gacha-rate-detail-btn:hover {
+  background: rgba(251,191,36,0.25);
+}
+.gacha-rate-detail-btn > i { font-size: 12px; }
+
+/* 排出内容モーダル */
+.rarity-contents-modal {
+  max-width: 480px !important;
+  max-height: 85vh;
+}
+.rarity-contents-modal.show { display: flex !important; flex-direction: column; }
+.rarity-contents-modal .modal-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 16px 18px !important;
+}
+.rarity-contents-section { margin-bottom: 18px; }
+.rarity-contents-section-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 800;
+  color: var(--text1);
+  margin-bottom: 10px;
+}
+.rarity-contents-section-title > i {
+  color: var(--accent);
+  font-size: 15px;
+}
+.rarity-boost-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 2px solid;
+  background: var(--bg2);
+  font-size: 13px;
+  font-weight: 600;
+}
+.rarity-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+.rarity-emoji-item {
+  aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; line-height: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: default;
+}

@@ -7879,6 +7879,62 @@ async function applyBoostToPost(postDbId, itemId) {
 }
 
 // ══════════════════════════════════════════
+// 🎁 ガチャ排出内容一覧モーダル
+// ══════════════════════════════════════════
+
+function openRarityContents(rarity) {
+  const title = document.getElementById('rarity-contents-title');
+  const body  = document.getElementById('rarity-contents-body');
+  if (!title || !body) return;
+
+  const color = RARITY_COLORS[rarity] || '#999';
+  title.innerHTML = `<span class="rarity-${rarity.toLowerCase()}">${rarity}</span> <span style="margin-left:8px">の内容一覧</span>`;
+
+  const boost = GACHA_ITEMS.find(i => i.rarity === rarity);
+  const emojis = EMOJI_POOL[rarity] || [];
+
+  let html = '';
+  // ブースト
+  if (boost) {
+    html += `
+      <div class="rarity-contents-section">
+        <div class="rarity-contents-section-title"><i class="ti ti-rocket"></i> ブーストチケット</div>
+        <div class="rarity-boost-item" style="border-color:${color}">
+          <span class="rarity-${rarity.toLowerCase()}">${rarity}</span>
+          <span style="flex:1">${boost.label}</span>
+          <span style="font-weight:700;color:${color}">+${boost.boost}スコア</span>
+        </div>
+      </div>`;
+  }
+  // 絵文字
+  if (emojis.length) {
+    html += `
+      <div class="rarity-contents-section">
+        <div class="rarity-contents-section-title">
+          <i class="ti ti-mood-smile"></i> いいね絵文字
+          <span style="color:var(--text3);font-size:11px;margin-left:6px;font-weight:500">${emojis.length}種</span>
+        </div>
+        <div class="rarity-emoji-grid">
+          ${emojis.map(e => `<div class="rarity-emoji-item" title="${e}">${e}</div>`).join('')}
+        </div>
+      </div>`;
+  } else if (!boost) {
+    html += '<p style="color:var(--text3);font-size:13px;text-align:center;padding:30px 0">このレアリティには内容がありません</p>';
+  } else {
+    html += `<p style="color:var(--text3);font-size:12px;margin-top:10px">このレアリティには絵文字がありません</p>`;
+  }
+
+  body.innerHTML = html;
+  document.getElementById('rarity-contents-modal')?.classList.add('show');
+  document.getElementById('rarity-contents-overlay')?.classList.add('show');
+}
+
+function closeRarityContents() {
+  document.getElementById('rarity-contents-modal')?.classList.remove('show');
+  document.getElementById('rarity-contents-overlay')?.classList.remove('show');
+}
+
+// ══════════════════════════════════════════
 // 😀 いいね絵文字
 // ══════════════════════════════════════════
 

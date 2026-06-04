@@ -2201,27 +2201,32 @@
           </div>
           <div class="gacha-rate-row">
             <span class="rarity-lg">LG</span>
-            <span class="gacha-rate-label">ブーストLG <small>+1000スコア（1000閲覧相当）</small></span>
+            <span class="gacha-rate-label">最上位ランク <small>+1000スコア相当</small></span>
+            <button class="gacha-rate-detail-btn" onclick="openRarityContents('LG')"><i class="ti ti-list"></i> 内容</button>
             <span class="gacha-pct">0.01%</span>
           </div>
           <div class="gacha-rate-row">
             <span class="rarity-ssr">SSR</span>
-            <span class="gacha-rate-label">ブーストSSR <small>+100スコア（100閲覧相当）</small></span>
+            <span class="gacha-rate-label">超レア <small>+100スコア相当</small></span>
+            <button class="gacha-rate-detail-btn" onclick="openRarityContents('SSR')"><i class="ti ti-list"></i> 内容</button>
             <span class="gacha-pct">2.99%</span>
           </div>
           <div class="gacha-rate-row">
             <span class="rarity-sr">SR</span>
-            <span class="gacha-rate-label">ブーストSR <small>+30スコア（30閲覧相当）</small></span>
+            <span class="gacha-rate-label">スーパーレア <small>+30スコア相当</small></span>
+            <button class="gacha-rate-detail-btn" onclick="openRarityContents('SR')"><i class="ti ti-list"></i> 内容</button>
             <span class="gacha-pct">12%</span>
           </div>
           <div class="gacha-rate-row">
             <span class="rarity-r">R</span>
-            <span class="gacha-rate-label">ブーストR <small>+5スコア（5閲覧相当）</small></span>
+            <span class="gacha-rate-label">レア <small>+5スコア相当</small></span>
+            <button class="gacha-rate-detail-btn" onclick="openRarityContents('R')"><i class="ti ti-list"></i> 内容</button>
             <span class="gacha-pct">35%</span>
           </div>
           <div class="gacha-rate-row">
             <span class="rarity-n">N</span>
-            <span class="gacha-rate-label">ブーストN <small>+1スコア（1閲覧相当）</small></span>
+            <span class="gacha-rate-label">ノーマル <small>+1スコア相当</small></span>
+            <button class="gacha-rate-detail-btn" onclick="openRarityContents('N')"><i class="ti ti-list"></i> 内容</button>
             <span class="gacha-pct">50%</span>
           </div>
         </div>
@@ -2468,6 +2473,16 @@
   <div class="rank-region-modal-body" id="rank-region-modal-body">
     <!-- JS で描画 -->
   </div>
+</div>
+
+<!-- ガチャ排出内容一覧モーダル -->
+<div class="modal-overlay" id="rarity-contents-overlay" onclick="closeRarityContents()"></div>
+<div class="modal rarity-contents-modal" id="rarity-contents-modal">
+  <div class="modal-header">
+    <span class="modal-title" id="rarity-contents-title"></span>
+    <button class="modal-close" onclick="closeRarityContents()" style="background:none;border:none;cursor:pointer;font-size:18px;padding:6px;color:var(--text2)"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body" id="rarity-contents-body"></div>
 </div>
 
 <!-- いいね絵文字ピッカーモーダル -->
