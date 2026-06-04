@@ -705,6 +705,7 @@ async function dbLoadAndMergePosts(followingHandles = null) {
       linkUrl     : p.link_url        || null,
       imageLinkUrl: p.image_link_url  || null,
       catId       : p.cat_id          || null,
+      likeEmoji   : p.like_emoji      || '❤️',
       rank        : 0,
       isDummy     : false,
     };

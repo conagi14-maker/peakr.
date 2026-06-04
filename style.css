@@ -8075,3 +8075,19 @@ mark.hs-mark {
   font-size: 18px !important;
 }
 .compose-emoji-btn:hover { transform: scale(1.1); }
+
+/* いいね絵文字: 未いいねは薄く、いいね済みは元色 */
+.like-btn:not(.liked) .like-emoji-display,
+.ctm-like-btn:not(.liked) .like-emoji-display,
+.reel-action-btn:not(.reel-liked) .like-emoji-display {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+  transition: opacity 0.15s, filter 0.15s, transform 0.15s;
+}
+.like-btn.liked .like-emoji-display,
+.ctm-like-btn.liked .like-emoji-display,
+.reel-action-btn.reel-liked .like-emoji-display {
+  opacity: 1;
+  filter: none;
+  transform: scale(1.15);
+}

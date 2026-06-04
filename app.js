@@ -803,7 +803,7 @@ async function _diveFullTextSearch(query) {
       tags     : Array.isArray(p.tags) ? p.tags : [],
       extSource: p.ext_source || null,
       extUrl   : p.ext_url    || null,
-      likeEmoji: p.like_emoji || null,
+      likeEmoji: p.like_emoji || '❤️',
       rank: 0, isDummy: false,
       user: {
         h      : p.user_handle,
@@ -1409,7 +1409,8 @@ function confirmPost() {
   }
 
   // Supabase に保存 → db_id が確定したら DOM と配列に反映
-  const _likeEmoji = pendingLikeEmoji && pendingLikeEmoji !== '❤️' ? pendingLikeEmoji : null;
+  // 投稿には常に絵文字を紐づける（未選択時はデフォルト❤️）
+  const _likeEmoji = pendingLikeEmoji || '❤️';
   t.likeEmoji = _likeEmoji;
   dbSavePost({
     handle       : isSub ? subAccountHandle : myHandle,
@@ -1587,7 +1588,7 @@ function _dbPostToTweet(p, avatarMap = {}, nameTagMap = {}, regionMap = {}, rook
     extSource : p.ext_source   || null,
     extUrl    : p.ext_url      || null,
     boostScore: p.boost_score  || 0,
-    likeEmoji : p.like_emoji   || null,
+    likeEmoji : p.like_emoji   || '❤️',
     score,
     rank     : 0,
     prev     : '初登場',
