@@ -1267,9 +1267,28 @@ function _renderRecommendSlice() {
   const groups = _groupReelCards(slice);
   const html   = groups.map(g => _reelCardHTML(g)).join('');
   reel.insertAdjacentHTML('beforeend', html);
-  // 表示済みとして登録
-  slice.forEach(t => { if (t.db_id) _seenReelIds.add(String(t.db_id)); });
+  // 表示済みとして登録（新規分のみカウント）
+  let newSeenCount = 0;
+  slice.forEach(t => {
+    if (t.db_id && !_seenReelIds.has(String(t.db_id))) {
+      _seenReelIds.add(String(t.db_id));
+      newSeenCount++;
+    }
+  });
   recommendLoaded += slice.length;
+
+  // ダイブ閲覧でピークコイン +1/件（新規分のみ）
+  if (newSeenCount > 0 && !recommendSearchQuery.trim()) {
+    const aid = localStorage.getItem('trendy_account_id');
+    if (aid && typeof dbAddPoints === 'function') {
+      dbAddPoints(aid, newSeenCount).then(() => {
+        _myPoints += newSeenCount;
+        // ガチャページのコイン表示も更新
+        const coinEl = document.getElementById('gacha-ticket-count');
+        if (coinEl) coinEl.textContent = _myPoints.toLocaleString();
+      }).catch(() => {});
+    }
+  }
   // 新しく追加した動画カードも監視
   if (_reelVideoObserver) {
     reel.querySelectorAll('.reel-card--video').forEach(c => {
