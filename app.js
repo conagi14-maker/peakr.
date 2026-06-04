@@ -134,6 +134,7 @@ let myBio = '';
 let myNickname = localStorage.getItem('trendy_myName') || 'あなた'; // ニックネーム
 let myHandle   = '@' + (localStorage.getItem('trendy_account_id') || 'you'); // メインハンドル
 let myLikeEmoji = localStorage.getItem('trendy_like_emoji') || '❤️'; // いいね絵文字
+let myTitleBadge = localStorage.getItem('trendy_title_badge') || ''; // 称号バッジ
 let myNameTag = ''; // 名前タグ（例: ＠6/12新曲リリース）
 let isDeveloper = localStorage.getItem('trendy_isDev') === 'true'; // 開発者アカウント
 let myUserId = localStorage.getItem('trendy_userId') || _genUserId();
@@ -442,6 +443,8 @@ function goPage(id, btn) {
     _refreshMypageStats(); loadUserFavorites(); _loadMypageSocialLinks(); _updateMypageMeta(); _renderDisplayBadges();
     const _le = document.getElementById('mypage-like-emoji-current');
     if (_le) _le.textContent = myLikeEmoji;
+    const _tb = document.getElementById('mypage-title-current');
+    if (_tb) _tb.textContent = myTitleBadge ? `「${myTitleBadge}」` : '称号';
     // 非同期処理完了後にサブモードUIを再適用（カバー・カテゴリー・名前タグ等）
     setTimeout(() => selectAccount(myAccountType), 150);
   }
@@ -7315,6 +7318,47 @@ const EMOJI_POOL = {
 };
 // R レアでも SR の絵文字を出して入手機会を増やす
 const R_EMOJI_RATE = 0.3; // R 35% × 30% = 10.5% の確率で絵文字
+
+// ── 称号バッジプール（SR=100, SSR=70, LG=30） ──────
+const TITLE_POOL = {
+  LG: [
+    '神','王','女王','皇帝','覇者','伝説','創造主','救世主','預言者',
+    '龍神','不死鳥','麒麟','鳳凰','神龍','守護神','月光','太陽神','雷神','風神',
+    '開拓者','革命家','賢者','老師','仙人','英雄','勇者','大魔法使い','大冒険家','大富豪','名匠',
+  ],
+  SSR: [
+    '戦士','騎士','剣豪','侍','忍者','武士','海賊','空の旅人','賞金稼ぎ',
+    '魔法使い','召喚士','錬金術師','聖騎士','暗黒騎士','黒魔導士','白魔導士','哲学者',
+    'クリエーター','アーティスト','写真家','映画監督','作家','詩人','漫画家','アニメーター','ゲーマー','プログラマー',
+    '紳士','淑女','貴族','プリンセス','プリンス','公爵','伯爵','男爵','女神','美神',
+    'スター','アイドル','シンガー','ダンサー','ピアニスト','ロックスター','DJ','歌姫','演奏家',
+    'アスリート','チャンピオン','MVP','エース','ヒーロー','ヒロイン','レジェンド','スーパースター','トップランカー',
+    '探偵','スパイ','鑑識','ハッカー','科学者','教授','博士','研究者','発明家','天才',
+    'アルケミスト','ガンナー','吟遊詩人','機械工','ダンディ','カリスマ','聖女','王子','姫','勇敢',
+  ],
+  SR: [
+    '女の子','男の子','美少女','イケメン','少年','少女','妖精','幼な妻','幼な子',
+    'ネコ好き','イヌ好き','鳥好き','魚好き','爬虫類好き','動物愛好家','植物育成者','園芸家','花好き','自然主義',
+    'グルメ','料理人','パン職人','パティシエ','バリスタ','ソムリエ','スイーツ通','ラーメン通','カフェ通','大食い',
+    '旅行者','バックパッカー','冒険家','探検家','アウトドア派','キャンパー','ハイカー','サーファー','スキーヤー','ランナー',
+    '読書家','映画好き','アニメ好き','漫画好き','ゲーム好き','音楽好き','ライブ好き','カラオケ好き','推し活','オタク',
+    '早起き','夜更かし','寝坊助','引きこもり','リア充','充実中','仕事人','学生','フリーランス','社畜',
+    'メガネ','ロン毛','短髪','おしゃれ','ファッショニスタ','シンプル派','ナチュラル派','ヴィンテージ','ストリート派','和装',
+    'ポジティブ','ネガティブ','クール','熱血','おっとり','せっかち','やさしい','さわやか','おもしろい','ミステリアス',
+    '優しい人','頑張り屋','癒し系','元気っ子','天然系','努力家','マイペース','チャレンジャー','ロマンチスト','現実主義者',
+    '冷静沈着','一途','負けず嫌い','人見知り','社交家','インドア派','アウトドア派','晴れ男','晴れ女','雨男',
+  ],
+};
+
+const TITLE_ID = {}; // title_id → 称号文字列
+const TITLE_INFO = {}; // title_id → {rarity, title}
+Object.entries(TITLE_POOL).forEach(([rarity, list]) => {
+  list.forEach((t, i) => {
+    const id = `title_${rarity}_${String(i+1).padStart(3,'0')}`;
+    TITLE_ID[id] = t;
+    TITLE_INFO[id] = { rarity, title: t };
+  });
+});
 // 絵文字ID生成（emoji_LG_001 のような形）
 const EMOJI_ID = {}; // emoji_id → 絵文字
 const EMOJI_INFO = {}; // emoji_id → {rarity, emoji}
@@ -7351,19 +7395,27 @@ function _rollOne() {
     if (r < cum) { rarity = rar; break; }
   }
 
-  // 2) そのレアリティで絵文字が出るか抽選
-  let emojiRarity = null;
+  // 2) そのレアリティで絵文字/称号が出るか抽選
+  let specialRarity = null;
   if (EMOJI_POOL[rarity] && Math.random() < (EMOJI_RATE_IN_RARITY[rarity] || 0)) {
-    emojiRarity = rarity;
+    specialRarity = rarity;
   } else if (rarity === 'R' && Math.random() < R_EMOJI_RATE) {
-    // Rでも一定確率でSR絵文字が出る
-    emojiRarity = 'SR';
+    // Rでも一定確率でSR絵文字/称号が出る
+    specialRarity = 'SR';
   }
-  if (emojiRarity) {
-    const pool = EMOJI_POOL[emojiRarity];
-    const idx = Math.floor(Math.random() * pool.length);
-    const id = `emoji_${emojiRarity}_${String(idx+1).padStart(3,'0')}`;
-    return { id, label: pool[idx], rarity: emojiRarity, type: 'emoji', emoji: pool[idx] };
+  if (specialRarity) {
+    // 50/50で絵文字 or 称号
+    if (Math.random() < 0.5 && EMOJI_POOL[specialRarity]) {
+      const pool = EMOJI_POOL[specialRarity];
+      const idx = Math.floor(Math.random() * pool.length);
+      const id = `emoji_${specialRarity}_${String(idx+1).padStart(3,'0')}`;
+      return { id, label: pool[idx], rarity: specialRarity, type: 'emoji', emoji: pool[idx] };
+    } else if (TITLE_POOL[specialRarity]) {
+      const pool = TITLE_POOL[specialRarity];
+      const idx = Math.floor(Math.random() * pool.length);
+      const id = `title_${specialRarity}_${String(idx+1).padStart(3,'0')}`;
+      return { id, label: pool[idx], rarity: specialRarity, type: 'title', title: pool[idx] };
+    }
   }
 
   // 3) ブースト
@@ -7388,8 +7440,11 @@ function _renderGachaInventory() {
   const emojiItems = Object.entries(EMOJI_INFO)
     .filter(([id]) => (_gachaItems[id] || 0) > 0)
     .map(([id, info]) => ({ id, ...info, qty: _gachaItems[id] }));
+  const titleItems = Object.entries(TITLE_INFO)
+    .filter(([id]) => (_gachaItems[id] || 0) > 0)
+    .map(([id, info]) => ({ id, ...info, qty: _gachaItems[id] }));
 
-  if (!boostItems.length && !emojiItems.length) {
+  if (!boostItems.length && !emojiItems.length && !titleItems.length) {
     el.innerHTML = '<div class="gacha-inv-empty">所持アイテムなし</div>';
     return;
   }
@@ -7414,7 +7469,20 @@ function _renderGachaInventory() {
         </div>`
       ).join('') +
       `</div>`;
-    html += `<div style="margin-top:10px;text-align:center"><a onclick="goPage('mypage',null);setTimeout(()=>document.querySelector('.mypage-like-emoji-btn')?.click(),300)" style="font-size:12px;color:var(--accent);cursor:pointer">マイページでいいね絵文字を設定 →</a></div>`;
+  }
+  if (titleItems.length) {
+    html += `<div class="gacha-inv-title" style="margin-top:14px"><i class="ti ti-medal"></i> 称号バッジ</div>`;
+    html += `<div class="gacha-title-grid">` +
+      titleItems.map(t =>
+        `<div class="gacha-title-badge rarity-bg-${t.rarity.toLowerCase()}" title="${t.rarity}">
+          <span class="rarity-${t.rarity.toLowerCase()}">${t.rarity}</span>
+          <span class="gacha-title-text">${t.title}</span>
+        </div>`
+      ).join('') +
+      `</div>`;
+  }
+  if (emojiItems.length || titleItems.length) {
+    html += `<div style="margin-top:10px;text-align:center"><a onclick="goPage('mypage',null)" style="font-size:12px;color:var(--accent);cursor:pointer">マイページで設定 →</a></div>`;
   }
   el.innerHTML = html;
 }
@@ -7816,10 +7884,12 @@ function _showGachaResult(results) {
 
   const renderDesc = (r) => {
     if (r.type === 'emoji') return `いいねの絵文字をGET！`;
+    if (r.type === 'title') return `称号バッジをGET！`;
     return `+${r.boost}スコア（${r.boost}閲覧相当）`;
   };
   const renderMain = (r) => {
     if (r.type === 'emoji') return `<div class="gacha-result-emoji">${r.emoji}</div>`;
+    if (r.type === 'title') return `<div class="gacha-result-title">「${r.title}」</div>`;
     return '';
   };
 
@@ -7839,6 +7909,8 @@ function _showGachaResult(results) {
         <span class="rarity-${r.rarity.toLowerCase()}">${r.rarity}</span>
         ${r.type === 'emoji'
           ? `<span style="font-size:24px;line-height:1">${r.emoji}</span>`
+          : r.type === 'title'
+          ? `<span style="font-size:13px;font-weight:700">「${r.title}」</span>`
           : `<span>${r.label}</span>
              <span style="color:var(--text3);font-size:11px">+${r.boost}</span>`}
       </div>`
@@ -7918,10 +7990,23 @@ function openRarityContents(rarity) {
           ${emojis.map(e => `<div class="rarity-emoji-item" title="${e}">${e}</div>`).join('')}
         </div>
       </div>`;
-  } else if (!boost) {
+  }
+  // 称号バッジ
+  const titles = TITLE_POOL[rarity] || [];
+  if (titles.length) {
+    html += `
+      <div class="rarity-contents-section">
+        <div class="rarity-contents-section-title">
+          <i class="ti ti-medal"></i> 称号バッジ
+          <span style="color:var(--text3);font-size:11px;margin-left:6px;font-weight:500">${titles.length}種</span>
+        </div>
+        <div class="rarity-title-grid">
+          ${titles.map(t => `<div class="rarity-title-item" title="${t}">${t}</div>`).join('')}
+        </div>
+      </div>`;
+  }
+  if (!boost && !emojis.length && !titles.length) {
     html += '<p style="color:var(--text3);font-size:13px;text-align:center;padding:30px 0">このレアリティには内容がありません</p>';
-  } else {
-    html += `<p style="color:var(--text3);font-size:12px;margin-top:10px">このレアリティには絵文字がありません</p>`;
   }
 
   body.innerHTML = html;
@@ -7932,6 +8017,92 @@ function openRarityContents(rarity) {
 function closeRarityContents() {
   document.getElementById('rarity-contents-modal')?.classList.remove('show');
   document.getElementById('rarity-contents-overlay')?.classList.remove('show');
+}
+
+// ══════════════════════════════════════════
+// 🎖️ 称号バッジ
+// ══════════════════════════════════════════
+
+async function openTitlePicker() {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) return;
+  _gachaItems = await dbGetUserItems(aid);
+
+  const owned = Object.entries(TITLE_INFO)
+    .filter(([id]) => (_gachaItems[id] || 0) > 0)
+    .map(([id, info]) => ({ id, ...info }));
+
+  const body = document.getElementById('title-picker-body');
+  if (!body) return;
+
+  let html = `
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+      ガチャで入手した称号バッジをプロフィールに表示できます。
+    </div>
+    <div class="like-emoji-section">
+      <div class="like-emoji-section-title">現在の称号</div>
+      <div class="like-emoji-current-box">
+        <span style="font-weight:700;font-size:15px">${myTitleBadge ? `「${myTitleBadge}」` : '<span style="color:var(--text3)">未設定</span>'}</span>
+        <button class="btn-sm" onclick="selectTitleBadge('')">外す</button>
+      </div>
+    </div>`;
+
+  if (!owned.length) {
+    html += `
+      <div class="like-emoji-empty">
+        <i class="ti ti-medal-off" style="font-size:36px;color:var(--text3);display:block;margin-bottom:10px"></i>
+        <p>所持称号なし</p>
+        <p style="font-size:12px;color:var(--text3);margin-top:6px">ガチャで称号をGETしよう！</p>
+        <button class="btn-primary" style="margin-top:14px" onclick="closeTitlePicker();goPage('gacha',null)">ガチャを引く</button>
+      </div>`;
+  } else {
+    const grouped = { LG: [], SSR: [], SR: [] };
+    owned.forEach(t => { if (grouped[t.rarity]) grouped[t.rarity].push(t); });
+    for (const rar of ['LG','SSR','SR']) {
+      if (!grouped[rar].length) continue;
+      html += `
+        <div class="like-emoji-section">
+          <div class="like-emoji-section-title">
+            <span class="rarity-${rar.toLowerCase()}">${rar}</span>
+            <span style="color:var(--text3);font-size:11px;margin-left:6px">${grouped[rar].length}種</span>
+          </div>
+          <div class="title-picker-grid">
+            ${grouped[rar].map(t => `
+              <button class="title-picker-btn ${myTitleBadge === t.title ? 'selected' : ''}" onclick="selectTitleBadge('${t.title}')">
+                <span class="rarity-${rar.toLowerCase()}">${rar}</span>
+                <span class="title-picker-text">${t.title}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>`;
+    }
+  }
+
+  body.innerHTML = html;
+  document.getElementById('title-picker-modal')?.classList.add('show');
+  document.getElementById('title-picker-overlay')?.classList.add('show');
+}
+
+function closeTitlePicker() {
+  document.getElementById('title-picker-modal')?.classList.remove('show');
+  document.getElementById('title-picker-overlay')?.classList.remove('show');
+}
+
+async function selectTitleBadge(title) {
+  myTitleBadge = title;
+  localStorage.setItem('trendy_title_badge', title);
+  // 表示更新
+  const el = document.getElementById('mypage-title-current');
+  if (el) el.textContent = title ? `「${title}」` : '称号';
+  // Supabase に保存
+  const aid = localStorage.getItem('trendy_account_id');
+  if (aid) {
+    try {
+      await db.from('profiles').update({ title_badge: title || null }).eq('account_id', aid);
+    } catch(e) {}
+  }
+  showToast(title ? `称号「${title}」を設定しました` : '称号を外しました', 'success');
+  closeTitlePicker();
 }
 
 // ══════════════════════════════════════════
@@ -12003,6 +12174,11 @@ async function _syncProfileFromSupabase() {
     if (profile.like_emoji) {
       myLikeEmoji = profile.like_emoji;
       localStorage.setItem('trendy_like_emoji', myLikeEmoji);
+    }
+    // 称号バッジを同期
+    if (profile.title_badge !== undefined) {
+      myTitleBadge = profile.title_badge || '';
+      localStorage.setItem('trendy_title_badge', myTitleBadge);
     }
     // 同期済みタイムスタンプを保存（次回以降の無駄な同期を防ぐ）
     localStorage.setItem('trendy_last_sync', remoteTs);

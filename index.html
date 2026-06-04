@@ -513,7 +513,11 @@
             <div class="profile-handle" id="mypage-profile-handle">@you</div>
           </div>
           <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:10px">
-            <div style="display:flex;gap:6px">
+            <div style="display:flex;gap:6px;align-items:center">
+              <button class="btn-sm mypage-title-btn" id="mypage-title-btn" onclick="openTitlePicker()" title="称号バッジを選択">
+                <i class="ti ti-medal"></i>
+                <span id="mypage-title-current" style="font-size:12px"></span>
+              </button>
               <button class="btn-sm" onclick="openAnnounceModal()" title="フォロワーに告知を送る"><i class="ti ti-speakerphone"></i> 告知</button>
               <button class="btn-sm" id="mypage-profile-edit-btn" onclick="goPage('profile-edit',null)">プロフィール編集</button>
             </div>
@@ -2473,6 +2477,16 @@
   <div class="rank-region-modal-body" id="rank-region-modal-body">
     <!-- JS で描画 -->
   </div>
+</div>
+
+<!-- 称号バッジピッカーモーダル -->
+<div class="modal-overlay" id="title-picker-overlay" onclick="closeTitlePicker()"></div>
+<div class="modal title-picker-modal" id="title-picker-modal">
+  <div class="modal-header">
+    <span class="modal-title"><i class="ti ti-medal" style="color:#fbbf24"></i> 称号バッジを選択</span>
+    <button class="modal-close" onclick="closeTitlePicker()" style="background:none;border:none;cursor:pointer;font-size:18px;padding:6px;color:var(--text2)"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body" id="title-picker-body"></div>
 </div>
 
 <!-- ガチャ排出内容一覧モーダル -->

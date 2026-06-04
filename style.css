@@ -8234,3 +8234,110 @@ mark.hs-mark {
   border-radius: 8px;
   cursor: default;
 }
+
+/* ══════════════════════════════════════════
+   🎖️ 称号バッジ
+   ══════════════════════════════════════════ */
+/* 結果モーダルの称号 */
+.gacha-result-title {
+  font-size: 28px; font-weight: 900;
+  margin: 16px 0 4px;
+  background: linear-gradient(135deg, #fde68a 0%, #fbbf24 50%, #d97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 30px rgba(251,191,36,0.3);
+  animation: gacha-emoji-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* インベントリの称号 */
+.gacha-title-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+  padding: 8px 0;
+}
+.gacha-title-badge {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(251,191,36,0.15);
+  background: linear-gradient(180deg, rgba(26,18,38,0.85) 0%, rgba(10,5,18,0.85) 100%);
+  font-size: 12px;
+}
+.gacha-title-text { color: #fde68a; font-weight: 700; }
+
+/* 排出内容モーダルの称号 */
+.rarity-title-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 6px;
+}
+.rarity-title-item {
+  padding: 6px 8px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* マイページの称号ボタン */
+.mypage-title-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: linear-gradient(135deg, rgba(251,191,36,0.15), rgba(217,119,6,0.1)) !important;
+  border: 1px solid rgba(251,191,36,0.35) !important;
+  color: #d97706 !important;
+}
+
+/* 称号ピッカーモーダル */
+.title-picker-modal {
+  max-width: 480px !important;
+  max-height: 85vh;
+}
+.title-picker-modal.show { display: flex !important; flex-direction: column; }
+.title-picker-modal .modal-body {
+  overflow-y: auto;
+  flex: 1;
+}
+.title-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px;
+}
+.title-picker-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px;
+  background: var(--bg2);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.title-picker-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+.title-picker-btn.selected {
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg2));
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.title-picker-text {
+  font-weight: 700; font-size: 12px;
+  color: var(--text1);
+}
+
+/* プロフィール上の称号バッジ */
+.profile-title-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fde68a 0%, #fbbf24 100%);
+  color: #422006;
+  font-size: 11px; font-weight: 900;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 6px rgba(251,191,36,0.4);
+}
+.profile-title-badge > i { font-size: 12px; }
