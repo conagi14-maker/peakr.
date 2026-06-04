@@ -7254,16 +7254,30 @@ async function doGacha(count) {
   // 抽選
   let results = Array.from({ length: count }, () => _rollOne());
 
-  // カットイン抽選 → 演出 → 結果書き換え
+  // カットイン抽選
   const cutins = _rollGachaCutins();
-  if (cutins.length) {
-    await _playGachaCutins(cutins);
-    results = _applyGachaCutins(results, cutins);
+  const preCutins  = cutins.filter(c => c.type === 'shake' || c.type === 'blackout');
+  const postCutins = cutins.filter(c => c.type === 'henpen' || c.type === 'chain');
+
+  // pre演出（振動・ブラックアウト）→ 結果書き換え
+  if (preCutins.length) {
+    await _playGachaCutins(preCutins);
+    results = _applyGachaCutins(results, preCutins);
   }
 
-  // アイテム加算
+  // タメ演出（2秒）→ 結果表示
+  await _playGachaSuspense(results);
+  _showGachaResult(results);
+
+  // post演出：確変・連続確変があればクリック待ち → 結果上書き
+  let finalResults = results;
+  if (postCutins.length) {
+    finalResults = await _waitForKakuhenClick(results, postCutins);
+  }
+
+  // アイテム加算（最終結果で）
   const gained = {};
-  for (const item of results) {
+  for (const item of finalResults) {
     gained[item.id] = (gained[item.id] || 0) + 1;
   }
   await Promise.all(Object.entries(gained).map(([id, qty]) => dbAddItem(aid, id, qty)));
@@ -7271,11 +7285,58 @@ async function doGacha(count) {
     _gachaItems[id] = (_gachaItems[id] || 0) + qty;
   }
 
-  // タメ演出（2秒）→ 結果表示
-  await _playGachaSuspense(results);
-  _showGachaResult(results);
   _renderGachaInventory();
   _updateGachaNavBadge();
+}
+
+// 確変クリック待ち：結果表示後、ユーザーがどこかをクリックすると金エフェクトで結果上書き
+function _waitForKakuhenClick(results, postCutins) {
+  return new Promise(resolve => {
+    // 画面に「タップしてみよう？」のヒントを薄く表示
+    const hint = document.createElement('div');
+    hint.id = 'gacha-kakuhen-hint';
+    hint.className = 'gacha-kakuhen-hint';
+    hint.innerHTML = '<i class="ti ti-hand-finger"></i> どこかをタップ…？';
+    document.body.appendChild(hint);
+
+    const onClick = async () => {
+      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('touchstart', onClick, true);
+      hint.remove();
+
+      // 金色フラッシュオーバーレイ
+      const flash = document.createElement('div');
+      flash.className = 'gacha-kakuhen-flash';
+      document.body.appendChild(flash);
+
+      // 0.6秒後に確変結果を表示
+      await new Promise(r => setTimeout(r, 600));
+
+      // 結果を上書き
+      const newResults = _applyGachaCutins(results, postCutins);
+
+      // ガチャページに戻ってない場合は戻す
+      if (!document.getElementById('page-gacha')?.classList.contains('active')) {
+        goPage('gacha', null);
+        await new Promise(r => setTimeout(r, 200));
+      }
+      _showGachaResult(newResults);
+
+      // フラッシュを徐々に消す
+      setTimeout(() => {
+        flash.classList.add('gacha-kakuhen-flash-out');
+        setTimeout(() => flash.remove(), 600);
+      }, 200);
+
+      resolve(newResults);
+    };
+
+    // 確実にイベント登録するため少し待つ
+    setTimeout(() => {
+      document.addEventListener('click', onClick, true);
+      document.addEventListener('touchstart', onClick, true);
+    }, 100);
+  });
 }
 
 // ══════════════════════════════════════════
@@ -7362,43 +7423,23 @@ async function _playGachaCutins(cutins) {
 function _playSingleCutin(cutin) {
   // ブラックアウトは専用CRT演出
   if (cutin.type === 'blackout') return _playBlackoutCutin();
+  // 振動は単語なしの2秒振動
+  if (cutin.type === 'shake')    return _playShakeCutin();
 
+  // 確変系は単語表示なし（postでクリック待ち演出に統合）
+  return Promise.resolve();
+}
+
+// ページ振動演出（単語なし、2秒間ステージが揺れる）
+function _playShakeCutin() {
   return new Promise(resolve => {
-    const overlay = document.getElementById('gacha-cutin');
-    if (!overlay) { resolve(); return; }
-
-    const config = {
-      shake:    { label: 'ページ振動', sub: 'EXCITING!',    color: '#fbbf24', dur: 1400 },
-      henpen:   { label: '確 変',      sub: 'レアリティUP', color: '#a78bfa', dur: 1400 },
-      chain:    { label: '連続確変',   sub: `×${cutin.count} レアリティUP`, color: '#ec4899', dur: 1500 },
-    };
-    const cfg = config[cutin.type] || config.henpen;
-
-    overlay.className = 'gacha-cutin gacha-cutin-' + cutin.type;
-    overlay.style.display = 'flex';
-    overlay.innerHTML = `
-      <div class="gacha-cutin-bg"></div>
-      <div class="gacha-cutin-streak gacha-cutin-streak-1"></div>
-      <div class="gacha-cutin-streak gacha-cutin-streak-2"></div>
-      <div class="gacha-cutin-streak gacha-cutin-streak-3"></div>
-      <div class="gacha-cutin-content" style="--cutin-color:${cfg.color}">
-        <div class="gacha-cutin-label">${cfg.label}</div>
-        <div class="gacha-cutin-sub">${cfg.sub}</div>
-      </div>
-    `;
-
     const stage = document.getElementById('gacha-stage');
-    if (cutin.type === 'shake' && stage) {
-      stage.classList.add('gacha-stage-shake-strong');
-    }
-
+    if (!stage) { resolve(); return; }
+    stage.classList.add('gacha-stage-shake-strong');
     setTimeout(() => {
-      overlay.style.display = 'none';
-      if (cutin.type === 'shake' && stage) {
-        stage.classList.remove('gacha-stage-shake-strong');
-      }
+      stage.classList.remove('gacha-stage-shake-strong');
       resolve();
-    }, cfg.dur);
+    }, 2000);
   });
 }
 
