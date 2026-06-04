@@ -1943,41 +1943,103 @@
     <!-- ══ ガチャページ ══ -->
     <div class="page" id="page-gacha">
       <div class="page-header">
-        <h1><i class="ti ti-dice" style="color:var(--accent)"></i> ガチャ</h1>
+        <h1><i class="ti ti-sparkles" style="color:var(--accent)"></i> ガチャ</h1>
       </div>
       <div class="gacha-page-body">
-        <!-- チケット残数 -->
-        <div class="gacha-ticket-bar">
-          <i class="ti ti-ticket"></i>
-          <span>チケット：</span>
-          <span id="gacha-ticket-count" class="gacha-ticket-num">0</span> 枚
+        <!-- ヒーローカード -->
+        <div class="gacha-hero">
+          <div class="gacha-hero-bg"></div>
+          <div class="gacha-hero-shine"></div>
+          <div class="gacha-hero-content">
+            <div class="gacha-hero-label">PEAKR ブーストガチャ</div>
+            <div class="gacha-hero-title">
+              <i class="ti ti-trophy gacha-hero-icon"></i>
+              <span>頂きへ、加速する。</span>
+            </div>
+            <div class="gacha-hero-desc">
+              ブーストアイテムでつぶやきのスコアを底上げし、<br>
+              カテゴリーランキング上位を目指そう。
+            </div>
+            <div class="gacha-ticket-bar">
+              <i class="ti ti-ticket"></i>
+              <span>所持チケット</span>
+              <span id="gacha-ticket-count" class="gacha-ticket-num">0</span>
+              <span class="gacha-ticket-unit">枚</span>
+            </div>
+          </div>
         </div>
-        <!-- ガチャ演出エリア -->
+
+        <!-- 演出 / 結果エリア -->
         <div class="gacha-stage" id="gacha-stage">
           <div class="gacha-icon-wrap" id="gacha-icon-wrap">
-            <i class="ti ti-dice-5" id="gacha-dice-icon"></i>
+            <div class="gacha-orb">
+              <div class="gacha-orb-glow"></div>
+              <div class="gacha-orb-core"><i class="ti ti-sparkles"></i></div>
+              <div class="gacha-orb-ring gacha-orb-ring-1"></div>
+              <div class="gacha-orb-ring gacha-orb-ring-2"></div>
+              <div class="gacha-orb-ring gacha-orb-ring-3"></div>
+            </div>
           </div>
           <div class="gacha-result" id="gacha-result" style="display:none"></div>
         </div>
+
         <!-- ボタン -->
         <div class="gacha-btn-row">
           <button class="gacha-btn gacha-btn-1" onclick="doGacha(1)">
-            <i class="ti ti-ticket"></i> 1回 <span class="gacha-cost">×1枚</span>
+            <div class="gacha-btn-inner">
+              <i class="ti ti-ticket"></i>
+              <span class="gacha-btn-main">1回チャレンジ</span>
+              <span class="gacha-btn-sub">チケット ×1</span>
+            </div>
           </button>
           <button class="gacha-btn gacha-btn-10" onclick="doGacha(10)">
-            <i class="ti ti-tickets"></i> 10回 <span class="gacha-cost">×10枚</span>
+            <div class="gacha-btn-inner">
+              <i class="ti ti-tickets"></i>
+              <span class="gacha-btn-main">10連</span>
+              <span class="gacha-btn-sub">チケット ×10</span>
+            </div>
+            <span class="gacha-btn-badge">お得!</span>
           </button>
         </div>
+
         <!-- 排出率 -->
         <div class="gacha-rates">
-          <div class="gacha-rate-title">排出率</div>
-          <div class="gacha-rate-row"><span class="rarity-ssr">SSR</span><span>ブーストSSR（+100閲覧）</span><span class="gacha-pct">3%</span></div>
-          <div class="gacha-rate-row"><span class="rarity-sr">SR</span><span>ブーストSR（+30閲覧）</span><span class="gacha-pct">12%</span></div>
-          <div class="gacha-rate-row"><span class="rarity-r">R</span><span>ブーストR（+5閲覧）</span><span class="gacha-pct">35%</span></div>
-          <div class="gacha-rate-row"><span class="rarity-n">N</span><span>ブーストN（+1閲覧）</span><span class="gacha-pct">50%</span></div>
+          <div class="gacha-rate-title">
+            <i class="ti ti-chart-pie"></i> 排出確率
+          </div>
+          <div class="gacha-rate-row">
+            <span class="rarity-ssr">SSR</span>
+            <span class="gacha-rate-label">ブーストSSR <small>+100閲覧</small></span>
+            <span class="gacha-pct">3%</span>
+          </div>
+          <div class="gacha-rate-row">
+            <span class="rarity-sr">SR</span>
+            <span class="gacha-rate-label">ブーストSR <small>+30閲覧</small></span>
+            <span class="gacha-pct">12%</span>
+          </div>
+          <div class="gacha-rate-row">
+            <span class="rarity-r">R</span>
+            <span class="gacha-rate-label">ブーストR <small>+5閲覧</small></span>
+            <span class="gacha-pct">35%</span>
+          </div>
+          <div class="gacha-rate-row">
+            <span class="rarity-n">N</span>
+            <span class="gacha-rate-label">ブーストN <small>+1閲覧</small></span>
+            <span class="gacha-pct">50%</span>
+          </div>
         </div>
+
         <!-- 所持アイテム -->
         <div class="gacha-inventory" id="gacha-inventory"></div>
+
+        <!-- 取得方法 -->
+        <div class="gacha-howto">
+          <div class="gacha-howto-title"><i class="ti ti-info-circle"></i> チケットの入手方法</div>
+          <div class="gacha-howto-item">
+            <i class="ti ti-pencil"></i>
+            <span>つぶやきを投稿するたびに <b>チケット +1枚</b></span>
+          </div>
+        </div>
       </div>
     </div>
 
