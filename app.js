@@ -7548,7 +7548,9 @@ try {
   if (saved) RARITY_PROBS = { ..._RARITY_PROBS_DEFAULT, ...saved };
 } catch(e) {}
 // そのレアリティ内で絵文字/称号が出る確率（残りはブースト）
-const EMOJI_RATE_IN_RARITY = { LG: 0.7, UR: 0.7, SSR: 0.75, SR: 0.65 };
+// 各レアリティ内で「絵文字 or 称号」が出る確率（残りがブースト）
+// 数値を上げるほどブーストが出にくくなる
+const EMOJI_RATE_IN_RARITY = { LG: 0.92, UR: 0.9, SSR: 0.9, SR: 0.85 };
 
 const GACHA_ITEMS = [
   { id: 'boost_lg',  label: 'ブーストLG',  rarity: 'LG',  get boost() { return BOOST_AMOUNTS.boost_lg; }  },
@@ -7951,10 +7953,10 @@ function _applyGachaCutins(results, cutins) {
     const origType = results[bestIdx].type;
     let pickType = origType || 'boost';
     if (EMOJI_POOL[newRarity] && TITLE_POOL[newRarity]) {
-      // 高レア（SR/SSR/UR/LG）は絵文字・称号もありうる
+      // 高レア（SR/SSR/UR/LG）は絵文字・称号がメイン、ブーストは控えめ
       const r = Math.random();
-      if (r < 0.4) pickType = 'emoji';
-      else if (r < 0.8) pickType = 'title';
+      if (r < 0.46) pickType = 'emoji';
+      else if (r < 0.92) pickType = 'title';
       else pickType = 'boost';
     }
 
