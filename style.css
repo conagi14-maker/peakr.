@@ -8091,3 +8091,84 @@ mark.hs-mark {
   filter: none;
   transform: scale(1.15);
 }
+
+/* ══════════════════════════════════════════
+   📊 開発者統計ダッシュボード
+   ══════════════════════════════════════════ */
+.dev-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+.dev-kpi-card {
+  padding: 14px 16px;
+  background: var(--bg2);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.dev-kpi-label {
+  font-size: 11px; font-weight: 700;
+  color: var(--text3); letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.dev-kpi-value {
+  font-size: 24px; font-weight: 900;
+  color: var(--text1);
+  font-variant-numeric: tabular-nums;
+}
+.dev-kpi-sub {
+  font-size: 11px; color: var(--text3);
+  margin-top: 2px;
+}
+
+.dev-stat-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px; flex-wrap: wrap;
+}
+.dev-stat-row:last-child { border-bottom: none; }
+.dev-stat-label {
+  font-weight: 700; color: var(--text2);
+  min-width: 120px;
+}
+.dev-stat-pill {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 999px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  font-size: 12px; color: var(--text1);
+}
+
+.dev-time-graph {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 2px;
+  height: 140px;
+  align-items: end;
+  margin-top: 10px;
+}
+.dev-time-bar {
+  display: flex; flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+  position: relative;
+}
+.dev-time-fill {
+  width: 100%;
+  background: linear-gradient(to top, #3b82f6, #60a5fa);
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+}
+.dev-time-label {
+  position: absolute; bottom: -16px;
+  font-size: 9px; color: var(--text3);
+}
+
+.dev-rank-title {
+  font-size: 13px; font-weight: 700;
+  color: var(--text2); margin-bottom: 6px;
+  letter-spacing: 0.05em;
+}

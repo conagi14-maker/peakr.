@@ -426,7 +426,7 @@ function goPage(id, btn) {
   if (id === 'dev-announce') renderDevAnnounce();
   if (id === 'dev-users')    renderDevAccountList();
   if (id === 'dev-ads')       renderDevAdsList();
-  if (id === 'dev-stats')    { renderDevSubRanking(); renderDevUsageStats(); }
+  if (id === 'dev-stats')    { renderDevStatsAll(); }
   if (id === 'dm')          { _stopDmPoll(); renderDmRooms(); }
   if (id === 'dm-chat')     renderDmChat();
   if (id === 'badge-apply') renderBadgeApplyPage();
@@ -10581,6 +10581,333 @@ async function _loadDmSettingsIntoUI() {
   if (!aid || !select) return;
   const val = await dbFetchDmSettings(aid).catch(() => 'all');
   select.value = val;
+}
+
+// ══════════════════════════════════════════
+// 📊 開発者統計ダッシュボード（拡張版）
+// ══════════════════════════════════════════
+
+async function renderDevStatsAll() {
+  // 並行で全データ取得
+  showToast('統計データを読み込み中...', 'info');
+  const [posts, profiles, likes, views, comments, follows, items, coins, dmRooms] = await Promise.all([
+    db.from('posts').select('id,user_handle,cat_id,tags,likes_count,views_count,rt_count,ai_type,media_type,is_sub,created_at,ext_source,boost_score,like_emoji').then(r => r.data || []),
+    db.from('profiles').select('account_id,nickname,is_verified,is_corporate,is_dev,region,created_at').then(r => r.data || []),
+    db.from('post_likes').select('id,account_id,created_at').then(r => r.data || []).catch(() => []),
+    db.from('post_views').select('post_id,account_id').then(r => r.data || []).catch(() => []),
+    db.from('comments').select('id,user_handle,created_at').then(r => r.data || []).catch(() => []),
+    db.from('follows').select('follower_id,followee_id').then(r => r.data || []).catch(() => []),
+    db.from('user_items').select('account_id,item_type,quantity').then(r => r.data || []).catch(() => []),
+    db.from('peak_points').select('account_id,points,total_earned').then(r => r.data || []).catch(() => []),
+    db.from('dm_rooms').select('id,lower_id,upper_id').then(r => r.data || []).catch(() => []),
+  ]);
+
+  const stats = { posts, profiles, likes, views, comments, follows, items, coins, dmRooms };
+  _renderKPIGrid(stats);
+  _renderAccessStats(stats);
+  _renderContentStats(stats);
+  _renderCategoryStats(stats);
+  _renderUserBehavior(stats);
+  _renderTimeStats(stats);
+  _renderTopUsers(stats);
+  _renderEconomyStats(stats);
+  _renderExtStats(stats);
+}
+
+function _devKpiCard(label, value, sub, color) {
+  return `<div class="dev-kpi-card" style="border-left:4px solid ${color}">
+    <div class="dev-kpi-label">${label}</div>
+    <div class="dev-kpi-value">${value}</div>
+    ${sub ? `<div class="dev-kpi-sub">${sub}</div>` : ''}
+  </div>`;
+}
+
+function _renderKPIGrid(s) {
+  const el = document.getElementById('dev-kpi-grid');
+  if (!el) return;
+  const internalPosts = s.posts.filter(p => !p.ext_source);
+  const extPosts = s.posts.filter(p => p.ext_source);
+  const totalLikes = s.posts.reduce((a, p) => a + (p.likes_count || 0), 0);
+  const totalViews = s.posts.reduce((a, p) => a + (p.views_count || 0), 0);
+  const totalCoins = s.coins.reduce((a, c) => a + (c.points || 0), 0);
+  const totalEarned = s.coins.reduce((a, c) => a + (c.total_earned || 0), 0);
+  const verifiedUsers = s.profiles.filter(p => p.is_verified).length;
+
+  el.innerHTML = [
+    _devKpiCard('総ユーザー数', s.profiles.length, `認証 ${verifiedUsers}人`, '#3b82f6'),
+    _devKpiCard('総投稿数', s.posts.length, `内部 ${internalPosts.length} / 外部 ${extPosts.length}`, '#10b981'),
+    _devKpiCard('総いいね数', totalLikes.toLocaleString(), '', '#ef4444'),
+    _devKpiCard('総閲覧数', totalViews.toLocaleString(), '', '#0ea5e9'),
+    _devKpiCard('総コメント数', s.comments.length.toLocaleString(), '', '#8b5cf6'),
+    _devKpiCard('総フォロー関係', s.follows.length, '', '#f59e0b'),
+    _devKpiCard('DMルーム数', s.dmRooms.length, '', '#06b6d4'),
+    _devKpiCard('流通コイン', totalCoins.toLocaleString(), `累計獲得: ${totalEarned.toLocaleString()}`, '#d97706'),
+  ].join('');
+}
+
+function _renderAccessStats(s) {
+  const el = document.getElementById('dev-access-stats');
+  if (!el) return;
+  const now = Date.now();
+  const DAY = 86400000;
+
+  // 期間別集計
+  const periods = [
+    { name: '24時間', ms: DAY },
+    { name: '7日間', ms: 7*DAY },
+    { name: '30日間', ms: 30*DAY },
+  ];
+  const html = periods.map(p => {
+    const since = now - p.ms;
+    const posts = s.posts.filter(x => new Date(x.created_at).getTime() > since).length;
+    const newUsers = s.profiles.filter(x => new Date(x.created_at).getTime() > since).length;
+    const likes = (s.likes || []).filter(x => x.created_at && new Date(x.created_at).getTime() > since).length;
+    return `<div class="dev-stat-row">
+      <span class="dev-stat-label">${p.name}</span>
+      <span class="dev-stat-pill">投稿 ${posts}</span>
+      <span class="dev-stat-pill">新規ユーザー ${newUsers}</span>
+      <span class="dev-stat-pill">いいね ${likes}</span>
+    </div>`;
+  }).join('');
+  el.innerHTML = html;
+}
+
+function _renderContentStats(s) {
+  const el = document.getElementById('dev-content-stats');
+  if (!el) return;
+  const ip = s.posts.filter(p => !p.ext_source);
+
+  // メディアタイプ別
+  const byMedia = { text: 0, image: 0, video: 0 };
+  ip.forEach(p => {
+    if (p.media_type === 'image') byMedia.image++;
+    else if (p.media_type === 'video') byMedia.video++;
+    else byMedia.text++;
+  });
+
+  // AI使用
+  const byAi = { none: 0, part: 0, full: 0 };
+  ip.forEach(p => { byAi[p.ai_type || 'none'] = (byAi[p.ai_type || 'none'] || 0) + 1; });
+
+  // メイン/サブ
+  const subPosts = ip.filter(p => p.is_sub).length;
+  const mainPosts = ip.length - subPosts;
+
+  // ブースト適用済み投稿
+  const boosted = ip.filter(p => (p.boost_score || 0) > 0).length;
+
+  // 平均値
+  const avgLikes = ip.length ? (ip.reduce((a, p) => a + (p.likes_count || 0), 0) / ip.length).toFixed(1) : '0';
+  const avgViews = ip.length ? (ip.reduce((a, p) => a + (p.views_count || 0), 0) / ip.length).toFixed(1) : '0';
+
+  el.innerHTML = `
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">メディア種別</span>
+      <span class="dev-stat-pill">📝 文字 ${byMedia.text}</span>
+      <span class="dev-stat-pill">🖼 画像 ${byMedia.image}</span>
+      <span class="dev-stat-pill">🎬 動画 ${byMedia.video}</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">アカウント</span>
+      <span class="dev-stat-pill">メイン ${mainPosts}</span>
+      <span class="dev-stat-pill">サブ ${subPosts}</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">AI使用</span>
+      <span class="dev-stat-pill">未使用 ${byAi.none||0}</span>
+      <span class="dev-stat-pill">一部 ${byAi.part||0}</span>
+      <span class="dev-stat-pill">全文 ${byAi.full||0}</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">ブースト</span>
+      <span class="dev-stat-pill">適用済み ${boosted}件</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">平均</span>
+      <span class="dev-stat-pill">いいね/投稿 ${avgLikes}</span>
+      <span class="dev-stat-pill">閲覧/投稿 ${avgViews}</span>
+    </div>
+  `;
+}
+
+function _renderCategoryStats(s) {
+  const el = document.getElementById('dev-category-stats');
+  if (!el) return;
+  const catCount = {};
+  const catLikes = {};
+  const catViews = {};
+  s.posts.forEach(p => {
+    const c = p.cat_id || '未分類';
+    catCount[c] = (catCount[c] || 0) + 1;
+    catLikes[c] = (catLikes[c] || 0) + (p.likes_count || 0);
+    catViews[c] = (catViews[c] || 0) + (p.views_count || 0);
+  });
+  const rows = Object.entries(catCount).sort((a,b)=>b[1]-a[1]).map(([cat, count]) => {
+    const c = CATS_DATA.find(x => x.id === cat);
+    const name = c ? c.name : cat;
+    return `<div class="dev-stat-row">
+      <span class="dev-stat-label">${name}</span>
+      <span class="dev-stat-pill">投稿 ${count}</span>
+      <span class="dev-stat-pill">いいね ${catLikes[cat] || 0}</span>
+      <span class="dev-stat-pill">閲覧 ${catViews[cat] || 0}</span>
+    </div>`;
+  }).join('');
+  el.innerHTML = rows || '<p style="color:var(--text3)">データなし</p>';
+}
+
+function _renderUserBehavior(s) {
+  const el = document.getElementById('dev-user-behavior');
+  if (!el) return;
+  // 投稿者数（ユニーク）
+  const posters = new Set(s.posts.filter(p => !p.ext_source).map(p => p.user_handle)).size;
+  // いいねしたユーザー数
+  const likers = new Set((s.likes || []).map(l => l.account_id).filter(Boolean)).size;
+  // コメントしたユーザー数
+  const commenters = new Set((s.comments || []).map(c => c.user_handle).filter(Boolean)).size;
+  // フォロー関係：相互フォロー数
+  const followsSet = new Set(s.follows.map(f => `${f.follower_id}>${f.followee_id}`));
+  let mutual = 0;
+  s.follows.forEach(f => {
+    if (followsSet.has(`${f.followee_id}>${f.follower_id}`)) mutual++;
+  });
+  mutual = Math.floor(mutual / 2);
+  // アクティブ率
+  const totalU = s.profiles.length || 1;
+  const activePct = ((posters / totalU) * 100).toFixed(1);
+
+  // 地域別
+  const regions = {};
+  s.profiles.forEach(p => { if (p.region) regions[p.region] = (regions[p.region] || 0) + 1; });
+  const topRegions = Object.entries(regions).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([r,c])=>`${r}(${c})`).join(', ') || 'なし';
+
+  el.innerHTML = `
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">投稿アクティブ</span>
+      <span class="dev-stat-pill">${posters}人 (${activePct}%)</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">いいねアクティブ</span>
+      <span class="dev-stat-pill">${likers}人</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">コメントアクティブ</span>
+      <span class="dev-stat-pill">${commenters}人</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">相互フォロー</span>
+      <span class="dev-stat-pill">${mutual}ペア</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">地域TOP5</span>
+      <span style="font-size:12px;color:var(--text2)">${topRegions}</span>
+    </div>
+  `;
+}
+
+function _renderTimeStats(s) {
+  const el = document.getElementById('dev-time-stats');
+  if (!el) return;
+  const hours = new Array(24).fill(0);
+  s.posts.filter(p => !p.ext_source).forEach(p => {
+    const h = new Date(p.created_at).getHours();
+    hours[h]++;
+  });
+  const max = Math.max(...hours, 1);
+  const bars = hours.map((c, h) => {
+    const pct = (c / max) * 100;
+    return `<div class="dev-time-bar" title="${h}時: ${c}件">
+      <div class="dev-time-fill" style="height:${pct}%"></div>
+      <div class="dev-time-label">${h}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="dev-time-graph">${bars}</div>`;
+}
+
+function _renderTopUsers(s) {
+  const el = document.getElementById('dev-top-users');
+  if (!el) return;
+  // ユーザー別の集計
+  const userMap = {};
+  s.posts.filter(p => !p.ext_source).forEach(p => {
+    const h = p.user_handle;
+    if (!userMap[h]) userMap[h] = { posts: 0, likes: 0, views: 0 };
+    userMap[h].posts++;
+    userMap[h].likes += p.likes_count || 0;
+    userMap[h].views += p.views_count || 0;
+  });
+  const top = Object.entries(userMap).map(([h, v]) => ({ h, ...v }))
+    .sort((a, b) => b.posts - a.posts).slice(0, 10);
+  el.innerHTML = `
+    <div class="dev-rank-title">投稿数TOP10</div>
+    ${top.map((u, i) => `
+      <div class="dev-stat-row">
+        <span style="font-weight:700;color:var(--accent);min-width:24px">#${i+1}</span>
+        <span class="dev-stat-label">${u.h}</span>
+        <span class="dev-stat-pill">投稿 ${u.posts}</span>
+        <span class="dev-stat-pill">♡ ${u.likes}</span>
+        <span class="dev-stat-pill">👁 ${u.views}</span>
+      </div>
+    `).join('')}
+  `;
+}
+
+function _renderEconomyStats(s) {
+  const el = document.getElementById('dev-economy-stats');
+  if (!el) return;
+  // 所持アイテム集計
+  const itemCount = {};
+  s.items.forEach(i => { itemCount[i.item_type] = (itemCount[i.item_type] || 0) + i.quantity; });
+  // 絵文字所持者数
+  const emojiOwners = new Set();
+  s.items.forEach(i => { if (i.item_type.startsWith('emoji_') && i.quantity > 0) emojiOwners.add(i.account_id); });
+  // ブーストアイテムの分布
+  const boostTotal = (itemCount['boost_lg']||0) + (itemCount['boost_ssr']||0) + (itemCount['boost_sr']||0) + (itemCount['boost_r']||0) + (itemCount['boost_n']||0);
+  // コイン保有者
+  const coinHolders = s.coins.filter(c => (c.points || 0) > 0).length;
+  // 経済格差（コイン上位10名のシェア）
+  const topCoinSum = s.coins.sort((a,b)=>(b.points||0)-(a.points||0)).slice(0,10).reduce((a,c)=>a+(c.points||0),0);
+  const totalCoinSum = s.coins.reduce((a,c)=>a+(c.points||0),0) || 1;
+  const top10Share = ((topCoinSum / totalCoinSum) * 100).toFixed(1);
+
+  el.innerHTML = `
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">LGブースト</span><span class="dev-stat-pill">${itemCount['boost_lg']||0}個</span>
+      <span class="dev-stat-label">SSR</span><span class="dev-stat-pill">${itemCount['boost_ssr']||0}個</span>
+      <span class="dev-stat-label">SR</span><span class="dev-stat-pill">${itemCount['boost_sr']||0}個</span>
+      <span class="dev-stat-label">R</span><span class="dev-stat-pill">${itemCount['boost_r']||0}個</span>
+      <span class="dev-stat-label">N</span><span class="dev-stat-pill">${itemCount['boost_n']||0}個</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">ブースト総数</span><span class="dev-stat-pill">${boostTotal}個</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">絵文字所持者</span><span class="dev-stat-pill">${emojiOwners.size}人</span>
+    </div>
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">コイン保有者</span><span class="dev-stat-pill">${coinHolders}人</span>
+      <span class="dev-stat-label">TOP10シェア</span><span class="dev-stat-pill">${top10Share}%</span>
+    </div>
+  `;
+}
+
+function _renderExtStats(s) {
+  const el = document.getElementById('dev-ext-stats');
+  if (!el) return;
+  const ext = s.posts.filter(p => p.ext_source);
+  const bySource = {};
+  ext.forEach(p => { bySource[p.ext_source] = (bySource[p.ext_source] || 0) + 1; });
+  el.innerHTML = `
+    <div class="dev-stat-row">
+      <span class="dev-stat-label">外部投稿総数</span>
+      <span class="dev-stat-pill">${ext.length}件</span>
+    </div>
+    ${Object.entries(bySource).map(([src, c]) => `
+      <div class="dev-stat-row">
+        <span class="dev-stat-label">${src}</span>
+        <span class="dev-stat-pill">${c}件</span>
+      </div>
+    `).join('')}
+  `;
 }
 
 function renderDevSubRanking() {
