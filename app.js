@@ -2099,6 +2099,72 @@ function _renderDisplayBadges() {
 function renderBadgesPage() {
   _renderBadgesDisplaySlots();
   _renderBadgesGrid();
+  _renderGachaTitleBadgesSection();
+}
+
+async function _renderGachaTitleBadgesSection() {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) return;
+  _gachaItems = await dbGetUserItems(aid);
+
+  const owned = Object.entries(TITLE_INFO)
+    .filter(([id]) => (_gachaItems[id] || 0) > 0)
+    .map(([id, info]) => ({ id, ...info }));
+
+  // 現在の称号表示
+  const cur = document.getElementById('gacha-title-current-display');
+  if (cur) {
+    cur.innerHTML = myTitleBadge
+      ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border-radius:10px;border:1px solid var(--border)">
+          <span class="profile-title-badge"><i class="ti ti-medal"></i>${myTitleBadge}</span>
+          <span style="font-size:12px;color:var(--text3)">現在の称号</span>
+          <button class="btn-sm" style="margin-left:auto" onclick="selectTitleBadge('')">外す</button>
+        </div>`
+      : `<div style="padding:10px 14px;background:var(--bg2);border-radius:10px;border:1px dashed var(--border);font-size:12px;color:var(--text3);text-align:center">称号は未設定</div>`;
+  }
+
+  // 所持称号一覧
+  const grid = document.getElementById('gacha-title-badges-grid');
+  if (!grid) return;
+  if (!owned.length) {
+    grid.innerHTML = `
+      <div style="text-align:center;padding:20px;color:var(--text3);font-size:13px">
+        <i class="ti ti-medal-off" style="font-size:32px;display:block;margin-bottom:8px"></i>
+        ガチャでまだ称号バッジを入手していません
+        <div style="margin-top:10px"><button class="btn-primary" onclick="goPage('gacha',null)">ガチャを引く</button></div>
+      </div>`;
+    return;
+  }
+
+  // レアリティ別にグルーピング
+  const grouped = { LG: [], UR: [], SSR: [], SR: [] };
+  owned.forEach(t => { if (grouped[t.rarity]) grouped[t.rarity].push(t); });
+
+  let html = '';
+  for (const rar of ['LG','UR','SSR','SR']) {
+    if (!grouped[rar].length) continue;
+    html += `
+      <div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span class="rarity-${rar.toLowerCase()}">${rar}</span>
+          <span style="color:var(--text3);font-size:11px">${grouped[rar].length}種</span>
+        </div>
+        <div class="title-picker-grid">
+          ${grouped[rar].map(t => `
+            <button class="title-picker-btn ${myTitleBadge === t.title ? 'selected' : ''}" onclick="selectTitleBadgeAndRefresh('${t.title}')">
+              <span class="rarity-${rar.toLowerCase()}">${rar}</span>
+              <span class="title-picker-text">${t.title}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+async function selectTitleBadgeAndRefresh(title) {
+  await selectTitleBadge(title);
+  _renderGachaTitleBadgesSection();
 }
 
 function _renderBadgesDisplaySlots() {
@@ -8126,7 +8192,10 @@ async function selectTitleBadge(title) {
     } catch(e) {}
   }
   showToast(title ? `称号「${title}」を設定しました` : '称号を外しました', 'success');
-  closeTitlePicker();
+  // モーダルが開いている時だけ閉じる
+  if (document.getElementById('title-picker-modal')?.classList.contains('show')) {
+    closeTitlePicker();
+  }
 }
 
 // ══════════════════════════════════════════
