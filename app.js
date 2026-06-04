@@ -7926,12 +7926,35 @@ function _applyGachaCutins(results, cutins) {
   }
 
   if (newRarity !== results[bestIdx].rarity) {
-    results[bestIdx] = {
-      rarity: newRarity,
-      label : 'ブースト' + newRarity,
-      boost : _BOOST_BY_RARITY[newRarity],
-      id    : _ITEM_BY_RARITY[newRarity],
-    };
+    // 確変後のレアリティでアイテム種別を再抽選（絵文字 / 称号 / ブースト）
+    const origType = results[bestIdx].type;
+    let pickType = origType || 'boost';
+    if (EMOJI_POOL[newRarity] && TITLE_POOL[newRarity]) {
+      // 高レア（SR/SSR/UR/LG）は絵文字・称号もありうる
+      const r = Math.random();
+      if (r < 0.4) pickType = 'emoji';
+      else if (r < 0.8) pickType = 'title';
+      else pickType = 'boost';
+    }
+
+    if (pickType === 'emoji' && EMOJI_POOL[newRarity]) {
+      const pool = EMOJI_POOL[newRarity];
+      const idx = Math.floor(Math.random() * pool.length);
+      const id = `emoji_${newRarity}_${String(idx+1).padStart(3,'0')}`;
+      results[bestIdx] = { id, label: pool[idx], rarity: newRarity, type: 'emoji', emoji: pool[idx] };
+    } else if (pickType === 'title' && TITLE_POOL[newRarity]) {
+      const pool = TITLE_POOL[newRarity];
+      const idx = Math.floor(Math.random() * pool.length);
+      const id = `title_${newRarity}_${String(idx+1).padStart(3,'0')}`;
+      results[bestIdx] = { id, label: pool[idx], rarity: newRarity, type: 'title', title: pool[idx] };
+    } else {
+      results[bestIdx] = {
+        rarity: newRarity,
+        label : 'ブースト' + newRarity,
+        boost : _BOOST_BY_RARITY[newRarity],
+        id    : _ITEM_BY_RARITY[newRarity],
+      };
+    }
   }
 
   return results;
