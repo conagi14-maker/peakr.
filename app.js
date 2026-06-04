@@ -4035,10 +4035,11 @@ function openTweetDetail(idx) {
       if (!isMyPost || !t.db_id || t.extSource) return '';
       const inv = typeof _gachaItems !== 'undefined' ? _gachaItems : {};
       const boostItems = [
-        { id:'boost_ssr', label:'SSR+100', qty: inv['boost_ssr']||0 },
-        { id:'boost_sr',  label:'SR+30',   qty: inv['boost_sr'] ||0 },
-        { id:'boost_r',   label:'R+5',     qty: inv['boost_r']  ||0 },
-        { id:'boost_n',   label:'N+1',     qty: inv['boost_n']  ||0 },
+        { id:'boost_lg',  label:'LG +1000', qty: inv['boost_lg'] ||0 },
+        { id:'boost_ssr', label:'SSR +100', qty: inv['boost_ssr']||0 },
+        { id:'boost_sr',  label:'SR +30',   qty: inv['boost_sr'] ||0 },
+        { id:'boost_r',   label:'R +5',     qty: inv['boost_r']  ||0 },
+        { id:'boost_n',   label:'N +1',     qty: inv['boost_n']  ||0 },
       ].filter(b => b.qty > 0);
       if (!boostItems.length) return `<div style="padding:8px 16px;font-size:12px;color:var(--text3)"><i class="ti ti-rocket"></i> ブーストアイテムなし（ガチャで獲得できます）</div>`;
       return `<div style="padding:8px 16px;border-bottom:1px solid var(--border)">
@@ -7221,7 +7222,7 @@ function _renderGachaInventory() {
     items.map(i => `
       <div class="gacha-inv-row">
         <span class="rarity-${i.rarity.toLowerCase()}">${i.rarity}</span>
-        <span class="gacha-inv-label">${i.label}（+${i.boost}閲覧）</span>
+        <span class="gacha-inv-label">${i.label}（+${i.boost}スコア）</span>
         <span class="gacha-inv-qty">${_gachaItems[i.id]}枚</span>
       </div>`).join('');
 }
@@ -7547,7 +7548,7 @@ function _showGachaResult(results) {
       <div class="gacha-result-single" style="--rarity-color:${color}">
         <div class="gacha-result-rarity" style="color:${color}">${best.rarity}</div>
         <div class="gacha-result-name">${best.label}</div>
-        <div class="gacha-result-desc">+${best.boost} 閲覧スコア</div>
+        <div class="gacha-result-desc">+${best.boost}スコア（${best.boost}閲覧相当）</div>
       </div>
       <button class="gacha-close-btn" onclick="_resetGachaStage()">閉じる</button>`;
   } else {
@@ -7587,7 +7588,7 @@ async function applyBoostToPost(postDbId, itemId) {
     showToast('ブーストの適用に失敗しました', 'error'); return;
   }
   _gachaItems[itemId] = qty - 1;
-  showToast(`🚀 ブースト適用！ +${boostAmt} 閲覧スコアが加算されました`, 'success');
+  showToast(`🚀 ブースト適用！ +${boostAmt}スコアが加算されました`, 'success');
   // ランキングキャッシュをリセットして再取得
   _rankCache = { period: null, data: [], fetchedAt: 0 };
   _loadRankData();
