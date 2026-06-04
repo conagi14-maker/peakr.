@@ -158,6 +158,9 @@
               <button class="compose-media-btn" id="compose-url-toggle-btn" onclick="toggleComposeUrl()" title="URLボタンを添付">
                 <i class="ti ti-link"></i>
               </button>
+              <button class="compose-media-btn compose-emoji-btn" id="compose-like-emoji-btn" onclick="openComposeLikeEmojiPicker()" title="いいねの絵文字を設定">
+                <span id="compose-like-emoji-current" style="font-size:18px;line-height:1">❤️</span>
+              </button>
               <input type="file" id="compose-img-input" accept="image/*" style="display:none" onchange="handleComposeMedia(this,'image')">
               <input type="file" id="compose-vid-input" accept="video/*" style="display:none" onchange="handleComposeMedia(this,'video')">
             </div>
@@ -511,9 +514,6 @@
           </div>
           <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:10px">
             <div style="display:flex;gap:6px">
-              <button class="btn-sm mypage-like-emoji-btn" onclick="openLikeEmojiPicker()" title="いいね絵文字を選択">
-                <span id="mypage-like-emoji-current">❤️</span>
-              </button>
               <button class="btn-sm" onclick="openAnnounceModal()" title="フォロワーに告知を送る"><i class="ti ti-speakerphone"></i> 告知</button>
               <button class="btn-sm" id="mypage-profile-edit-btn" onclick="goPage('profile-edit',null)">プロフィール編集</button>
             </div>

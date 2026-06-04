@@ -114,6 +114,7 @@ let pendingUrl      = null;   // 投稿に添付するURLボタン用URL
 let pendingImageUrl = null;   // 画像タップ時に開くURL
 let pendingCatId = null;   // 選択中のメインカテゴリーID
 let pendingTags  = [];     // 入力済みタグ配列（例: ['#イラスト', '#ファンアート']）
+let pendingLikeEmoji = '❤️'; // この投稿のいいね絵文字
 const catSubStats = {};    // { [catId]: { [tagName]: { count, likes, score } } }
 let adAccountType = 'main'; // 広告出稿に使うアカウント 'main' | 'sub'
 let myAccountType = localStorage.getItem('trendy_acct_type') || 'main'; // 'main' | 'sub'
@@ -516,7 +517,7 @@ function homeTweetHTML(t) {
       ${t.linkUrl ? `<div style="padding:0 0 6px">${_urlBtnHTML(t.linkUrl)}</div>` : ''}
       <div class="tweet-actions">
         <button class="action-btn reply-btn" onclick="openTweetDetail(${idx})"><i class="ti ti-message-circle"></i><span id="reply-count-${idx}">${replyCount || ''}</span></button>
-        <button class="action-btn like-btn${likedTweets.has(idx)?' liked':''}" id="like-btn-${idx}" onclick="toggleLike(${idx},this)">${likedTweets.has(idx) ? `<span class="like-emoji-display">${myLikeEmoji}</span>` : `<i class="ti ti-heart" id="like-icon-${idx}"></i>`}<span class="like-count" id="like-count-${idx}">${fmt(t.likes)}</span></button>
+        <button class="action-btn like-btn${likedTweets.has(idx)?' liked':''}" id="like-btn-${idx}" onclick="toggleLike(${idx},this)">${t.likeEmoji ? `<span class="like-emoji-display">${t.likeEmoji}</span>` : (likedTweets.has(idx) ? `<i class="ti ti-heart-filled" style="color:#e11d48" id="like-icon-${idx}"></i>` : `<i class="ti ti-heart" id="like-icon-${idx}"></i>`)}<span class="like-count" id="like-count-${idx}">${fmt(t.likes)}</span></button>
         <button class="action-btn"><i class="ti ti-eye"></i>${fmt(t.views)}</button>
         ${favStar(idx)}
       </div>
@@ -802,6 +803,7 @@ async function _diveFullTextSearch(query) {
       tags     : Array.isArray(p.tags) ? p.tags : [],
       extSource: p.ext_source || null,
       extUrl   : p.ext_url    || null,
+      likeEmoji: p.like_emoji || null,
       rank: 0, isDummy: false,
       user: {
         h      : p.user_handle,
@@ -1085,7 +1087,7 @@ function _reelMediaOverlay(t, idx) {
           <span id="reel-rc-${idx}">${(tweetReplies[idx]||[]).length||0}</span>
         </button>
         <button class="reel-action-btn${liked?' reel-liked':''}" id="reel-like-${idx}" onclick="event.stopPropagation();_reelToggleLike(${idx})">
-          <i class="ti ti-heart${liked?'-filled':''}" ${liked?'style="color:#ef4444"':''}></i> <span id="reel-lc-${idx}">${fmt(t.likes)}</span>
+          ${t.likeEmoji ? `<span class="like-emoji-display">${t.likeEmoji}</span>` : `<i class="ti ti-heart${liked?'-filled':''}" ${liked?'style="color:#ef4444"':''}></i>`} <span id="reel-lc-${idx}">${fmt(t.likes)}</span>
         </button>
         <span class="reel-action-btn reel-stat">
           <i class="ti ti-eye"></i> ${fmt(t.views)}
@@ -1146,7 +1148,7 @@ function _reelCardHTML(group) {
             <i class="ti ti-message-circle"></i><span>${(tweetReplies[idx]||[]).length||0}</span>
           </button>
           <button class="reel-action-btn${liked?' reel-liked':''}" id="reel-like-${idx}" onclick="event.stopPropagation();_reelToggleLike(${idx})">
-            <i class="ti ti-heart${liked?'-filled':''}" ${liked?'style="color:#ef4444"':''}></i><span id="reel-lc-${idx}">${fmt(t.likes)}</span>
+            ${t.likeEmoji ? `<span class="like-emoji-display">${t.likeEmoji}</span>` : `<i class="ti ti-heart${liked?'-filled':''}" ${liked?'style="color:#ef4444"':''}></i>`}<span id="reel-lc-${idx}">${fmt(t.likes)}</span>
           </button>
           <span class="reel-action-btn reel-stat"><i class="ti ti-eye"></i>${fmt(t.views)}</span>
         </div>
@@ -1391,6 +1393,9 @@ function confirmPost() {
   const urlBtn = document.getElementById('compose-url-toggle-btn');
   if (urlBtn) urlBtn.classList.remove('compose-url-btn-active');
   resetComposeCat(); // カテゴリー・タグもリセット
+  pendingLikeEmoji = '❤️';
+  const _ceEl = document.getElementById('compose-like-emoji-current');
+  if (_ceEl) _ceEl.textContent = '❤️';
   updateCompose();
   // 投稿でピークコイン +100
   if (!testActiveUser && !isSub) {
@@ -1404,6 +1409,8 @@ function confirmPost() {
   }
 
   // Supabase に保存 → db_id が確定したら DOM と配列に反映
+  const _likeEmoji = pendingLikeEmoji && pendingLikeEmoji !== '❤️' ? pendingLikeEmoji : null;
+  t.likeEmoji = _likeEmoji;
   dbSavePost({
     handle       : isSub ? subAccountHandle : myHandle,
     name         : isSub ? subAccountName : (myNickname || 'あなた'),
@@ -1417,6 +1424,7 @@ function confirmPost() {
     tags         : _tags,
     linkUrl      : _linkUrl,
     imageLinkUrl : _imageLinkUrl,
+    likeEmoji    : _likeEmoji,
   }).then(savedPost => {
     if (savedPost?.id) {
       t.db_id = savedPost.id;
@@ -1579,6 +1587,7 @@ function _dbPostToTweet(p, avatarMap = {}, nameTagMap = {}, regionMap = {}, rook
     extSource : p.ext_source   || null,
     extUrl    : p.ext_url      || null,
     boostScore: p.boost_score  || 0,
+    likeEmoji : p.like_emoji   || null,
     score,
     rank     : 0,
     prev     : '初登場',
@@ -2170,7 +2179,7 @@ function _catMiniTweets(tweets, bar, maxScore) {
           <i class="ti ti-message-circle"></i><span id="reply-count-${idx}">${(tweetReplies[idx]||[]).length||''}</span>
         </button>
         <button class="ctm-like-btn${likedTweets.has(idx)?' liked':''}" onclick="event.stopPropagation();toggleLike(${idx},this)" title="いいね">
-          <i class="ti ti-heart${likedTweets.has(idx)?'-filled':''}" style="${likedTweets.has(idx)?'color:#e11d48':''}"></i><span class="like-count">${fmt(t.likes)}</span>
+          ${t.likeEmoji ? `<span class="like-emoji-display">${t.likeEmoji}</span>` : `<i class="ti ti-heart${likedTweets.has(idx)?'-filled':''}" style="${likedTweets.has(idx)?'color:#e11d48':''}"></i>`}<span class="like-count">${fmt(t.likes)}</span>
         </button>
         <span class="ctm-stat"><i class="ti ti-eye"></i>${fmt(t.views)}</span>
         ${fsFavBtn(idx)}
@@ -3778,14 +3787,20 @@ function toggleLike(idx, btn) {
     t.likes = Math.max(0, t.likes - 1);
     btn.classList.remove('liked');
   }
-  // アイコンを絵文字 ↔ アウトラインハートに切替
+  // アイコンを絵文字 or ハートに切替
   const icon = btn.querySelector('i, .like-emoji-display');
   if (icon) {
-    if (nowLiked) {
+    if (t.likeEmoji) {
+      // 投稿固有の絵文字は常に表示（いいね状態に関係なく）
       const span = document.createElement('span');
       span.className = 'like-emoji-display';
-      span.textContent = myLikeEmoji;
+      span.textContent = t.likeEmoji;
       icon.replaceWith(span);
+    } else if (nowLiked) {
+      const i = document.createElement('i');
+      i.className = 'ti ti-heart-filled';
+      i.style.color = '#e11d48';
+      icon.replaceWith(i);
     } else {
       const i = document.createElement('i');
       i.className = 'ti ti-heart';
@@ -3806,11 +3821,16 @@ function toggleLike(idx, btn) {
   if (reelIcon) {
     const reelTarget = reelBtn.querySelector('i, .like-emoji-display');
     if (reelTarget) {
-      if (nowLiked) {
+      if (t.likeEmoji) {
         const span = document.createElement('span');
         span.className = 'like-emoji-display';
-        span.textContent = myLikeEmoji;
+        span.textContent = t.likeEmoji;
         reelTarget.replaceWith(span);
+      } else if (nowLiked) {
+        const i = document.createElement('i');
+        i.className = 'ti ti-heart-filled';
+        i.style.color = '#ef4444';
+        reelTarget.replaceWith(i);
       } else {
         const i = document.createElement('i');
         i.className = 'ti ti-heart';
@@ -4066,7 +4086,7 @@ function openTweetDetail(idx) {
       ${t.linkUrl ? `<div style="margin-top:2px;margin-bottom:4px">${_urlBtnHTML(t.linkUrl)}</div>` : ''}
     </div>
     <div class="td-stats-row" style="padding:8px 16px;display:flex;align-items:center;gap:14px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
-      <button class="td-action-btn like-btn${likedTweets.has(idx)?' liked':''}" onclick="toggleLike(${idx},this)"><i class="ti ti-heart"></i><span class="like-count" id="td-like-${idx}">${fmt(t.likes)}</span></button>
+      <button class="td-action-btn like-btn${likedTweets.has(idx)?' liked':''}" onclick="toggleLike(${idx},this)">${t.likeEmoji ? `<span class="like-emoji-display">${t.likeEmoji}</span>` : `<i class="ti ti-heart${likedTweets.has(idx)?'-filled':''}" style="${likedTweets.has(idx)?'color:#e11d48':''}"></i>`}<span class="like-count" id="td-like-${idx}">${fmt(t.likes)}</span></button>
       <span style="color:var(--text3);font-size:13px"><i class="ti ti-eye"></i> ${fmt(t.views)}</span>
       ${t.boostScore > 0 ? `<span style="font-size:11px;color:#f59e0b"><i class="ti ti-rocket"></i>+${t.boostScore}</span>` : ''}
       ${aiBadge(t.ai)}
@@ -6826,7 +6846,7 @@ function userPostCardHTML(t) {
       ${t.linkUrl ? `<div style="padding:0 0 4px">${_urlBtnHTML(t.linkUrl)}</div>` : ''}
       <div class="tweet-actions">
         <button class="action-btn reply-btn" onclick="openTweetDetail(${idx})"><i class="ti ti-message-circle"></i><span id="reply-count-${idx}">${(tweetReplies[idx]||[]).length||''}</span></button>
-        <button class="action-btn like-btn${likedTweets.has(idx)?' liked':''}" onclick="toggleLike(${idx},this)"><i class="ti ti-heart${likedTweets.has(idx)?'-filled':''}" style="${likedTweets.has(idx)?'color:#e11d48':''}"></i><span class="like-count">${fmt(t.likes)}</span></button>
+        <button class="action-btn like-btn${likedTweets.has(idx)?' liked':''}" onclick="toggleLike(${idx},this)">${t.likeEmoji ? `<span class="like-emoji-display">${t.likeEmoji}</span>` : `<i class="ti ti-heart${likedTweets.has(idx)?'-filled':''}" style="${likedTweets.has(idx)?'color:#e11d48':''}"></i>`}<span class="like-count">${fmt(t.likes)}</span></button>
         <span class="action-btn" style="pointer-events:none;cursor:default"><i class="ti ti-eye"></i><span>${fmt(t.views)}</span></span>
       </div>
     </div>
@@ -7748,7 +7768,12 @@ async function applyBoostToPost(postDbId, itemId) {
 // 😀 いいね絵文字
 // ══════════════════════════════════════════
 
-async function openLikeEmojiPicker() {
+// 投稿フォーム用：選択した絵文字を pendingLikeEmoji に
+async function openComposeLikeEmojiPicker() {
+  await openLikeEmojiPicker({ mode: 'compose' });
+}
+
+async function openLikeEmojiPicker(opts = {}) {
   const aid = localStorage.getItem('trendy_account_id');
   if (!aid) return;
   // 所持アイテムを最新化
@@ -7761,16 +7786,21 @@ async function openLikeEmojiPicker() {
   const body = document.getElementById('like-emoji-modal-body');
   if (!body) return;
 
+  const isCompose = opts.mode === 'compose';
+  const current = isCompose ? pendingLikeEmoji : myLikeEmoji;
+  const selectFn = isCompose ? 'selectComposeLikeEmoji' : 'selectLikeEmoji';
+
   let html = `
     <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">
-      ガチャで入手した絵文字をいいねボタンに設定できます。<br>
-      未所持の絵文字を選ぶことはできません。
+      ${isCompose
+        ? 'この投稿のいいねボタンに表示する絵文字を選びます。<br>未投稿時はデフォルトの♡が表示されます。'
+        : 'ガチャで入手した絵文字を選択できます。'}
     </div>
     <div class="like-emoji-section">
-      <div class="like-emoji-section-title">現在の設定</div>
+      <div class="like-emoji-section-title">現在の選択</div>
       <div class="like-emoji-current-box">
-        <span class="like-emoji-current-icon">${myLikeEmoji}</span>
-        <button class="btn-sm" onclick="selectLikeEmoji('❤️')">デフォルトに戻す</button>
+        <span class="like-emoji-current-icon">${current}</span>
+        <button class="btn-sm" onclick="${selectFn}('❤️')">デフォルトに戻す</button>
       </div>
     </div>`;
 
@@ -7783,7 +7813,6 @@ async function openLikeEmojiPicker() {
         <button class="btn-primary" style="margin-top:14px" onclick="closeLikeEmojiPicker();goPage('gacha',null)">ガチャを引く</button>
       </div>`;
   } else {
-    // レアリティ別にグループ化
     const grouped = { LG: [], SSR: [], SR: [] };
     ownedEmojis.forEach(e => { if (grouped[e.rarity]) grouped[e.rarity].push(e); });
     for (const rar of ['LG','SSR','SR']) {
@@ -7796,7 +7825,7 @@ async function openLikeEmojiPicker() {
           </div>
           <div class="like-emoji-grid">
             ${grouped[rar].map(e => `
-              <button class="like-emoji-btn ${myLikeEmoji === e.emoji ? 'selected' : ''}" onclick="selectLikeEmoji('${e.emoji}')">
+              <button class="like-emoji-btn ${current === e.emoji ? 'selected' : ''}" onclick="${selectFn}('${e.emoji}')">
                 <span class="like-emoji-btn-char">${e.emoji}</span>
               </button>
             `).join('')}
@@ -7808,6 +7837,14 @@ async function openLikeEmojiPicker() {
   body.innerHTML = html;
   document.getElementById('like-emoji-modal')?.classList.add('show');
   document.getElementById('like-emoji-overlay')?.classList.add('show');
+}
+
+// 投稿フォームで絵文字選択
+function selectComposeLikeEmoji(emoji) {
+  pendingLikeEmoji = emoji;
+  const el = document.getElementById('compose-like-emoji-current');
+  if (el) el.textContent = emoji;
+  closeLikeEmojiPicker();
 }
 
 function closeLikeEmojiPicker() {

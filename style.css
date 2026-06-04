@@ -8068,3 +8068,10 @@ mark.hs-mark {
   color: var(--text1);
 }
 .dev-cutin-row > small { flex: 1; }
+
+/* 投稿フォームの絵文字ボタン */
+.compose-emoji-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 18px !important;
+}
+.compose-emoji-btn:hover { transform: scale(1.1); }

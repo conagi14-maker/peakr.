@@ -157,7 +157,7 @@ async function dbLoadCategories(accountId) {
 // ══════════════════════════════════════════
 // 投稿 (posts)
 // ══════════════════════════════════════════
-async function dbSavePost({ handle, name, isSub, content, aiType, mediaData, mediaType, nameTag, catId, tags, linkUrl, imageLinkUrl }) {
+async function dbSavePost({ handle, name, isSub, content, aiType, mediaData, mediaType, nameTag, catId, tags, linkUrl, imageLinkUrl, likeEmoji }) {
   // 画像は Supabase 保存前に圧縮（容量削減）
   let finalMedia = mediaData || null;
   if (mediaData && mediaType === 'image' && typeof _compressImage === 'function') {
@@ -176,6 +176,7 @@ async function dbSavePost({ handle, name, isSub, content, aiType, mediaData, med
     tags            : tags      || [],
     link_url        : linkUrl       || '',
     image_link_url  : imageLinkUrl  || '',
+    like_emoji      : likeEmoji || null,
   }).select().single();
   if (error) { console.error('[DB] 投稿保存エラー:', error.message); return null; }
   console.log('[DB] 投稿を保存しました:', data.id);
