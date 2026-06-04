@@ -7360,13 +7360,15 @@ async function _playGachaCutins(cutins) {
 }
 
 function _playSingleCutin(cutin) {
+  // ブラックアウトは専用CRT演出
+  if (cutin.type === 'blackout') return _playBlackoutCutin();
+
   return new Promise(resolve => {
     const overlay = document.getElementById('gacha-cutin');
     if (!overlay) { resolve(); return; }
 
     const config = {
       shake:    { label: 'ページ振動', sub: 'EXCITING!',    color: '#fbbf24', dur: 1400 },
-      blackout: { label: 'BLACKOUT',   sub: '確定SSR！',    color: '#fff',    dur: 1700 },
       henpen:   { label: '確 変',      sub: 'レアリティUP', color: '#a78bfa', dur: 1400 },
       chain:    { label: '連続確変',   sub: `×${cutin.count} レアリティUP`, color: '#ec4899', dur: 1500 },
     };
@@ -7385,7 +7387,6 @@ function _playSingleCutin(cutin) {
       </div>
     `;
 
-    // 振動効果はbodyを揺らす
     if (cutin.type === 'shake') {
       document.body.classList.add('gacha-page-shake');
     }
@@ -7397,6 +7398,34 @@ function _playSingleCutin(cutin) {
       }
       resolve();
     }, cfg.dur);
+  });
+}
+
+// ブラックアウト＝昔のCRTテレビの電源OFF演出（4秒）
+function _playBlackoutCutin() {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('gacha-cutin');
+    if (!overlay) { resolve(); return; }
+
+    overlay.className = 'gacha-cutin gacha-cutin-crt';
+    overlay.style.display = 'block';
+    overlay.innerHTML = `
+      <!-- 画面の縮小スクリーン（白→電源OFF） -->
+      <div class="gacha-crt-screen"></div>
+      <!-- 走査線 -->
+      <div class="gacha-crt-scanline"></div>
+      <!-- 中央の白い線（電源OFF直後の残像） -->
+      <div class="gacha-crt-line"></div>
+      <!-- 残光ドット -->
+      <div class="gacha-crt-dot"></div>
+      <!-- 真っ暗背景 -->
+      <div class="gacha-crt-black"></div>
+    `;
+
+    setTimeout(() => {
+      overlay.style.display = 'none';
+      resolve();
+    }, 4000);
   });
 }
 
