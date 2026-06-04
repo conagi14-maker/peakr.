@@ -557,6 +557,8 @@ function _initRecommendPage() {
   _recommendRawTweets = [];
   recommendLoaded  = 0;
   recommendSearchQuery = '';
+  // コイン残高表示を初期化
+  _loadMyPoints?.().then(() => _updateDiveCoinDisplay(0));
   // 保存済みのデフォルトフィルターを復元（なければ全表示）
   homeMediaFilters.clear();
   try {
@@ -705,6 +707,21 @@ function setDiveCat(catId) {
   const reel = document.getElementById('recommend-reel');
   if (reel) reel.innerHTML = '';
   _loadRecommendFeed(true);
+}
+
+// ── ダイブのコイン残高表示 & +N アニメーション ──
+function _updateDiveCoinDisplay(plusAmount) {
+  const countEl = document.getElementById('dive-coin-count');
+  if (countEl) countEl.textContent = _myPoints.toLocaleString();
+  if (plusAmount > 0) {
+    const plusEl = document.getElementById('dive-coin-plus');
+    if (plusEl) {
+      plusEl.textContent = `+${plusAmount}`;
+      plusEl.classList.remove('dive-coin-plus-show');
+      void plusEl.offsetWidth; // リフロー
+      plusEl.classList.add('dive-coin-plus-show');
+    }
+  }
 }
 
 // ── ダイブ キーワード検索 ───────────────────────────────────
@@ -1293,6 +1310,7 @@ function _renderRecommendSlice() {
     if (aid && typeof dbAddPoints === 'function') {
       dbAddPoints(aid, newSeenCount).then(() => {
         _myPoints += newSeenCount;
+        _updateDiveCoinDisplay(newSeenCount);
         // ガチャページのコイン表示も更新
         const coinEl = document.getElementById('gacha-ticket-count');
         if (coinEl) coinEl.textContent = _myPoints.toLocaleString();

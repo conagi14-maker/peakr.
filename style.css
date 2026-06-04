@@ -8451,3 +8451,35 @@ mark.hs-mark {
   color: #ddd6fe;
   text-shadow: 0 0 12px rgba(139,92,246,0.85), 0 0 4px rgba(0,0,0,0.7);
 }
+
+/* ダイブのコイン残高表示 */
+.dive-coin-display {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 999px;
+  background: linear-gradient(135deg, rgba(251,191,36,0.18), rgba(217,119,6,0.12));
+  border: 1px solid rgba(251,191,36,0.45);
+  color: #fde68a;
+  font-size: 14px; font-weight: 800;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.dive-coin-display > i {
+  color: #fbbf24; font-size: 16px;
+  filter: drop-shadow(0 0 4px rgba(251,191,36,0.7));
+}
+.dive-coin-plus {
+  position: absolute; top: -18px; right: 8px;
+  color: #fbbf24;
+  font-size: 14px; font-weight: 900;
+  opacity: 0;
+  pointer-events: none;
+  text-shadow: 0 0 8px rgba(251,191,36,0.8);
+}
+.dive-coin-plus.dive-coin-plus-show {
+  animation: dive-coin-plus-anim 1.2s ease-out forwards;
+}
+@keyframes dive-coin-plus-anim {
+  0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+  20%  { opacity: 1; transform: translateY(-8px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-24px) scale(1); }
+}
