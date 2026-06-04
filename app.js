@@ -7297,7 +7297,7 @@ async function doGacha(count) {
 // 確変クリック待ち：結果表示後、ユーザーがどこかをクリックすると金エフェクトで結果上書き
 function _waitForKakuhenClick(results, postCutins) {
   return new Promise(resolve => {
-    // 画面に「タップしてみよう？」のヒントを薄く表示
+    // 画面下にヒント
     const hint = document.createElement('div');
     hint.id = 'gacha-kakuhen-hint';
     hint.className = 'gacha-kakuhen-hint';
@@ -7309,34 +7309,51 @@ function _waitForKakuhenClick(results, postCutins) {
       document.removeEventListener('touchstart', onClick, true);
       hint.remove();
 
-      // 金色フラッシュオーバーレイ
-      const flash = document.createElement('div');
-      flash.className = 'gacha-kakuhen-flash';
-      document.body.appendChild(flash);
-
-      // 0.6秒後に確変結果を表示
-      await new Promise(r => setTimeout(r, 600));
-
-      // 結果を上書き
-      const newResults = _applyGachaCutins(results, postCutins);
+      const stage = document.getElementById('gacha-stage');
+      const resultEl = document.getElementById('gacha-result');
 
       // ガチャページに戻ってない場合は戻す
       if (!document.getElementById('page-gacha')?.classList.contains('active')) {
         goPage('gacha', null);
         await new Promise(r => setTimeout(r, 200));
       }
+
+      // 1) 結果カードを消す
+      if (resultEl) {
+        resultEl.style.opacity = '0';
+        resultEl.style.transition = 'opacity 0.25s ease';
+      }
+      await new Promise(r => setTimeout(r, 250));
+
+      // 2) ステージ枠内に金色オーバーレイを表示（持続）
+      if (stage) stage.classList.add('gacha-kakuhen-gold');
+      if (resultEl) {
+        resultEl.style.display = 'none';
+        resultEl.style.opacity = '';
+        resultEl.style.transition = '';
+      }
+
+      // 3) 結果を計算
+      const newResults = _applyGachaCutins(results, postCutins);
+
+      // 4) タメ時間（金色背景を見せる）
+      await new Promise(r => setTimeout(r, 1400));
+
+      // 5) 結果を表示（金色背景は残したまま）
       _showGachaResult(newResults);
 
-      // フラッシュを徐々に消す
-      setTimeout(() => {
-        flash.classList.add('gacha-kakuhen-flash-out');
-        setTimeout(() => flash.remove(), 600);
-      }, 200);
+      // 6) 結果カードが出てから0.6秒後に金色背景をフェードアウト
+      await new Promise(r => setTimeout(r, 600));
+      if (stage) {
+        stage.classList.add('gacha-kakuhen-gold-out');
+        setTimeout(() => {
+          stage.classList.remove('gacha-kakuhen-gold','gacha-kakuhen-gold-out');
+        }, 600);
+      }
 
       resolve(newResults);
     };
 
-    // 確実にイベント登録するため少し待つ
     setTimeout(() => {
       document.addEventListener('click', onClick, true);
       document.addEventListener('touchstart', onClick, true);
