@@ -980,6 +980,53 @@
           </div>
         </section>
 
+        <!-- カットイン演出確率 -->
+        <section class="settings-section">
+          <h2><i class="ti ti-bolt" style="color:#d97706"></i> カットイン演出確率</h2>
+          <p class="settings-desc">各カットイン演出の発動確率を調整できます（0〜100%）。</p>
+          <div id="dev-cutin-rates">
+            <div class="dev-cutin-row">
+              <label>ページ振動</label>
+              <input type="number" min="0" max="100" step="1" class="dev-input" id="dev-cutin-shake" style="width:80px">
+              <span style="color:var(--text3);font-size:12px">%</span>
+              <small style="color:var(--text3);margin-left:10px">単語なし、2秒間振動して他演出+〇%</small>
+            </div>
+            <div class="dev-cutin-row">
+              <label>└ 振動ボーナス</label>
+              <input type="number" min="0" max="100" step="1" class="dev-input" id="dev-cutin-shakeBonus" style="width:80px">
+              <span style="color:var(--text3);font-size:12px">%</span>
+              <small style="color:var(--text3);margin-left:10px">振動発動時に他カットインの確率に加算</small>
+            </div>
+            <div class="dev-cutin-row">
+              <label>ブラックアウト</label>
+              <input type="number" min="0" max="100" step="1" class="dev-input" id="dev-cutin-blackout" style="width:80px">
+              <span style="color:var(--text3);font-size:12px">%</span>
+              <small style="color:var(--text3);margin-left:10px">CRT電源OFF → 確定SSR</small>
+            </div>
+            <div class="dev-cutin-row">
+              <label>確変</label>
+              <input type="number" min="0" max="100" step="1" class="dev-input" id="dev-cutin-henpen" style="width:80px">
+              <span style="color:var(--text3);font-size:12px">%</span>
+              <small style="color:var(--text3);margin-left:10px">レアリティ +1</small>
+            </div>
+            <div class="dev-cutin-row">
+              <label>連続確変</label>
+              <input type="number" min="0" max="100" step="1" class="dev-input" id="dev-cutin-chain" style="width:80px">
+              <span style="color:var(--text3);font-size:12px">%</span>
+              <small style="color:var(--text3);margin-left:10px">確変成立時、追加で最大2回</small>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:14px">
+            <button class="btn-primary" onclick="saveCutinRates()">保存</button>
+            <button class="btn-secondary" onclick="resetCutinRates()">デフォルトに戻す</button>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px">
+            <button class="btn-sm" onclick="testCutin('shake')">▶ 振動テスト</button>
+            <button class="btn-sm" onclick="testCutin('blackout')">▶ ブラックアウトテスト</button>
+            <button class="btn-sm" onclick="testCutin('henpen')">▶ 確変テスト</button>
+          </div>
+        </section>
+
         <!-- 一覧 -->
         <section class="settings-section">
           <h2>

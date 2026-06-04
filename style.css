@@ -8053,3 +8053,18 @@ mark.hs-mark {
 .rarity-bg-lg  { box-shadow: inset 0 0 12px rgba(239,68,68,0.4); border-color: rgba(239,68,68,0.5); }
 .rarity-bg-ssr { box-shadow: inset 0 0 12px rgba(245,158,11,0.35); border-color: rgba(245,158,11,0.45); }
 .rarity-bg-sr  { box-shadow: inset 0 0 10px rgba(168,85,247,0.3); border-color: rgba(168,85,247,0.4); }
+
+/* 開発者カットイン確率UI */
+.dev-cutin-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.dev-cutin-row:last-child { border-bottom: none; }
+.dev-cutin-row > label {
+  min-width: 110px;
+  font-weight: 600;
+  color: var(--text1);
+}
+.dev-cutin-row > small { flex: 1; }

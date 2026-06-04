@@ -454,7 +454,7 @@ function goPage(id, btn) {
   if (id === 'peak-points') renderPeakPointsPage();
   if (id === 'feedback') openFeedbackPage();
   if (id === 'gacha')    renderGachaPage();
-  if (id === 'dev-gacha') renderDevGachaList();
+  if (id === 'dev-gacha') { renderDevGachaList(); setTimeout(() => _loadCutinRatesUI(), 100); }
   if (id === 'follows') renderFollows();
   if (id === 'settings') { renderCatSettings(); _loadDmSettingsIntoUI(); _initSettingsRegionBtns(); }
   if (id === 'acct-switch') renderAcctSwitch();
@@ -7482,34 +7482,41 @@ const _RARITY_ASCEND = ['N','R','SR','SSR','LG'];
 const _ITEM_BY_RARITY = { N:'boost_n', R:'boost_r', SR:'boost_sr', SSR:'boost_ssr', LG:'boost_lg' };
 const _BOOST_BY_RARITY = { N:1, R:5, SR:30, SSR:100, LG:1000 };
 
+// カットイン確率（開発者ページで変更可能）
+const _CUTIN_RATES_DEFAULT = {
+  shake:      0.10, // ページ振動の発動率
+  blackout:   0.10, // ブラックアウトの発動率
+  henpen:     0.10, // 確変の発動率
+  chain:      0.10, // 連続確変の追加発動率
+  shakeBonus: 0.20, // 振動発動時の他カットインへの上乗せ
+};
+let _cutinRates = { ..._CUTIN_RATES_DEFAULT };
+// localStorage から復元
+try {
+  const saved = JSON.parse(localStorage.getItem('trendy_cutin_rates') || 'null');
+  if (saved) _cutinRates = { ..._CUTIN_RATES_DEFAULT, ...saved };
+} catch(e) {}
+
 /** カットインを抽選（順序: 振動 → ブラックアウト → 確変 → 連続確変） */
 function _rollGachaCutins() {
   const cutins = [];
-  let extra = 0; // 振動効果で他の確率に +20%
+  let extra = 0;
 
-  // 1) ページ振動（10%）
-  if (Math.random() < 0.10) {
+  if (Math.random() < _cutinRates.shake) {
     cutins.push({ type: 'shake' });
-    extra = 0.20;
+    extra = _cutinRates.shakeBonus;
   }
-
-  // 2) ブラックアウト（10% + extra）→ 確定SSR
-  if (Math.random() < 0.10 + extra) {
+  if (Math.random() < _cutinRates.blackout + extra) {
     cutins.push({ type: 'blackout' });
   }
-
-  // 3) 確変（10% + extra）→ レアリティ +1
-  if (Math.random() < 0.10 + extra) {
+  if (Math.random() < _cutinRates.henpen + extra) {
     cutins.push({ type: 'henpen' });
-    // 4) 連続確変（10% + extra）→ 追加で +1〜
-    // 連続して引き続き判定（最大2回）
     let chains = 0;
-    while (Math.random() < 0.10 + extra && chains < 2) {
+    while (Math.random() < _cutinRates.chain + extra && chains < 2) {
       chains++;
     }
     if (chains > 0) cutins.push({ type: 'chain', count: chains });
   }
-
   return cutins;
 }
 
@@ -7911,6 +7918,59 @@ async function devResetUserItems() {
     }
   } else {
     showToast('削除に失敗しました: ' + error.message, 'error');
+  }
+}
+
+// ── カットイン確率の編集 ──
+function _loadCutinRatesUI() {
+  document.getElementById('dev-cutin-shake').value      = Math.round(_cutinRates.shake * 100);
+  document.getElementById('dev-cutin-shakeBonus').value = Math.round(_cutinRates.shakeBonus * 100);
+  document.getElementById('dev-cutin-blackout').value   = Math.round(_cutinRates.blackout * 100);
+  document.getElementById('dev-cutin-henpen').value     = Math.round(_cutinRates.henpen * 100);
+  document.getElementById('dev-cutin-chain').value      = Math.round(_cutinRates.chain * 100);
+}
+
+function saveCutinRates() {
+  const rates = {
+    shake:      parseFloat(document.getElementById('dev-cutin-shake').value || 0) / 100,
+    shakeBonus: parseFloat(document.getElementById('dev-cutin-shakeBonus').value || 0) / 100,
+    blackout:   parseFloat(document.getElementById('dev-cutin-blackout').value || 0) / 100,
+    henpen:     parseFloat(document.getElementById('dev-cutin-henpen').value || 0) / 100,
+    chain:      parseFloat(document.getElementById('dev-cutin-chain').value || 0) / 100,
+  };
+  _cutinRates = rates;
+  localStorage.setItem('trendy_cutin_rates', JSON.stringify(rates));
+  showToast('✅ カットイン確率を保存しました', 'success');
+}
+
+function resetCutinRates() {
+  if (!confirm('カットイン確率をデフォルトに戻しますか？')) return;
+  _cutinRates = { ..._CUTIN_RATES_DEFAULT };
+  localStorage.removeItem('trendy_cutin_rates');
+  _loadCutinRatesUI();
+  showToast('デフォルトに戻しました', 'success');
+}
+
+async function testCutin(type) {
+  // ガチャページに移動して演出を強制発動
+  if (!document.getElementById('page-gacha')?.classList.contains('active')) {
+    goPage('gacha', null);
+    await new Promise(r => setTimeout(r, 300));
+  }
+  if (type === 'shake') {
+    await _playShakeCutin();
+    showToast('振動テスト完了', 'success');
+  } else if (type === 'blackout') {
+    await _playBlackoutCutin();
+    showToast('ブラックアウトテスト完了', 'success');
+  } else if (type === 'henpen') {
+    // 仮結果を表示してから確変
+    _showGachaResult([{rarity:'N',label:'ブーストN',boost:1,id:'boost_n'}]);
+    await new Promise(r => setTimeout(r, 400));
+    await _waitForKakuhenClick(
+      [{rarity:'N',label:'ブーストN',boost:1,id:'boost_n'}],
+      [{type:'henpen'}]
+    );
   }
 }
 
