@@ -7241,6 +7241,8 @@ const EMOJI_POOL = {
     '🍀','🌿','🍂','🍁','⚽','🏀',
   ],
 };
+// R レアでも SR の絵文字を出して入手機会を増やす
+const R_EMOJI_RATE = 0.3; // R 35% × 30% = 10.5% の確率で絵文字
 // 絵文字ID生成（emoji_LG_001 のような形）
 const EMOJI_ID = {}; // emoji_id → 絵文字
 const EMOJI_INFO = {}; // emoji_id → {rarity, emoji}
@@ -7255,7 +7257,7 @@ Object.entries(EMOJI_POOL).forEach(([rarity, list]) => {
 // レアリティ別の総確率（合計100%）
 const RARITY_PROBS = { LG: 0.01, SSR: 2.99, SR: 12, R: 35, N: 50 };
 // そのレアリティ内で絵文字が出る確率（残りはブースト）
-const EMOJI_RATE_IN_RARITY = { LG: 0.5, SSR: 0.55, SR: 0.4 };
+const EMOJI_RATE_IN_RARITY = { LG: 0.7, SSR: 0.75, SR: 0.65 };
 
 const GACHA_ITEMS = [
   { id: 'boost_lg',  label: 'ブーストLG',  rarity: 'LG',  boost: 1000 },
@@ -7277,14 +7279,19 @@ function _rollOne() {
     if (r < cum) { rarity = rar; break; }
   }
 
-  // 2) そのレアリティで絵文字が出るか抽選（N/Rはブースト固定）
-  const emojiRate = EMOJI_RATE_IN_RARITY[rarity] || 0;
-  if (emojiRate > 0 && Math.random() < emojiRate) {
-    // 絵文字を当てる
-    const pool = EMOJI_POOL[rarity];
+  // 2) そのレアリティで絵文字が出るか抽選
+  let emojiRarity = null;
+  if (EMOJI_POOL[rarity] && Math.random() < (EMOJI_RATE_IN_RARITY[rarity] || 0)) {
+    emojiRarity = rarity;
+  } else if (rarity === 'R' && Math.random() < R_EMOJI_RATE) {
+    // Rでも一定確率でSR絵文字が出る
+    emojiRarity = 'SR';
+  }
+  if (emojiRarity) {
+    const pool = EMOJI_POOL[emojiRarity];
     const idx = Math.floor(Math.random() * pool.length);
-    const id = `emoji_${rarity}_${String(idx+1).padStart(3,'0')}`;
-    return { id, label: pool[idx], rarity, type: 'emoji', emoji: pool[idx] };
+    const id = `emoji_${emojiRarity}_${String(idx+1).padStart(3,'0')}`;
+    return { id, label: pool[idx], rarity: emojiRarity, type: 'emoji', emoji: pool[idx] };
   }
 
   // 3) ブースト
@@ -7689,8 +7696,10 @@ function _showGachaResult(results) {
     const rows = results.map(r =>
       `<div class="gacha-result-item" style="border-color:${RARITY_COLORS[r.rarity]}">
         <span class="rarity-${r.rarity.toLowerCase()}">${r.rarity}</span>
-        <span>${r.type === 'emoji' ? r.emoji + ' ' : ''}${r.label}</span>
-        <span style="color:var(--text3);font-size:11px">${r.type === 'emoji' ? '' : '+' + r.boost}</span>
+        ${r.type === 'emoji'
+          ? `<span style="font-size:24px;line-height:1">${r.emoji}</span>`
+          : `<span>${r.label}</span>
+             <span style="color:var(--text3);font-size:11px">+${r.boost}</span>`}
       </div>`
     ).join('');
     resultEl.innerHTML = `
