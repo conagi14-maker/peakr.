@@ -944,7 +944,6 @@
           <p class="settings-desc">全登録ユーザーにアイテムを一括で配布します。</p>
           <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
             <select id="dev-gacha-bulk-item" class="dev-input" style="flex:1">
-              <option value="gacha_ticket">🎫 ガチャチケット</option>
               <option value="boost_lg">LG ブースト（+1000スコア）</option>
               <option value="boost_ssr">SSR ブースト（+100スコア）</option>
               <option value="boost_sr">SR ブースト（+30スコア）</option>
@@ -1782,8 +1781,8 @@
       </div>
       <!-- ポイント残高バナー -->
       <div class="ad-hub-points-banner" id="ad-hub-points-banner">
-        <div class="ad-hub-points-label"><i class="ti ti-diamond"></i> ピークポイント残高</div>
-        <div class="ad-hub-points-val" id="ad-hub-points-val">— pt</div>
+        <div class="ad-hub-points-label"><i class="ti ti-diamond"></i> ピークコイン残高</div>
+        <div class="ad-hub-points-val" id="ad-hub-points-val">— コイン</div>
       </div>
       <!-- メニューカード -->
       <div class="ad-hub-grid">
@@ -1804,7 +1803,7 @@
         </button>
         <button class="ad-hub-card" onclick="goPage('peak-points',null)">
           <i class="ti ti-diamond ad-hub-icon" style="color:#f59e0b"></i>
-          <div class="ad-hub-card-title">ピークポイント</div>
+          <div class="ad-hub-card-title">ピークコイン</div>
           <div class="ad-hub-card-desc">友達を招待してポイントを獲得</div>
         </button>
       </div>
@@ -1994,11 +1993,11 @@
       <div id="ad-report-content"></div>
     </div>
 
-    <!-- ピークポイントページ -->
+    <!-- ピークコインページ -->
     <div class="page" id="page-peak-points">
       <div class="page-header">
         <button class="back-btn" onclick="goPage('ads',null)"><i class="ti ti-arrow-left"></i></button>
-        <h1><i class="ti ti-diamond" style="color:#f59e0b"></i> ピークポイント</h1>
+        <h1><i class="ti ti-diamond" style="color:#f59e0b"></i> ピークコイン</h1>
       </div>
       <div id="peak-points-content"></div>
     </div>
@@ -2025,10 +2024,10 @@
               カテゴリーランキング上位を目指そう。
             </div>
             <div class="gacha-ticket-bar">
-              <i class="ti ti-ticket"></i>
-              <span>所持チケット</span>
+              <i class="ti ti-coin"></i>
+              <span>所持コイン</span>
               <span id="gacha-ticket-count" class="gacha-ticket-num">0</span>
-              <span class="gacha-ticket-unit">枚</span>
+              <span class="gacha-ticket-unit">コイン</span>
             </div>
           </div>
         </div>
@@ -2053,16 +2052,16 @@
         <div class="gacha-btn-row">
           <button class="gacha-btn gacha-btn-1" onclick="doGacha(1)">
             <div class="gacha-btn-inner">
-              <i class="ti ti-ticket"></i>
+              <i class="ti ti-coin"></i>
               <span class="gacha-btn-main">1回チャレンジ</span>
-              <span class="gacha-btn-sub">チケット ×1</span>
+              <span class="gacha-btn-sub">100コイン</span>
             </div>
           </button>
           <button class="gacha-btn gacha-btn-10" onclick="doGacha(10)">
             <div class="gacha-btn-inner">
-              <i class="ti ti-tickets"></i>
+              <i class="ti ti-coins"></i>
               <span class="gacha-btn-main">10連</span>
-              <span class="gacha-btn-sub">チケット ×10</span>
+              <span class="gacha-btn-sub">1000コイン</span>
             </div>
             <span class="gacha-btn-badge">お得!</span>
           </button>
@@ -2105,10 +2104,14 @@
 
         <!-- 取得方法 -->
         <div class="gacha-howto">
-          <div class="gacha-howto-title"><i class="ti ti-info-circle"></i> チケットの入手方法</div>
+          <div class="gacha-howto-title"><i class="ti ti-info-circle"></i> ピークコインの入手方法</div>
           <div class="gacha-howto-item">
             <i class="ti ti-pencil"></i>
-            <span>つぶやきを投稿するたびに <b>チケット +1枚</b></span>
+            <span>つぶやきを投稿するたびに <b>+100コイン</b></span>
+          </div>
+          <div class="gacha-howto-item">
+            <i class="ti ti-heart"></i>
+            <span>いいねをするたびに <b>+10コイン</b></span>
           </div>
         </div>
       </div>
@@ -2309,11 +2312,11 @@
   </div>
 </div>
 
-<!-- Dev: ピークポイント付与モーダル -->
+<!-- Dev: ピークコイン付与モーダル -->
 <div class="modal-overlay" id="dev-grant-points-overlay" onclick="devGrantPointsClose()"></div>
 <div class="modal" id="dev-grant-points-modal" style="width:min(360px,92vw)">
   <div class="modal-header">
-    <span class="modal-title"><i class="ti ti-diamond" style="color:#7c3aed"></i> ピークポイント付与</span>
+    <span class="modal-title"><i class="ti ti-diamond" style="color:#7c3aed"></i> ピークコイン付与</span>
     <button class="btn-icon" onclick="devGrantPointsClose()"><i class="ti ti-x"></i></button>
   </div>
   <div class="modal-body">
@@ -2323,7 +2326,7 @@
       <input type="number" id="dev-grant-points-input" min="1" max="9999999" step="100" placeholder="例：1000"
         style="flex:1;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:15px;font-weight:700;background:var(--bg);color:var(--text)"
         onkeydown="if(event.key==='Enter')devGrantPointsConfirm()">
-      <span style="font-size:13px;color:var(--text3);font-weight:600">pt</span>
+      <span style="font-size:13px;color:var(--text3);font-weight:600">コイン</span>
     </div>
     <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
       <button class="btn-sm" onclick="document.getElementById('dev-grant-points-input').value=100">+100</button>

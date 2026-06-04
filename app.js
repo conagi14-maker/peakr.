@@ -1222,7 +1222,7 @@ function _reelToggleLike(idx) {
     const aid = localStorage.getItem('trendy_account_id');
     const _likeAuthorId = t.user?.h ? (t.user.h.startsWith('@') ? t.user.h.slice(1) : t.user.h) : null;
     dbToggleLike(t.db_id, aid, nowLiked, t.user && t.user.h, _isFavUser(_likeAuthorId));
-    // いいねでピークポイント +10
+    // いいねでピークコイン +10
     if (nowLiked && aid && typeof dbAddPoints === 'function') {
       dbAddPoints(aid, 10).then(() => { _loadMyPoints?.(); }).catch(() => {});
     }
@@ -1370,16 +1370,13 @@ function confirmPost() {
   if (urlBtn) urlBtn.classList.remove('compose-url-btn-active');
   resetComposeCat(); // カテゴリー・タグもリセット
   updateCompose();
-  // 投稿でピークポイント +10
+  // 投稿でピークコイン +100
   if (!testActiveUser && !isSub) {
     const _postAid = localStorage.getItem('trendy_account_id');
     if (_postAid && typeof dbAddPoints === 'function') {
-      dbAddPoints(_postAid, 10).then(() => { _loadMyPoints?.(); }).catch(() => {});
-    }
-    // 投稿でガチャチケット +1
-    if (_postAid && typeof dbAddItem === 'function') {
-      dbAddItem(_postAid, 'gacha_ticket', 1).then(() => {
-        showToast('🎫 ガチャチケットを1枚獲得しました！', 'success');
+      dbAddPoints(_postAid, 100).then(() => {
+        _loadMyPoints?.();
+        showToast('🪙 ピークコインを100獲得しました！', 'success');
       }).catch(() => {});
     }
   }
@@ -5653,7 +5650,7 @@ async function completeRegister() {
 
   if (regBtn) { regBtn.disabled = false; regBtn.innerHTML = '<i class="ti ti-user-check"></i> 登録する'; }
 
-  // ── 新規登録ボーナス：1000ピークポイントをプレゼント ──
+  // ── 新規登録ボーナス：1000ピークコインをプレゼント ──
   if (typeof dbAddPoints === 'function') {
     dbAddPoints(accountId, 1000).catch(e => {
       console.warn('[REG] 登録ボーナス付与エラー:', e?.message);
@@ -5662,7 +5659,7 @@ async function completeRegister() {
 
   // ── 保存成功 → 完了ステップへ ──
   const desc = document.getElementById('reg-done-desc');
-  if (desc) desc.innerHTML = `<b>@${accountId}</b> さん、ようこそ！<br>アカウントの設定が完了しました。<br><span style="color:#7c3aed;font-weight:700"><i class="ti ti-gift"></i> 登録ボーナスとして 1,000 ピークポイント をプレゼントしました！</span>`;
+  if (desc) desc.innerHTML = `<b>@${accountId}</b> さん、ようこそ！<br>アカウントの設定が完了しました。<br><span style="color:#7c3aed;font-weight:700"><i class="ti ti-gift"></i> 登録ボーナスとして 1,000 ピークコイン をプレゼントしました！</span>`;
   registerStep(2);
 
   // ── 前アカウントのプロフィールデータをクリア ──
@@ -7203,9 +7200,9 @@ async function renderGachaPage() {
   const aid = localStorage.getItem('trendy_account_id');
   if (!aid) return;
   _gachaItems = await dbGetUserItems(aid);
-  const tickets = _gachaItems['gacha_ticket'] || 0;
+  await _loadMyPoints();
   const ticketEl = document.getElementById('gacha-ticket-count');
-  if (ticketEl) ticketEl.textContent = tickets;
+  if (ticketEl) ticketEl.textContent = _myPoints.toLocaleString();
   _renderGachaInventory();
   _updateGachaNavBadge();
 }
@@ -7229,29 +7226,22 @@ function _renderGachaInventory() {
 
 function _updateGachaNavBadge() {
   const badge = document.getElementById('gacha-nav-badge');
-  if (!badge) return;
-  const tickets = _gachaItems['gacha_ticket'] || 0;
-  if (tickets > 0) {
-    badge.textContent = tickets > 99 ? '99+' : tickets;
-    badge.style.display = '';
-  } else {
-    badge.style.display = 'none';
-  }
+  if (badge) badge.style.display = 'none';
 }
 
 async function doGacha(count) {
   const aid = localStorage.getItem('trendy_account_id');
   if (!aid) return;
-  const tickets = _gachaItems['gacha_ticket'] || 0;
-  if (tickets < count) {
-    showToast(`チケットが足りません（所持: ${tickets}枚）`, 'error'); return;
+  const cost = 100 * count;
+  if (_myPoints < cost) {
+    showToast(`コインが足りません（所持: ${_myPoints} / 必要: ${cost}）`, 'error'); return;
   }
-  // チケット消費
-  const ok = await dbConsumeItem(aid, 'gacha_ticket', count);
-  if (!ok) { showToast('チケットの消費に失敗しました', 'error'); return; }
-  _gachaItems['gacha_ticket'] = (tickets - count);
+  // ピークコイン消費
+  const ok = await dbUsePoints(aid, cost);
+  if (!ok) { showToast('コインの消費に失敗しました', 'error'); return; }
+  _myPoints -= cost;
   const ticketEl = document.getElementById('gacha-ticket-count');
-  if (ticketEl) ticketEl.textContent = _gachaItems['gacha_ticket'];
+  if (ticketEl) ticketEl.textContent = _myPoints.toLocaleString();
 
   // 抽選
   let results = Array.from({ length: count }, () => _rollOne());
@@ -7616,7 +7606,6 @@ async function applyBoostToPost(postDbId, itemId) {
 // ══════════════════════════════════════════
 
 const _DEV_ITEM_LABELS = {
-  gacha_ticket: '🎫 ガチャチケット',
   boost_lg:     'LG ブースト',
   boost_ssr:    'SSR ブースト',
   boost_sr:     'SR ブースト',
@@ -9416,7 +9405,7 @@ async function renderDevAccountList() {
             onclick="devToggleDevFlag('${a.account_id}', ${!!a.is_dev}, this)">
             <i class="ti ti-code" style="font-size:12px"></i> ${a.is_dev ? 'DEV ON' : 'DEV OFF'}
           </button>
-          <button title="ピークポイントを付与"
+          <button title="ピークコインを付与"
             style="padding:5px 8px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe"
             onclick="devGrantPoints('${a.account_id}', '${(a.nickname || a.account_id).replace(/'/g, "\\'")}')">
             <i class="ti ti-diamond" style="font-size:12px"></i>
@@ -9433,7 +9422,7 @@ async function renderDevAccountList() {
   if (badge) badge.textContent = accounts.length + ' 件';
 }
 
-// ── ピークポイント付与 ──
+// ── ピークコイン付与 ──
 function devGrantPoints(accountId, nickname) {
   if (!accountId) return;
   const modal = document.getElementById('dev-grant-points-modal');
@@ -9478,7 +9467,7 @@ async function devGrantPointsConfirm() {
   }
 
   devGrantPointsClose();
-  showToast(`@${accountId} に ${amount.toLocaleString()} pt を付与しました（残高：${(result.points || 0).toLocaleString()} pt）`, 'success');
+  showToast(`@${accountId} に ${amount.toLocaleString()} コイン を付与しました（残高：${(result.points || 0).toLocaleString()} コイン）`, 'success');
 
   // 自分自身への付与の場合は表示を即時更新
   const myAccountId = localStorage.getItem('trendy_account_id');
@@ -11302,7 +11291,7 @@ setTimeout(() => {
 // フォールバック：30秒ごとにポーリング（リアルタイムが切れた場合の保険）
 setInterval(() => _checkAnnouncementBadge(), 30 * 1000);
 
-// ── ピークポイント ─────────────────────────────────────
+// ── ピークコイン ─────────────────────────────────────
 let _myPoints = 0;
 let _myTotalEarned = 0;
 let _boostSelectedPostId = null;
@@ -11319,10 +11308,10 @@ async function _loadMyPoints() {
   _myTotalEarned = r.total_earned || 0;
   // ハブのバナーを更新
   const el = document.getElementById('ad-hub-points-val');
-  if (el) el.textContent = `${_myPoints.toLocaleString()} pt`;
+  if (el) el.textContent = `${_myPoints.toLocaleString()} コイン`;
 }
 
-// ピークポイントページ
+// ピークコインページ
 async function renderPeakPointsPage() {
   await _loadMyPoints();
   const aid = localStorage.getItem('trendy_account_id');
@@ -11336,8 +11325,8 @@ async function renderPeakPointsPage() {
   container.innerHTML = `
     <div class="pp-balance-card">
       <div class="pp-balance-label"><i class="ti ti-diamond"></i> 現在の残高</div>
-      <div class="pp-balance-val">${_myPoints.toLocaleString()}<span class="pp-pt">pt</span></div>
-      <div class="pp-total-earned">累計獲得: ${_myTotalEarned.toLocaleString()} pt</div>
+      <div class="pp-balance-val">${_myPoints.toLocaleString()}<span class="pp-pt">コイン</span></div>
+      <div class="pp-total-earned">累計獲得: ${_myTotalEarned.toLocaleString()} コイン</div>
     </div>
     <div class="pp-section">
       <div class="pp-section-title"><i class="ti ti-link"></i> 紹介リンク</div>
@@ -11350,8 +11339,8 @@ async function renderPeakPointsPage() {
     <div class="pp-section">
       <div class="pp-section-title"><i class="ti ti-info-circle"></i> ポイントの仕組み</div>
       <div class="pp-howto">
-        <div class="pp-howto-row">🧑‍🤝‍🧑 友達を招待して登録されたら <b>+100 pt</b></div>
-        <div class="pp-howto-row">🔗 友達がさらに別の人を招待して登録されたら <b>+100 pt</b></div>
+        <div class="pp-howto-row">🧑‍🤝‍🧑 友達を招待して登録されたら <b>+100 コイン</b></div>
+        <div class="pp-howto-row">🔗 友達がさらに別の人を招待して登録されたら <b>+100 コイン</b></div>
         <div class="pp-howto-row">💎 獲得したポイントは <b>広告費として使用</b> できます</div>
       </div>
     </div>
@@ -11368,7 +11357,7 @@ async function renderPeakPointsPage() {
                 <span class="pp-history-user">@${r.referred_id}</span>
               </div>
               <div class="pp-history-right">
-                <span class="pp-history-pts">+${r.points_awarded} pt</span>
+                <span class="pp-history-pts">+${r.points_awarded} コイン</span>
                 <span class="pp-history-date">${d.getMonth()+1}/${d.getDate()}</span>
               </div>
             </div>`;
@@ -11601,7 +11590,7 @@ function setAdPayMethod(method, btn) {
     const budget = parseInt(document.getElementById('ad-budget-input')?.value || 0);
     const needed = budget * _adDays;
     const warn = document.getElementById('ad-points-warn');
-    if (warn) warn.textContent = _myPoints >= needed ? `残高 ${_myPoints.toLocaleString()} pt → 使用後 ${(_myPoints - needed).toLocaleString()} pt` : `⚠ 残高不足（必要: ${needed} pt, 残高: ${_myPoints} pt）`;
+    if (warn) warn.textContent = _myPoints >= needed ? `残高 ${_myPoints.toLocaleString()} コイン → 使用後 ${(_myPoints - needed).toLocaleString()} コイン` : `⚠ 残高不足（必要: ${needed} コイン, 残高: ${_myPoints} コイン）`;
   }
 }
 
