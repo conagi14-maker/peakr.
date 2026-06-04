@@ -7607,6 +7607,27 @@ async function renderGachaPage() {
   if (ticketEl) ticketEl.textContent = _myPoints.toLocaleString();
   _renderGachaInventory();
   _updateGachaNavBadge();
+  _refreshGachaRatesDisplay();
+}
+
+// 排出確率＆ブースト効果表示を最新に更新
+function _refreshGachaRatesDisplay() {
+  ['LG','UR','SSR','SR','R','N'].forEach(rar => {
+    // 確率
+    const pctEl = document.getElementById(`gacha-pct-${rar}`);
+    if (pctEl) {
+      const p = RARITY_PROBS[rar] ?? 0;
+      // 小数表記を見やすく（整数なら整数、小数2桁まで）
+      pctEl.textContent = (p < 1 ? p.toFixed(2) : (p % 1 === 0 ? p.toFixed(0) : p.toFixed(2))) + '%';
+    }
+    // ブースト効果
+    const boostEl = document.getElementById(`gacha-rate-boost-${rar}`);
+    if (boostEl) {
+      const itemId = _ITEM_BY_RARITY[rar];
+      const amt = BOOST_AMOUNTS[itemId];
+      if (amt !== undefined) boostEl.textContent = `+${amt}スコア相当`;
+    }
+  });
 }
 
 function _renderGachaInventory() {
@@ -8567,6 +8588,7 @@ function saveBoostAmounts() {
   _BOOST_BY_RARITY.R = b.boost_r;
   _BOOST_BY_RARITY.N = b.boost_n;
   localStorage.setItem('trendy_boost_amounts', JSON.stringify(b));
+  if (typeof _refreshGachaRatesDisplay === 'function') _refreshGachaRatesDisplay();
   showToast('✅ ブースト効果を保存しました', 'success');
 }
 function resetBoostAmounts() {
@@ -8614,6 +8636,7 @@ function saveRarityProbs() {
   }
   RARITY_PROBS = p;
   localStorage.setItem('trendy_rarity_probs', JSON.stringify(p));
+  if (typeof _refreshGachaRatesDisplay === 'function') _refreshGachaRatesDisplay();
   showToast('✅ 排出確率を保存しました', 'success');
 }
 function resetRarityProbs() {
