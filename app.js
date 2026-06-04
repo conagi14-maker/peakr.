@@ -458,7 +458,7 @@ function goPage(id, btn) {
   if (id === 'peak-points') renderPeakPointsPage();
   if (id === 'feedback') openFeedbackPage();
   if (id === 'gacha')    renderGachaPage();
-  if (id === 'dev-gacha') { renderDevGachaList(); setTimeout(() => { _loadCutinRatesUI(); }, 100); }
+  if (id === 'dev-gacha') { renderDevGachaList(); setTimeout(() => { _loadCutinRatesUI(); _loadBoostAmountsUI(); _loadRarityProbsUI(); }, 100); }
   if (id === 'dev-rank-rewards') { setTimeout(() => _loadRankRewardsUI(), 100); }
   if (id === 'follows') renderFollows();
   if (id === 'settings') { renderCatSettings(); _initSettingsRegionBtns(); }
@@ -7295,13 +7295,22 @@ async function syncPixivPosts() {
 // 🎲 ガチャ
 // ══════════════════════════════════════════
 
-const BOOST_AMOUNTS = { boost_lg: 1000, boost_ssr: 100, boost_sr: 30, boost_r: 5, boost_n: 1 };
-const RARITY_COLORS = { LG: '#ef4444', SSR: '#f59e0b', SR: '#8b5cf6', R: '#3b82f6', N: '#6b7280' };
+// ブースト効果（localStorage で編集可能）
+const _BOOST_AMOUNTS_DEFAULT = { boost_lg: 1000, boost_ur: 500, boost_ssr: 100, boost_sr: 30, boost_r: 5, boost_n: 1 };
+let BOOST_AMOUNTS = { ..._BOOST_AMOUNTS_DEFAULT };
+try {
+  const saved = JSON.parse(localStorage.getItem('trendy_boost_amounts') || 'null');
+  if (saved) BOOST_AMOUNTS = { ..._BOOST_AMOUNTS_DEFAULT, ...saved };
+} catch(e) {}
+const RARITY_COLORS = { LG: '#ef4444', UR: '#c026d3', SSR: '#f59e0b', SR: '#8b5cf6', R: '#3b82f6', N: '#6b7280' };
 
-// ── 絵文字プール（SR=50, SSR=35, LG=15） ──────
+// ── 絵文字プール（SR=50, SSR=35, UR=20, LG=15） ──────
 const EMOJI_POOL = {
   LG: [
     '❤️','🎉','🔥','💯','👑','🌟','💎','🥇','🏆','⭐','💝','🦄','🌈','✨','💖',
+  ],
+  UR: [
+    '🌌','🌠','💫','⚡','🔱','🗝️','🎭','🪐','🪄','💍','🦅','🐉','🌋','🔮','🧿','⛩️','🎌','🎏','🍾','🥂',
   ],
   SSR: [
     '😍','🥰','😘','💕','💞','💓','💗','💘','💙','💜','💚','💛','🧡','🖤','🤍',
@@ -7319,12 +7328,17 @@ const EMOJI_POOL = {
 // R レアでも SR の絵文字を出して入手機会を増やす
 const R_EMOJI_RATE = 0.3; // R 35% × 30% = 10.5% の確率で絵文字
 
-// ── 称号バッジプール（SR=100, SSR=70, LG=30） ──────
+// ── 称号バッジプール（SR=100, SSR=70, UR=30, LG=30） ──────
 const TITLE_POOL = {
   LG: [
     '神','王','女王','皇帝','覇者','伝説','創造主','救世主','預言者',
     '龍神','不死鳥','麒麟','鳳凰','神龍','守護神','月光','太陽神','雷神','風神',
     '開拓者','革命家','賢者','老師','仙人','英雄','勇者','大魔法使い','大冒険家','大富豪','名匠',
+  ],
+  UR: [
+    '至高','絶対','究極','超越','極限','超人','大天使','聖人','聖女','聖戦士',
+    '鬼神','夜叉','修羅','阿修羅','麒麟児','黒龍','白龍','金龍','銀龍','虹龍',
+    '宇宙','銀河','流星','光明','闇王','大公','大将','元帥','総帥','黄金',
   ],
   SSR: [
     '戦士','騎士','剣豪','侍','忍者','武士','海賊','空の旅人','賞金稼ぎ',
@@ -7371,16 +7385,22 @@ Object.entries(EMOJI_POOL).forEach(([rarity, list]) => {
 });
 
 // レアリティ別の総確率（合計100%）
-const RARITY_PROBS = { LG: 0.01, SSR: 2.99, SR: 12, R: 35, N: 50 };
-// そのレアリティ内で絵文字が出る確率（残りはブースト）
-const EMOJI_RATE_IN_RARITY = { LG: 0.7, SSR: 0.75, SR: 0.65 };
+const _RARITY_PROBS_DEFAULT = { LG: 0.01, UR: 0.5, SSR: 2.49, SR: 12, R: 35, N: 50 };
+let RARITY_PROBS = { ..._RARITY_PROBS_DEFAULT };
+try {
+  const saved = JSON.parse(localStorage.getItem('trendy_rarity_probs') || 'null');
+  if (saved) RARITY_PROBS = { ..._RARITY_PROBS_DEFAULT, ...saved };
+} catch(e) {}
+// そのレアリティ内で絵文字/称号が出る確率（残りはブースト）
+const EMOJI_RATE_IN_RARITY = { LG: 0.7, UR: 0.7, SSR: 0.75, SR: 0.65 };
 
 const GACHA_ITEMS = [
-  { id: 'boost_lg',  label: 'ブーストLG',  rarity: 'LG',  boost: 1000 },
-  { id: 'boost_ssr', label: 'ブーストSSR', rarity: 'SSR', boost: 100  },
-  { id: 'boost_sr',  label: 'ブーストSR',  rarity: 'SR',  boost: 30   },
-  { id: 'boost_r',   label: 'ブーストR',   rarity: 'R',   boost: 5    },
-  { id: 'boost_n',   label: 'ブーストN',   rarity: 'N',   boost: 1    },
+  { id: 'boost_lg',  label: 'ブーストLG',  rarity: 'LG',  get boost() { return BOOST_AMOUNTS.boost_lg; }  },
+  { id: 'boost_ur',  label: 'ブーストUR',  rarity: 'UR',  get boost() { return BOOST_AMOUNTS.boost_ur; }  },
+  { id: 'boost_ssr', label: 'ブーストSSR', rarity: 'SSR', get boost() { return BOOST_AMOUNTS.boost_ssr; } },
+  { id: 'boost_sr',  label: 'ブーストSR',  rarity: 'SR',  get boost() { return BOOST_AMOUNTS.boost_sr; }  },
+  { id: 'boost_r',   label: 'ブーストR',   rarity: 'R',   get boost() { return BOOST_AMOUNTS.boost_r; }   },
+  { id: 'boost_n',   label: 'ブーストN',   rarity: 'N',   get boost() { return BOOST_AMOUNTS.boost_n; }   },
 ];
 
 let _gachaItems = {}; // キャッシュ
@@ -7618,9 +7638,9 @@ function _waitForKakuhenClick(results, postCutins) {
 // カットイン演出
 // ══════════════════════════════════════════
 
-const _RARITY_ASCEND = ['N','R','SR','SSR','LG'];
-const _ITEM_BY_RARITY = { N:'boost_n', R:'boost_r', SR:'boost_sr', SSR:'boost_ssr', LG:'boost_lg' };
-const _BOOST_BY_RARITY = { N:1, R:5, SR:30, SSR:100, LG:1000 };
+const _RARITY_ASCEND = ['N','R','SR','SSR','UR','LG'];
+const _ITEM_BY_RARITY = { N:'boost_n', R:'boost_r', SR:'boost_sr', SSR:'boost_ssr', UR:'boost_ur', LG:'boost_lg' };
+const _BOOST_BY_RARITY = { N:1, R:5, SR:30, SSR:100, UR:500, LG:1000 };
 
 // ── ランキング報酬設定（開発者画面で変更可能） ──
 const _RANK_REWARDS_DEFAULT = {
@@ -7730,7 +7750,7 @@ function _applyGachaCutins(results, cutins) {
   const totalAscend = henpen + chain;
 
   // 最高レアの結果1つに効果適用（10連の場合）
-  const rarityOrder = { LG: 5, SSR: 4, SR: 3, R: 2, N: 1 };
+  const rarityOrder = { LG: 6, UR: 5, SSR: 4, SR: 3, R: 2, N: 1 };
   let bestIdx = 0;
   results.forEach((r, i) => {
     if (rarityOrder[r.rarity] > rarityOrder[results[bestIdx].rarity]) bestIdx = i;
@@ -7818,7 +7838,7 @@ function _playBlackoutCutin() {
 // ── 2秒のタメ演出（期待感を煽る） ──
 function _playGachaSuspense(results) {
   return new Promise(resolve => {
-    const rarityOrder = { LG: 5, SSR: 4, SR: 3, R: 2, N: 1 };
+    const rarityOrder = { LG: 6, UR: 5, SSR: 4, SR: 3, R: 2, N: 1 };
     const best = results.reduce((a, b) => rarityOrder[a.rarity] >= rarityOrder[b.rarity] ? a : b);
 
     const orb     = document.querySelector('.gacha-orb');
@@ -7878,7 +7898,7 @@ function _showGachaResult(results) {
   resultEl.style.display = '';
 
   // 最高レアリティを判定
-  const rarityOrder = { LG: 5, SSR: 4, SR: 3, R: 2, N: 1 };
+  const rarityOrder = { LG: 6, UR: 5, SSR: 4, SR: 3, R: 2, N: 1 };
   const best = results.reduce((a, b) => rarityOrder[a.rarity] >= rarityOrder[b.rarity] ? a : b);
   const color = RARITY_COLORS[best.rarity];
 
@@ -8216,6 +8236,7 @@ async function selectLikeEmoji(emoji) {
 
 const _DEV_ITEM_LABELS = {
   boost_lg:     'LG ブースト',
+  boost_ur:     'UR ブースト',
   boost_ssr:    'SSR ブースト',
   boost_sr:     'SR ブースト',
   boost_r:      'R ブースト',
@@ -8298,6 +8319,90 @@ async function devResetUserItems() {
   } else {
     showToast('削除に失敗しました: ' + error.message, 'error');
   }
+}
+
+// ── ブースト効果の編集 ──
+function _loadBoostAmountsUI() {
+  document.getElementById('dev-boost-lg').value  = BOOST_AMOUNTS.boost_lg;
+  document.getElementById('dev-boost-ur').value  = BOOST_AMOUNTS.boost_ur;
+  document.getElementById('dev-boost-ssr').value = BOOST_AMOUNTS.boost_ssr;
+  document.getElementById('dev-boost-sr').value  = BOOST_AMOUNTS.boost_sr;
+  document.getElementById('dev-boost-r').value   = BOOST_AMOUNTS.boost_r;
+  document.getElementById('dev-boost-n').value   = BOOST_AMOUNTS.boost_n;
+}
+function saveBoostAmounts() {
+  const b = {
+    boost_lg:  parseInt(document.getElementById('dev-boost-lg').value || 0),
+    boost_ur:  parseInt(document.getElementById('dev-boost-ur').value || 0),
+    boost_ssr: parseInt(document.getElementById('dev-boost-ssr').value || 0),
+    boost_sr:  parseInt(document.getElementById('dev-boost-sr').value || 0),
+    boost_r:   parseInt(document.getElementById('dev-boost-r').value || 0),
+    boost_n:   parseInt(document.getElementById('dev-boost-n').value || 0),
+  };
+  BOOST_AMOUNTS = b;
+  // _BOOST_BY_RARITY も同期
+  _BOOST_BY_RARITY.LG = b.boost_lg;
+  _BOOST_BY_RARITY.UR = b.boost_ur;
+  _BOOST_BY_RARITY.SSR = b.boost_ssr;
+  _BOOST_BY_RARITY.SR = b.boost_sr;
+  _BOOST_BY_RARITY.R = b.boost_r;
+  _BOOST_BY_RARITY.N = b.boost_n;
+  localStorage.setItem('trendy_boost_amounts', JSON.stringify(b));
+  showToast('✅ ブースト効果を保存しました', 'success');
+}
+function resetBoostAmounts() {
+  if (!confirm('ブースト効果をデフォルトに戻しますか？')) return;
+  BOOST_AMOUNTS = { ..._BOOST_AMOUNTS_DEFAULT };
+  Object.assign(_BOOST_BY_RARITY, { N:1, R:5, SR:30, SSR:100, UR:500, LG:1000 });
+  localStorage.removeItem('trendy_boost_amounts');
+  _loadBoostAmountsUI();
+  showToast('デフォルトに戻しました', 'success');
+}
+
+// ── レアリティ確率の編集 ──
+function _loadRarityProbsUI() {
+  document.getElementById('dev-prob-lg').value  = RARITY_PROBS.LG;
+  document.getElementById('dev-prob-ur').value  = RARITY_PROBS.UR;
+  document.getElementById('dev-prob-ssr').value = RARITY_PROBS.SSR;
+  document.getElementById('dev-prob-sr').value  = RARITY_PROBS.SR;
+  document.getElementById('dev-prob-r').value   = RARITY_PROBS.R;
+  document.getElementById('dev-prob-n').value   = RARITY_PROBS.N;
+  _updateProbSum();
+  ['lg','ur','ssr','sr','r','n'].forEach(r => {
+    document.getElementById('dev-prob-'+r)?.addEventListener('input', _updateProbSum);
+  });
+}
+function _updateProbSum() {
+  const sum = ['lg','ur','ssr','sr','r','n'].reduce((a,r)=>a+parseFloat(document.getElementById('dev-prob-'+r)?.value || 0),0);
+  const el = document.getElementById('dev-prob-sum');
+  if (el) {
+    el.textContent = sum.toFixed(2) + '%';
+    el.style.color = Math.abs(sum - 100) < 0.01 ? '#10b981' : '#ef4444';
+  }
+}
+function saveRarityProbs() {
+  const p = {
+    LG:  parseFloat(document.getElementById('dev-prob-lg').value || 0),
+    UR:  parseFloat(document.getElementById('dev-prob-ur').value || 0),
+    SSR: parseFloat(document.getElementById('dev-prob-ssr').value || 0),
+    SR:  parseFloat(document.getElementById('dev-prob-sr').value || 0),
+    R:   parseFloat(document.getElementById('dev-prob-r').value || 0),
+    N:   parseFloat(document.getElementById('dev-prob-n').value || 0),
+  };
+  const sum = Object.values(p).reduce((a,b)=>a+b,0);
+  if (Math.abs(sum - 100) > 0.01) {
+    if (!confirm(`合計が${sum.toFixed(2)}%です。100%でないと正常に動作しません。保存しますか？`)) return;
+  }
+  RARITY_PROBS = p;
+  localStorage.setItem('trendy_rarity_probs', JSON.stringify(p));
+  showToast('✅ 排出確率を保存しました', 'success');
+}
+function resetRarityProbs() {
+  if (!confirm('排出確率をデフォルトに戻しますか？')) return;
+  RARITY_PROBS = { ..._RARITY_PROBS_DEFAULT };
+  localStorage.removeItem('trendy_rarity_probs');
+  _loadRarityProbsUI();
+  showToast('デフォルトに戻しました', 'success');
 }
 
 // ── ランキング報酬設定の編集 ──

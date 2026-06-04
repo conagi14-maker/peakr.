@@ -943,6 +943,7 @@
           <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
             <select id="dev-gacha-bulk-item" class="dev-input" style="flex:1">
               <option value="boost_lg">LG ブースト（+1000スコア）</option>
+              <option value="boost_ur">UR ブースト（+500スコア）</option>
               <option value="boost_ssr">SSR ブースト（+100スコア）</option>
               <option value="boost_sr">SR ブースト（+30スコア）</option>
               <option value="boost_r">R ブースト（+5スコア）</option>
@@ -961,6 +962,7 @@
             <input id="dev-gacha-target-id" class="dev-input" placeholder="account_id（例: kanri0614）">
             <select id="dev-gacha-target-item" class="dev-input">
               <option value="gacha_ticket">🎫 ガチャチケット</option>
+              <option value="boost_ur">UR ブースト</option>
               <option value="boost_ssr">SSR ブースト</option>
               <option value="boost_sr">SR ブースト</option>
               <option value="boost_r">R ブースト</option>
@@ -972,6 +974,43 @@
             <button class="btn-primary" onclick="devGiveItem()">付与</button>
             <button class="btn-secondary" onclick="devTakeItem()">削減</button>
             <button class="btn-danger" onclick="devResetUserItems()">全消去</button>
+          </div>
+        </section>
+
+        <!-- ブースト効果 -->
+        <section class="settings-section">
+          <h2><i class="ti ti-rocket" style="color:#d97706"></i> ブーストチケット効果</h2>
+          <p class="settings-desc">各レアリティのブーストが投稿に加算するスコアを変更できます。</p>
+          <div>
+            <div class="dev-cutin-row"><label>LG ブースト</label><input type="number" min="0" step="100" class="dev-input" id="dev-boost-lg" style="width:110px"><span style="color:var(--text3);font-size:12px">+スコア</span></div>
+            <div class="dev-cutin-row"><label>UR ブースト</label><input type="number" min="0" step="50" class="dev-input" id="dev-boost-ur" style="width:110px"><span style="color:var(--text3);font-size:12px">+スコア</span></div>
+            <div class="dev-cutin-row"><label>SSR ブースト</label><input type="number" min="0" step="10" class="dev-input" id="dev-boost-ssr" style="width:110px"><span style="color:var(--text3);font-size:12px">+スコア</span></div>
+            <div class="dev-cutin-row"><label>SR ブースト</label><input type="number" min="0" step="5" class="dev-input" id="dev-boost-sr" style="width:110px"><span style="color:var(--text3);font-size:12px">+スコア</span></div>
+            <div class="dev-cutin-row"><label>R ブースト</label><input type="number" min="0" step="1" class="dev-input" id="dev-boost-r" style="width:110px"><span style="color:var(--text3);font-size:12px">+スコア</span></div>
+            <div class="dev-cutin-row"><label>N ブースト</label><input type="number" min="0" step="1" class="dev-input" id="dev-boost-n" style="width:110px"><span style="color:var(--text3);font-size:12px">+スコア</span></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:14px">
+            <button class="btn-primary" onclick="saveBoostAmounts()">保存</button>
+            <button class="btn-secondary" onclick="resetBoostAmounts()">デフォルトに戻す</button>
+          </div>
+        </section>
+
+        <!-- レアリティ確率 -->
+        <section class="settings-section">
+          <h2><i class="ti ti-chart-pie" style="color:#d97706"></i> レアリティ排出確率</h2>
+          <p class="settings-desc">各レアリティの排出率を調整できます（合計100%）。</p>
+          <div>
+            <div class="dev-cutin-row"><label>LG</label><input type="number" min="0" step="0.01" class="dev-input" id="dev-prob-lg" style="width:100px"><span style="color:var(--text3);font-size:12px">%</span></div>
+            <div class="dev-cutin-row"><label>UR</label><input type="number" min="0" step="0.1" class="dev-input" id="dev-prob-ur" style="width:100px"><span style="color:var(--text3);font-size:12px">%</span></div>
+            <div class="dev-cutin-row"><label>SSR</label><input type="number" min="0" step="0.1" class="dev-input" id="dev-prob-ssr" style="width:100px"><span style="color:var(--text3);font-size:12px">%</span></div>
+            <div class="dev-cutin-row"><label>SR</label><input type="number" min="0" step="0.5" class="dev-input" id="dev-prob-sr" style="width:100px"><span style="color:var(--text3);font-size:12px">%</span></div>
+            <div class="dev-cutin-row"><label>R</label><input type="number" min="0" step="1" class="dev-input" id="dev-prob-r" style="width:100px"><span style="color:var(--text3);font-size:12px">%</span></div>
+            <div class="dev-cutin-row"><label>N</label><input type="number" min="0" step="1" class="dev-input" id="dev-prob-n" style="width:100px"><span style="color:var(--text3);font-size:12px">%</span></div>
+            <div class="dev-cutin-row"><label>合計</label><span id="dev-prob-sum" style="font-weight:700;color:var(--accent)">—</span></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:14px">
+            <button class="btn-primary" onclick="saveRarityProbs()">保存</button>
+            <button class="btn-secondary" onclick="resetRarityProbs()">デフォルトに戻す</button>
           </div>
         </section>
 
@@ -2210,10 +2249,16 @@
             <span class="gacha-pct">0.01%</span>
           </div>
           <div class="gacha-rate-row">
+            <span class="rarity-ur">UR</span>
+            <span class="gacha-rate-label">ウルトラレア <small>+500スコア相当</small></span>
+            <button class="gacha-rate-detail-btn" onclick="openRarityContents('UR')"><i class="ti ti-list"></i> 内容</button>
+            <span class="gacha-pct">0.5%</span>
+          </div>
+          <div class="gacha-rate-row">
             <span class="rarity-ssr">SSR</span>
             <span class="gacha-rate-label">超レア <small>+100スコア相当</small></span>
             <button class="gacha-rate-detail-btn" onclick="openRarityContents('SSR')"><i class="ti ti-list"></i> 内容</button>
-            <span class="gacha-pct">2.99%</span>
+            <span class="gacha-pct">2.49%</span>
           </div>
           <div class="gacha-rate-row">
             <span class="rarity-sr">SR</span>

@@ -8341,3 +8341,54 @@ mark.hs-mark {
   box-shadow: 0 2px 6px rgba(251,191,36,0.4);
 }
 .profile-title-badge > i { font-size: 12px; }
+
+/* UR レアリティバッジ（ウルトラレア・マゼンタ） */
+.rarity-ur {
+  position: relative;
+  background: linear-gradient(135deg, #f0abfc 0%, #d946ef 35%, #c026d3 70%, #701a75 100%);
+  color: #fff; padding: 4px 11px; border-radius: 7px;
+  font-size: 11px; font-weight: 900; letter-spacing: 1.5px;
+  box-shadow:
+    0 0 12px rgba(217,70,239,0.8),
+    0 0 24px rgba(217,70,239,0.5),
+    0 2px 8px rgba(112,26,117,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  border: 1px solid rgba(240,171,252,0.6);
+  animation: rarity-ur-glow 2s ease-in-out infinite alternate;
+}
+@keyframes rarity-ur-glow {
+  to {
+    box-shadow:
+      0 0 20px rgba(217,70,239,1),
+      0 0 40px rgba(217,70,239,0.7),
+      0 2px 10px rgba(112,26,117,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.6);
+  }
+}
+.rarity-bg-ur { box-shadow: inset 0 0 12px rgba(217,70,239,0.4); border-color: rgba(217,70,239,0.5); }
+
+/* UR チャージ演出 */
+.gacha-orb.gacha-charge-ur .gacha-orb-core {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,1) 0%, transparent 40%),
+    conic-gradient(from 0deg,
+      #f0abfc 0%, #d946ef 20%, #c026d3 40%,
+      #fde047 50%, #c026d3 60%, #d946ef 80%, #f0abfc 100%) !important;
+  box-shadow:
+    0 0 130px rgba(217,70,239,0.95),
+    0 0 80px rgba(253,224,71,0.5),
+    inset 0 -10px 20px rgba(0,0,0,0.3) !important;
+  animation: gacha-ur-spin 0.35s linear infinite !important;
+}
+@keyframes gacha-ur-spin {
+  to { filter: hue-rotate(180deg) brightness(1.1); }
+}
+.gacha-orb.gacha-charge-ur .gacha-orb-glow {
+  background: radial-gradient(circle, rgba(217,70,239,0.9) 0%, rgba(253,224,71,0.4) 35%, transparent 70%) !important;
+  animation: gacha-ur-glow-pulse 0.22s ease-in-out infinite !important;
+}
+@keyframes gacha-ur-glow-pulse {
+  0%,100% { opacity: 0.85; transform: scale(1.05); }
+  50%     { opacity: 1;   transform: scale(1.7); }
+}
