@@ -7264,9 +7264,64 @@ async function doGacha(count) {
     _gachaItems[id] = (_gachaItems[id] || 0) + qty;
   }
 
+  // タメ演出（2秒）→ 結果表示
+  await _playGachaSuspense(results);
   _showGachaResult(results);
   _renderGachaInventory();
   _updateGachaNavBadge();
+}
+
+// ── 2秒のタメ演出（期待感を煽る） ──
+function _playGachaSuspense(results) {
+  return new Promise(resolve => {
+    const rarityOrder = { SSR: 4, SR: 3, R: 2, N: 1 };
+    const best = results.reduce((a, b) => rarityOrder[a.rarity] >= rarityOrder[b.rarity] ? a : b);
+
+    const orb     = document.querySelector('.gacha-orb');
+    const stage   = document.getElementById('gacha-stage');
+    const iconWrap= document.getElementById('gacha-icon-wrap');
+    const resultEl= document.getElementById('gacha-result');
+    if (!orb || !stage) { resolve(); return; }
+
+    // 結果を非表示にして中央オーブを表示
+    if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
+    if (iconWrap) iconWrap.style.display = '';
+
+    // クラスをリセット
+    orb.classList.remove('gacha-charge-n','gacha-charge-r','gacha-charge-sr','gacha-charge-ssr','gacha-burst');
+    stage.classList.remove('gacha-stage-shake','gacha-stage-flash');
+    void orb.offsetWidth; // リフロー
+
+    // 1) 0〜1.0s: 共通チャージ（白→金色がだんだん強くなる）
+    orb.classList.add('gacha-charging');
+    stage.classList.add('gacha-stage-shake');
+
+    // 2) 1.0s時点：レアリティに応じて色変化（フェイクで途中SR色に → 切り替え）
+    const teaseTimers = [];
+    teaseTimers.push(setTimeout(() => {
+      // フェイク：先に低レアっぽい色を見せる（外す可能性を演出）
+      orb.classList.add('gacha-charge-r');
+    }, 800));
+
+    // 1.5s: 確定レア色に変わる（高レアは華やか、低レアはそのまま）
+    teaseTimers.push(setTimeout(() => {
+      orb.classList.remove('gacha-charge-r');
+      orb.classList.add('gacha-charge-' + best.rarity.toLowerCase());
+    }, 1500));
+
+    // 1.9s: 弾けて結果を表示する直前のフラッシュ
+    teaseTimers.push(setTimeout(() => {
+      orb.classList.add('gacha-burst');
+      stage.classList.add('gacha-stage-flash');
+    }, 1900));
+
+    // 2.1s: 終了
+    teaseTimers.push(setTimeout(() => {
+      orb.classList.remove('gacha-charging','gacha-burst','gacha-charge-n','gacha-charge-r','gacha-charge-sr','gacha-charge-ssr');
+      stage.classList.remove('gacha-stage-shake','gacha-stage-flash');
+      resolve();
+    }, 2100));
+  });
 }
 
 function _showGachaResult(results) {
