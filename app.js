@@ -2081,8 +2081,7 @@ function toggleBadgeSelect(badgeId) {
 function _titleBadgeCardHTML(title, compact = true) {
   const info = Object.values(TITLE_INFO).find(t => t.title === title);
   const rar = info?.rarity || 'SR';
-  return `<div class="title-badge-display-card rarity-bg-${rar.toLowerCase()}">
-    <span class="rarity-${rar.toLowerCase()}">${rar}</span>
+  return `<div class="title-badge-display-card title-badge-${rar.toLowerCase()}">
     <span class="title-badge-display-text">${title}</span>
   </div>`;
 }
@@ -2244,13 +2243,8 @@ function _renderBadgesDisplaySlots() {
     // ガチャ称号バッジ
     if (typeof bid === 'string' && bid.startsWith('title:')) {
       const title = bid.slice(6);
-      const info = Object.values(TITLE_INFO).find(t => t.title === title);
-      const rar = info?.rarity || 'SR';
       return `<div class="badge-dslot badge-dslot--filled" onclick="toggleTitleBadgeSlot('${title.replace(/'/g, "\\'")}')">
-        <div class="title-badge-display-card rarity-bg-${rar.toLowerCase()}">
-          <span class="rarity-${rar.toLowerCase()}">${rar}</span>
-          <span class="title-badge-display-text">${title}</span>
-        </div>
+        ${_titleBadgeCardHTML(title)}
         <div class="badge-dslot-remove">タップで外す</div>
       </div>`;
     }

@@ -8393,19 +8393,61 @@ mark.hs-mark {
   50%     { opacity: 1;   transform: scale(1.7); }
 }
 
-/* スロット内の称号バッジカード */
+/* スロット内の称号バッジカード（レアリティ別カラー） */
 .title-badge-display-card {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 6px;
+  display: flex; align-items: center; justify-content: center;
   padding: 14px 10px;
   border-radius: 10px;
-  border: 1px solid rgba(251,191,36,0.3);
-  background: linear-gradient(160deg, #0d0020 0%, #280050 28%, #0a0018 55%, #1e0040 100%);
   width: 100%; height: 100%; min-height: 80px;
-  box-shadow: 0 0 18px rgba(180,100,255,0.4);
+  position: relative;
+  overflow: hidden;
 }
 .title-badge-display-text {
-  font-size: 14px; font-weight: 900;
+  font-size: 16px; font-weight: 900;
+  letter-spacing: 0.05em;
+  position: relative; z-index: 1;
+}
+
+/* LG: 赤系 */
+.title-badge-lg {
+  background: linear-gradient(160deg, #2d0606 0%, #5c0c0c 28%, #200404 55%, #4a0a0a 100%);
+  border: 2px solid #ef4444;
+  box-shadow: 0 0 20px rgba(239,68,68,0.65), inset 0 0 20px rgba(239,68,68,0.25);
+}
+.title-badge-lg .title-badge-display-text {
+  color: #fecaca;
+  text-shadow: 0 0 12px rgba(239,68,68,0.9), 0 0 4px rgba(0,0,0,0.7);
+}
+
+/* UR: マゼンタ系 */
+.title-badge-ur {
+  background: linear-gradient(160deg, #2a0633 0%, #4b0a5c 28%, #1a0420 55%, #380844 100%);
+  border: 2px solid #c026d3;
+  box-shadow: 0 0 20px rgba(192,38,211,0.65), inset 0 0 20px rgba(192,38,211,0.25);
+}
+.title-badge-ur .title-badge-display-text {
+  color: #f0abfc;
+  text-shadow: 0 0 12px rgba(192,38,211,0.9), 0 0 4px rgba(0,0,0,0.7);
+}
+
+/* SSR: 金系 */
+.title-badge-ssr {
+  background: linear-gradient(160deg, #2b1a04 0%, #5c3a08 28%, #1f1304 55%, #4a2e08 100%);
+  border: 2px solid #f59e0b;
+  box-shadow: 0 0 20px rgba(245,158,11,0.7), inset 0 0 20px rgba(245,158,11,0.25);
+}
+.title-badge-ssr .title-badge-display-text {
   color: #fde68a;
-  text-shadow: 0 0 8px rgba(251,191,36,0.4);
+  text-shadow: 0 0 12px rgba(245,158,11,0.95), 0 0 4px rgba(0,0,0,0.7);
+}
+
+/* SR: 紫系 */
+.title-badge-sr {
+  background: linear-gradient(160deg, #150038 0%, #2a0866 28%, #0a001c 55%, #1d044a 100%);
+  border: 2px solid #8b5cf6;
+  box-shadow: 0 0 18px rgba(139,92,246,0.6), inset 0 0 18px rgba(139,92,246,0.25);
+}
+.title-badge-sr .title-badge-display-text {
+  color: #ddd6fe;
+  text-shadow: 0 0 12px rgba(139,92,246,0.85), 0 0 4px rgba(0,0,0,0.7);
 }
