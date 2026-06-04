@@ -8012,7 +8012,7 @@ function _playGachaSuspense(results) {
     if (iconWrap) iconWrap.style.display = '';
 
     // クラスをリセット
-    orb.classList.remove('gacha-charge-n','gacha-charge-r','gacha-charge-sr','gacha-charge-ssr','gacha-burst');
+    orb.classList.remove('gacha-charge-n','gacha-charge-r','gacha-charge-sr','gacha-charge-ssr','gacha-charge-ur','gacha-charge-lg','gacha-burst');
     stage.classList.remove('gacha-stage-shake','gacha-stage-flash');
     void orb.offsetWidth; // リフロー
 
@@ -8020,31 +8020,64 @@ function _playGachaSuspense(results) {
     orb.classList.add('gacha-charging');
     stage.classList.add('gacha-stage-shake');
 
-    // 2) 1.0s時点：レアリティに応じて色変化（フェイクで途中SR色に → 切り替え）
     const teaseTimers = [];
-    teaseTimers.push(setTimeout(() => {
-      // フェイク：先に低レアっぽい色を見せる（外す可能性を演出）
-      orb.classList.add('gacha-charge-r');
-    }, 800));
+    const bestRarity = best.rarity.toLowerCase();
+    const high = ['SSR','UR','LG'].includes(best.rarity);
 
-    // 1.5s: 確定レア色に変わる（高レアは華やか、低レアはそのまま）
-    teaseTimers.push(setTimeout(() => {
-      orb.classList.remove('gacha-charge-r');
-      orb.classList.add('gacha-charge-' + best.rarity.toLowerCase());
-    }, 1500));
+    if (high) {
+      // 高レアは段階的に上がる演出
+      // 0.6s: フェイク R(青)
+      teaseTimers.push(setTimeout(() => {
+        orb.classList.add('gacha-charge-r');
+      }, 600));
+      // 1.0s: フェイク SR(紫)に上がる
+      teaseTimers.push(setTimeout(() => {
+        orb.classList.remove('gacha-charge-r');
+        orb.classList.add('gacha-charge-sr');
+      }, 1000));
+      // 1.4s: 一段あがって SSR(金)
+      teaseTimers.push(setTimeout(() => {
+        orb.classList.remove('gacha-charge-sr');
+        orb.classList.add('gacha-charge-ssr');
+      }, 1400));
+      if (best.rarity === 'UR' || best.rarity === 'LG') {
+        // 1.7s: UR/LG時はさらに上がる
+        teaseTimers.push(setTimeout(() => {
+          orb.classList.remove('gacha-charge-ssr');
+          orb.classList.add('gacha-charge-ur');
+        }, 1700));
+        if (best.rarity === 'LG') {
+          // 1.9s: LG時は最終形に
+          teaseTimers.push(setTimeout(() => {
+            orb.classList.remove('gacha-charge-ur');
+            orb.classList.add('gacha-charge-lg');
+          }, 1900));
+        }
+      }
+    } else {
+      // 低レアは普通の演出
+      teaseTimers.push(setTimeout(() => {
+        orb.classList.add('gacha-charge-r');
+      }, 800));
+      teaseTimers.push(setTimeout(() => {
+        orb.classList.remove('gacha-charge-r');
+        orb.classList.add('gacha-charge-' + bestRarity);
+      }, 1500));
+    }
 
-    // 1.9s: 弾けて結果を表示する直前のフラッシュ
+    // 弾けて結果を表示する直前のフラッシュ（高レアは少し遅らせて余韻を残す）
+    const burstAt = high ? (best.rarity === 'LG' ? 2100 : 2000) : 1900;
     teaseTimers.push(setTimeout(() => {
       orb.classList.add('gacha-burst');
       stage.classList.add('gacha-stage-flash');
-    }, 1900));
+    }, burstAt));
 
-    // 2.1s: 終了
+    // 終了
     teaseTimers.push(setTimeout(() => {
-      orb.classList.remove('gacha-charging','gacha-burst','gacha-charge-n','gacha-charge-r','gacha-charge-sr','gacha-charge-ssr');
+      orb.classList.remove('gacha-charging','gacha-burst','gacha-charge-n','gacha-charge-r','gacha-charge-sr','gacha-charge-ssr','gacha-charge-ur','gacha-charge-lg');
       stage.classList.remove('gacha-stage-shake','gacha-stage-flash');
       resolve();
-    }, 2100));
+    }, burstAt + 200));
   });
 }
 
