@@ -511,6 +511,9 @@
           </div>
           <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:10px">
             <div style="display:flex;gap:6px">
+              <button class="btn-sm mypage-like-emoji-btn" onclick="openLikeEmojiPicker()" title="いいね絵文字を選択">
+                <span id="mypage-like-emoji-current">❤️</span>
+              </button>
               <button class="btn-sm" onclick="openAnnounceModal()" title="フォロワーに告知を送る"><i class="ti ti-speakerphone"></i> 告知</button>
               <button class="btn-sm" id="mypage-profile-edit-btn" onclick="goPage('profile-edit',null)">プロフィール編集</button>
             </div>
@@ -2313,6 +2316,19 @@
   <div class="rank-region-breadcrumb" id="rank-region-breadcrumb"></div>
   <div class="rank-region-modal-body" id="rank-region-modal-body">
     <!-- JS で描画 -->
+  </div>
+</div>
+
+<!-- いいね絵文字ピッカーモーダル -->
+<div class="modal-backdrop" id="like-emoji-modal" style="display:none" onclick="closeLikeEmojiPicker()">
+  <div class="modal-card like-emoji-modal-card" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title"><i class="ti ti-mood-smile" style="color:#ef4444"></i> いいねの絵文字を選択</span>
+      <button class="modal-close" onclick="closeLikeEmojiPicker()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" id="like-emoji-modal-body">
+      <!-- JSで描画 -->
+    </div>
   </div>
 </div>
 

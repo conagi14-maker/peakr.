@@ -132,6 +132,7 @@ const tweetReplies = {};
 let myBio = '';
 let myNickname = localStorage.getItem('trendy_myName') || 'あなた'; // ニックネーム
 let myHandle   = '@' + (localStorage.getItem('trendy_account_id') || 'you'); // メインハンドル
+let myLikeEmoji = localStorage.getItem('trendy_like_emoji') || '❤️'; // いいね絵文字
 let myNameTag = ''; // 名前タグ（例: ＠6/12新曲リリース）
 let isDeveloper = localStorage.getItem('trendy_isDev') === 'true'; // 開発者アカウント
 let myUserId = localStorage.getItem('trendy_userId') || _genUserId();
@@ -438,6 +439,8 @@ function goPage(id, btn) {
   if (id === 'home')      { _refreshHomeFeedFromDB(); _checkAnnouncementBadge(); }
   if (id === 'mypage')    {
     _refreshMypageStats(); loadUserFavorites(); _loadMypageSocialLinks(); _updateMypageMeta(); _renderDisplayBadges();
+    const _le = document.getElementById('mypage-like-emoji-current');
+    if (_le) _le.textContent = myLikeEmoji;
     // 非同期処理完了後にサブモードUIを再適用（カバー・カテゴリー・名前タグ等）
     setTimeout(() => selectAccount(myAccountType), 150);
   }
@@ -513,7 +516,7 @@ function homeTweetHTML(t) {
       ${t.linkUrl ? `<div style="padding:0 0 6px">${_urlBtnHTML(t.linkUrl)}</div>` : ''}
       <div class="tweet-actions">
         <button class="action-btn reply-btn" onclick="openTweetDetail(${idx})"><i class="ti ti-message-circle"></i><span id="reply-count-${idx}">${replyCount || ''}</span></button>
-        <button class="action-btn like-btn${likedTweets.has(idx)?' liked':''}" id="like-btn-${idx}" onclick="toggleLike(${idx},this)"><i class="ti ti-heart${likedTweets.has(idx)?'-filled':''}" id="like-icon-${idx}" style="${likedTweets.has(idx)?'color:#e11d48':''}"></i><span class="like-count" id="like-count-${idx}">${fmt(t.likes)}</span></button>
+        <button class="action-btn like-btn${likedTweets.has(idx)?' liked':''}" id="like-btn-${idx}" onclick="toggleLike(${idx},this)">${likedTweets.has(idx) ? `<span class="like-emoji-display">${myLikeEmoji}</span>` : `<i class="ti ti-heart" id="like-icon-${idx}"></i>`}<span class="like-count" id="like-count-${idx}">${fmt(t.likes)}</span></button>
         <button class="action-btn"><i class="ti ti-eye"></i>${fmt(t.views)}</button>
         ${favStar(idx)}
       </div>
@@ -3775,9 +3778,20 @@ function toggleLike(idx, btn) {
     t.likes = Math.max(0, t.likes - 1);
     btn.classList.remove('liked');
   }
-  // アイコンをハート塗りつぶし ↔ アウトラインに切替
-  const icon = btn.querySelector('i');
-  if (icon) { icon.className = nowLiked ? 'ti ti-heart-filled' : 'ti ti-heart'; icon.style.color = nowLiked ? '#e11d48' : ''; }
+  // アイコンを絵文字 ↔ アウトラインハートに切替
+  const icon = btn.querySelector('i, .like-emoji-display');
+  if (icon) {
+    if (nowLiked) {
+      const span = document.createElement('span');
+      span.className = 'like-emoji-display';
+      span.textContent = myLikeEmoji;
+      icon.replaceWith(span);
+    } else {
+      const i = document.createElement('i');
+      i.className = 'ti ti-heart';
+      icon.replaceWith(i);
+    }
+  }
   // カウント表示更新
   const countEl = btn.querySelector('.like-count');
   if (countEl) countEl.textContent = fmt(t.likes);
@@ -3789,7 +3803,21 @@ function toggleLike(idx, btn) {
   const reelIcon = reelBtn?.querySelector('i');
   const reelLc   = document.getElementById(`reel-lc-${idx}`);
   if (reelBtn)  { reelBtn.classList.toggle('reel-liked', nowLiked); }
-  if (reelIcon) { reelIcon.className = nowLiked ? 'ti ti-heart-filled' : 'ti ti-heart'; reelIcon.style.color = nowLiked ? '#ef4444' : ''; }
+  if (reelIcon) {
+    const reelTarget = reelBtn.querySelector('i, .like-emoji-display');
+    if (reelTarget) {
+      if (nowLiked) {
+        const span = document.createElement('span');
+        span.className = 'like-emoji-display';
+        span.textContent = myLikeEmoji;
+        reelTarget.replaceWith(span);
+      } else {
+        const i = document.createElement('i');
+        i.className = 'ti ti-heart';
+        reelTarget.replaceWith(i);
+      }
+    }
+  }
   if (reelLc)   reelLc.textContent = fmt(t.likes);
   // Supabase に保存（db_id があるときのみ）
   if (t.db_id && typeof dbToggleLike === 'function') {
@@ -7192,27 +7220,75 @@ async function syncPixivPosts() {
 // 🎲 ガチャ
 // ══════════════════════════════════════════
 
-const GACHA_ITEMS = [
-  { id: 'boost_lg',  label: 'ブーストLG',  rarity: 'LG',  boost: 1000, prob: 0.0001 },
-  { id: 'boost_ssr', label: 'ブーストSSR', rarity: 'SSR', boost: 100,  prob: 0.0299 },
-  { id: 'boost_sr',  label: 'ブーストSR',  rarity: 'SR',  boost: 30,   prob: 0.12 },
-  { id: 'boost_r',   label: 'ブーストR',   rarity: 'R',   boost: 5,    prob: 0.35 },
-  { id: 'boost_n',   label: 'ブーストN',   rarity: 'N',   boost: 1,    prob: 0.5 },
-];
-
 const BOOST_AMOUNTS = { boost_lg: 1000, boost_ssr: 100, boost_sr: 30, boost_r: 5, boost_n: 1 };
 const RARITY_COLORS = { LG: '#ef4444', SSR: '#f59e0b', SR: '#8b5cf6', R: '#3b82f6', N: '#6b7280' };
+
+// ── 絵文字プール（SR=50, SSR=35, LG=15） ──────
+const EMOJI_POOL = {
+  LG: [
+    '❤️','🎉','🔥','💯','👑','🌟','💎','🥇','🏆','⭐','💝','🦄','🌈','✨','💖',
+  ],
+  SSR: [
+    '😍','🥰','😘','💕','💞','💓','💗','💘','💙','💜','💚','💛','🧡','🖤','🤍',
+    '🤎','🌹','🌷','🌸','🌺','🌼','🌻','🎀','🍓','🍒','🎂','🧁','🍰','🍭','🍩',
+    '🦋','🐰','🐱','🐶','🐼',
+  ],
+  SR: [
+    '👍','👏','🙌','👌','🤝','✋','🤘','✌️','🤞','🤟','🙏','💪',
+    '😀','😄','😆','😁','😂','🤣','😊','😎','🤩','🥳','😋','🤤','🤗','🤔','🤭','🙃','🙂',
+    '😺','😸','😻','🐾',
+    '🌙','☀️','⚡','🌊','🔮','🎁','🎊','🎈','🎶','🎵','🎤',
+    '🍀','🌿','🍂','🍁','⚽','🏀',
+  ],
+};
+// 絵文字ID生成（emoji_LG_001 のような形）
+const EMOJI_ID = {}; // emoji_id → 絵文字
+const EMOJI_INFO = {}; // emoji_id → {rarity, emoji}
+Object.entries(EMOJI_POOL).forEach(([rarity, list]) => {
+  list.forEach((emj, i) => {
+    const id = `emoji_${rarity}_${String(i+1).padStart(3,'0')}`;
+    EMOJI_ID[id] = emj;
+    EMOJI_INFO[id] = { rarity, emoji: emj };
+  });
+});
+
+// レアリティ別の総確率（合計100%）
+const RARITY_PROBS = { LG: 0.01, SSR: 2.99, SR: 12, R: 35, N: 50 };
+// そのレアリティ内で絵文字が出る確率（残りはブースト）
+const EMOJI_RATE_IN_RARITY = { LG: 0.5, SSR: 0.55, SR: 0.4 };
+
+const GACHA_ITEMS = [
+  { id: 'boost_lg',  label: 'ブーストLG',  rarity: 'LG',  boost: 1000 },
+  { id: 'boost_ssr', label: 'ブーストSSR', rarity: 'SSR', boost: 100  },
+  { id: 'boost_sr',  label: 'ブーストSR',  rarity: 'SR',  boost: 30   },
+  { id: 'boost_r',   label: 'ブーストR',   rarity: 'R',   boost: 5    },
+  { id: 'boost_n',   label: 'ブーストN',   rarity: 'N',   boost: 1    },
+];
 
 let _gachaItems = {}; // キャッシュ
 
 function _rollOne() {
-  const r = Math.random();
+  // 1) レアリティ抽選
+  const r = Math.random() * 100;
   let cum = 0;
-  for (const item of GACHA_ITEMS) {
-    cum += item.prob;
-    if (r < cum) return item;
+  let rarity = 'N';
+  for (const [rar, p] of Object.entries(RARITY_PROBS)) {
+    cum += p;
+    if (r < cum) { rarity = rar; break; }
   }
-  return GACHA_ITEMS[GACHA_ITEMS.length - 1];
+
+  // 2) そのレアリティで絵文字が出るか抽選（N/Rはブースト固定）
+  const emojiRate = EMOJI_RATE_IN_RARITY[rarity] || 0;
+  if (emojiRate > 0 && Math.random() < emojiRate) {
+    // 絵文字を当てる
+    const pool = EMOJI_POOL[rarity];
+    const idx = Math.floor(Math.random() * pool.length);
+    const id = `emoji_${rarity}_${String(idx+1).padStart(3,'0')}`;
+    return { id, label: pool[idx], rarity, type: 'emoji', emoji: pool[idx] };
+  }
+
+  // 3) ブースト
+  return GACHA_ITEMS.find(i => i.rarity === rarity) || GACHA_ITEMS[GACHA_ITEMS.length - 1];
 }
 
 async function renderGachaPage() {
@@ -7229,18 +7305,39 @@ async function renderGachaPage() {
 function _renderGachaInventory() {
   const el = document.getElementById('gacha-inventory');
   if (!el) return;
-  const items = GACHA_ITEMS.filter(i => (_gachaItems[i.id] || 0) > 0);
-  if (!items.length) {
+  const boostItems = GACHA_ITEMS.filter(i => (_gachaItems[i.id] || 0) > 0);
+  const emojiItems = Object.entries(EMOJI_INFO)
+    .filter(([id]) => (_gachaItems[id] || 0) > 0)
+    .map(([id, info]) => ({ id, ...info, qty: _gachaItems[id] }));
+
+  if (!boostItems.length && !emojiItems.length) {
     el.innerHTML = '<div class="gacha-inv-empty">所持アイテムなし</div>';
     return;
   }
-  el.innerHTML = `<div class="gacha-inv-title"><i class="ti ti-backpack"></i> 所持アイテム</div>` +
-    items.map(i => `
+
+  let html = '';
+  if (boostItems.length) {
+    html += `<div class="gacha-inv-title"><i class="ti ti-rocket"></i> ブーストアイテム</div>`;
+    html += boostItems.map(i => `
       <div class="gacha-inv-row">
         <span class="rarity-${i.rarity.toLowerCase()}">${i.rarity}</span>
         <span class="gacha-inv-label">${i.label}（+${i.boost}スコア）</span>
         <span class="gacha-inv-qty">${_gachaItems[i.id]}枚</span>
       </div>`).join('');
+  }
+  if (emojiItems.length) {
+    html += `<div class="gacha-inv-title" style="margin-top:14px"><i class="ti ti-mood-smile"></i> いいね絵文字</div>`;
+    html += `<div class="gacha-emoji-grid">` +
+      emojiItems.map(e =>
+        `<div class="gacha-emoji-item rarity-bg-${e.rarity.toLowerCase()}" title="${e.rarity}">
+          <span class="gacha-emoji-char">${e.emoji}</span>
+          <span class="gacha-emoji-rarity">${e.rarity}</span>
+        </div>`
+      ).join('') +
+      `</div>`;
+    html += `<div style="margin-top:10px;text-align:center"><a onclick="goPage('mypage',null);setTimeout(()=>document.querySelector('.mypage-like-emoji-btn')?.click(),300)" style="font-size:12px;color:var(--accent);cursor:pointer">マイページでいいね絵文字を設定 →</a></div>`;
+  }
+  el.innerHTML = html;
 }
 
 function _updateGachaNavBadge() {
@@ -7569,20 +7666,31 @@ function _showGachaResult(results) {
   const best = results.reduce((a, b) => rarityOrder[a.rarity] >= rarityOrder[b.rarity] ? a : b);
   const color = RARITY_COLORS[best.rarity];
 
+  const renderDesc = (r) => {
+    if (r.type === 'emoji') return `いいねの絵文字をGET！`;
+    return `+${r.boost}スコア（${r.boost}閲覧相当）`;
+  };
+  const renderMain = (r) => {
+    if (r.type === 'emoji') return `<div class="gacha-result-emoji">${r.emoji}</div>`;
+    return '';
+  };
+
   if (results.length === 1) {
+    const b = best;
     resultEl.innerHTML = `
       <div class="gacha-result-single" style="--rarity-color:${color}">
-        <div class="gacha-result-rarity" style="color:${color}">${best.rarity}</div>
-        <div class="gacha-result-name">${best.label}</div>
-        <div class="gacha-result-desc">+${best.boost}スコア（${best.boost}閲覧相当）</div>
+        <div class="gacha-result-rarity" style="color:${color}">${b.rarity}</div>
+        ${renderMain(b)}
+        <div class="gacha-result-name">${b.label}</div>
+        <div class="gacha-result-desc">${renderDesc(b)}</div>
       </div>
       <button class="gacha-close-btn" onclick="_resetGachaStage()">閉じる</button>`;
   } else {
     const rows = results.map(r =>
       `<div class="gacha-result-item" style="border-color:${RARITY_COLORS[r.rarity]}">
         <span class="rarity-${r.rarity.toLowerCase()}">${r.rarity}</span>
-        <span>${r.label}</span>
-        <span style="color:var(--text3);font-size:11px">+${r.boost}</span>
+        <span>${r.type === 'emoji' ? r.emoji + ' ' : ''}${r.label}</span>
+        <span style="color:var(--text3);font-size:11px">${r.type === 'emoji' ? '' : '+' + r.boost}</span>
       </div>`
     ).join('');
     resultEl.innerHTML = `
@@ -7618,6 +7726,93 @@ async function applyBoostToPost(postDbId, itemId) {
   // ランキングキャッシュをリセットして再取得
   _rankCache = { period: null, data: [], fetchedAt: 0 };
   _loadRankData();
+}
+
+// ══════════════════════════════════════════
+// 😀 いいね絵文字
+// ══════════════════════════════════════════
+
+async function openLikeEmojiPicker() {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) return;
+  // 所持アイテムを最新化
+  _gachaItems = await dbGetUserItems(aid);
+
+  const ownedEmojis = Object.entries(EMOJI_INFO)
+    .filter(([id]) => (_gachaItems[id] || 0) > 0)
+    .map(([id, info]) => ({ id, ...info }));
+
+  const body = document.getElementById('like-emoji-modal-body');
+  if (!body) return;
+
+  let html = `
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+      ガチャで入手した絵文字をいいねボタンに設定できます。<br>
+      未所持の絵文字を選ぶことはできません。
+    </div>
+    <div class="like-emoji-section">
+      <div class="like-emoji-section-title">現在の設定</div>
+      <div class="like-emoji-current-box">
+        <span class="like-emoji-current-icon">${myLikeEmoji}</span>
+        <button class="btn-sm" onclick="selectLikeEmoji('❤️')">デフォルトに戻す</button>
+      </div>
+    </div>`;
+
+  if (!ownedEmojis.length) {
+    html += `
+      <div class="like-emoji-empty">
+        <i class="ti ti-mood-empty" style="font-size:36px;color:var(--text3);display:block;margin-bottom:10px"></i>
+        <p>所持絵文字なし</p>
+        <p style="font-size:12px;color:var(--text3);margin-top:6px">ガチャで絵文字をGETしよう！</p>
+        <button class="btn-primary" style="margin-top:14px" onclick="closeLikeEmojiPicker();goPage('gacha',null)">ガチャを引く</button>
+      </div>`;
+  } else {
+    // レアリティ別にグループ化
+    const grouped = { LG: [], SSR: [], SR: [] };
+    ownedEmojis.forEach(e => { if (grouped[e.rarity]) grouped[e.rarity].push(e); });
+    for (const rar of ['LG','SSR','SR']) {
+      if (!grouped[rar].length) continue;
+      html += `
+        <div class="like-emoji-section">
+          <div class="like-emoji-section-title">
+            <span class="rarity-${rar.toLowerCase()}">${rar}</span>
+            <span style="color:var(--text3);font-size:11px;margin-left:6px">${grouped[rar].length}種</span>
+          </div>
+          <div class="like-emoji-grid">
+            ${grouped[rar].map(e => `
+              <button class="like-emoji-btn ${myLikeEmoji === e.emoji ? 'selected' : ''}" onclick="selectLikeEmoji('${e.emoji}')">
+                <span class="like-emoji-btn-char">${e.emoji}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>`;
+    }
+  }
+
+  body.innerHTML = html;
+  document.getElementById('like-emoji-modal').style.display = 'flex';
+}
+
+function closeLikeEmojiPicker() {
+  const el = document.getElementById('like-emoji-modal');
+  if (el) el.style.display = 'none';
+}
+
+async function selectLikeEmoji(emoji) {
+  myLikeEmoji = emoji;
+  localStorage.setItem('trendy_like_emoji', emoji);
+  // マイページ表示更新
+  const el = document.getElementById('mypage-like-emoji-current');
+  if (el) el.textContent = emoji;
+  // Supabase に保存
+  const aid = localStorage.getItem('trendy_account_id');
+  if (aid) {
+    try {
+      await db.from('profiles').update({ like_emoji: emoji }).eq('account_id', aid);
+    } catch(e) {}
+  }
+  showToast(`いいね絵文字を ${emoji} に変更しました`, 'success');
+  closeLikeEmojiPicker();
 }
 
 // ══════════════════════════════════════════
@@ -11060,6 +11255,11 @@ async function _syncProfileFromSupabase() {
       _badgeCache[_aid_badge] = { is_verified: !!_myIsVerified, is_corporate: !!_myIsCorporate };
     }
     _applyMyBadges();
+    // いいね絵文字を同期
+    if (profile.like_emoji) {
+      myLikeEmoji = profile.like_emoji;
+      localStorage.setItem('trendy_like_emoji', myLikeEmoji);
+    }
     // 同期済みタイムスタンプを保存（次回以降の無駄な同期を防ぐ）
     localStorage.setItem('trendy_last_sync', remoteTs);
     console.log('[Sync] プロフィールを同期しました (updated_at:', remoteTs, ')');
