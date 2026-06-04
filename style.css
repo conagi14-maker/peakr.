@@ -6998,3 +6998,265 @@ mark.hs-mark {
 .rarity-sr  { background:#8b5cf6; color:#fff; padding:2px 7px; border-radius:5px; font-size:11px; font-weight:900; }
 .rarity-r   { background:#3b82f6; color:#fff; padding:2px 7px; border-radius:5px; font-size:11px; font-weight:900; }
 .rarity-n   { background:#6b7280; color:#fff; padding:2px 7px; border-radius:5px; font-size:11px; font-weight:900; }
+
+/* ══════════════════════════════════════════
+   🎲 ガチャ山登り演出
+   ══════════════════════════════════════════ */
+.gacha-anim-overlay {
+  position: fixed; inset: 0; z-index: 9998;
+  overflow: hidden; cursor: pointer;
+  animation: ga-fadein 0.4s ease;
+}
+@keyframes ga-fadein  { from { opacity: 0; } to { opacity: 1; } }
+.gacha-anim-overlay.ga-fadeout { animation: ga-fadeout 0.35s ease forwards; }
+@keyframes ga-fadeout { to { opacity: 0; } }
+
+/* 空 */
+.ga-sky {
+  position: absolute; inset: 0;
+  transition: background 0.4s ease;
+}
+
+/* 太陽 */
+.ga-sun {
+  position: absolute; top: 10%; right: 15%;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffe680 0%, #ffb84d 70%, #ff9933 100%);
+  box-shadow: 0 0 60px rgba(255,200,80,0.8), 0 0 100px rgba(255,180,50,0.5);
+  animation: ga-sun-glow 2s ease-in-out infinite;
+}
+@keyframes ga-sun-glow {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}
+
+/* 虹 */
+.ga-rainbow {
+  position: absolute; bottom: 35%; left: 50%;
+  width: 600px; height: 300px;
+  transform: translateX(-50%);
+  border-radius: 600px 600px 0 0;
+  border: 12px solid transparent;
+  border-top-color: #ff5252;
+  box-shadow:
+    inset 0 -14px 0 #ff8a48,
+    inset 0 -28px 0 #ffd54f,
+    inset 0 -42px 0 #66bb6a,
+    inset 0 -56px 0 #42a5f5,
+    inset 0 -70px 0 #7e57c2;
+  opacity: 0.8;
+  animation: ga-rainbow-appear 1.5s ease;
+}
+@keyframes ga-rainbow-appear {
+  from { opacity: 0; transform: translateX(-50%) scale(0.7); }
+  to   { opacity: 0.8; transform: translateX(-50%) scale(1); }
+}
+
+/* 雨粒 */
+.ga-weather { position: absolute; inset: 0; pointer-events: none; }
+.ga-raindrop {
+  position: absolute; top: -20px;
+  width: 2px; height: 18px;
+  background: linear-gradient(to bottom, transparent, rgba(180,210,255,0.85));
+  animation: ga-rain-fall linear infinite;
+}
+@keyframes ga-rain-fall {
+  to { transform: translateY(110vh); }
+}
+
+/* 星 */
+.ga-star {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 4px #fff;
+  animation: ga-star-twinkle 2s ease-in-out infinite;
+}
+@keyframes ga-star-twinkle {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; }
+}
+
+/* 流れ星 */
+.ga-shooting {
+  position: absolute;
+  width: 100px; height: 2px;
+  background: linear-gradient(to left, #fff, rgba(255,255,255,0.6) 60%, transparent);
+  border-radius: 2px;
+  box-shadow: 0 0 8px #fff, 0 0 16px rgba(180,220,255,0.8);
+  transform: rotate(-25deg);
+  animation: ga-shoot 1.2s ease-out infinite;
+  opacity: 0;
+}
+@keyframes ga-shoot {
+  0%   { transform: translate(0, 0) rotate(-25deg); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translate(-280px, 140px) rotate(-25deg); opacity: 0; }
+}
+
+/* 遠景の山々 */
+.ga-mountains-far {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 50%;
+  background:
+    linear-gradient(135deg, transparent 60%, rgba(60,80,110,0.6) 60%) 0 100% / 200px 200px,
+    linear-gradient(-135deg, transparent 60%, rgba(80,100,130,0.5) 60%) 100px 100% / 200px 200px;
+  background-repeat: repeat-x;
+  opacity: 0.7;
+}
+
+/* メインの山（三角形） */
+.ga-mountain {
+  position: absolute; bottom: 0; left: 50%;
+  width: 0; height: 0;
+  border-left: 38vw solid transparent;
+  border-right: 38vw solid transparent;
+  border-bottom: 60vh solid #4a5e7a;
+  transform: translateX(-50%);
+}
+/* 山の雪冠 */
+.ga-mountain::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -32px;
+  border-left: 32px solid transparent;
+  border-right: 32px solid transparent;
+  border-bottom: 42px solid #fff;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+/* 登山道（斜めの線） */
+.ga-trail {
+  position: absolute; bottom: 0; left: 50%;
+  width: 5px; height: 60vh;
+  background: repeating-linear-gradient(
+    to bottom,
+    #c7a672 0px, #c7a672 12px,
+    transparent 12px, transparent 24px
+  );
+  transform-origin: bottom center;
+  transform: translateX(-50%);
+  opacity: 0.7;
+}
+
+/* 登山者 — 山の右斜面を蛇行しながら登る */
+.ga-climber {
+  position: absolute; bottom: 5vh; left: 50%;
+  font-size: 42px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.7));
+  z-index: 10;
+  animation: ga-climb 3.2s ease-in-out forwards;
+}
+@keyframes ga-climb {
+  0%   { bottom: 4vh;  left: 64%; transform: translateX(-50%) scale(0.85) rotate(0); }
+  20%  { bottom: 14vh; left: 58%; transform: translateX(-50%) scale(0.9)  rotate(-6deg); }
+  40%  { bottom: 24vh; left: 56%; transform: translateX(-50%) scale(0.95) rotate(6deg); }
+  60%  { bottom: 35vh; left: 54%; transform: translateX(-50%) scale(1)    rotate(-6deg); }
+  80%  { bottom: 45vh; left: 52%; transform: translateX(-50%) scale(1.05) rotate(6deg); }
+  100% { bottom: 53vh; left: 50%; transform: translateX(-50%) scale(1.1)  rotate(0); }
+}
+
+/* 宝箱 */
+.ga-chest {
+  position: absolute; bottom: 57vh; left: 50%;
+  transform: translateX(-50%) scale(0);
+  font-size: 56px;
+  z-index: 11;
+  animation: ga-chest-appear 0.4s ease 3.3s forwards;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+}
+.ga-chest-emoji { line-height: 1; }
+@keyframes ga-chest-appear {
+  from { transform: translateX(-50%) scale(0); }
+  to   { transform: translateX(-50%) scale(1); }
+}
+.ga-chest.ga-chest-shake .ga-chest-emoji {
+  animation: ga-chest-shake-anim 0.6s ease-in-out;
+}
+@keyframes ga-chest-shake-anim {
+  0%, 100% { transform: rotate(0); }
+  20%      { transform: rotate(-8deg) translateY(-4px); }
+  40%      { transform: rotate(8deg)  translateY(-4px); }
+  60%      { transform: rotate(-6deg) translateY(-2px); }
+  80%      { transform: rotate(6deg)  translateY(-2px); }
+}
+.ga-chest.ga-chest-open .ga-chest-emoji {
+  animation: ga-chest-burst 0.5s ease forwards;
+}
+@keyframes ga-chest-burst {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.3) rotate(-5deg); }
+  100% { transform: scale(1.5) rotate(0); opacity: 0.9; }
+}
+
+/* 宝箱の光 */
+.ga-chest-light {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 400px; height: 400px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  animation: ga-chest-light-burst 0.6s ease forwards;
+  z-index: -1;
+  pointer-events: none;
+}
+@keyframes ga-chest-light-burst {
+  0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+  30%  { opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0.9; }
+}
+
+/* フラッシュ */
+.ga-flash {
+  position: absolute; inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 100;
+}
+.ga-flash.ga-flash-on {
+  animation: ga-flash-anim 0.6s ease forwards;
+}
+@keyframes ga-flash-anim {
+  0%   { opacity: 0; }
+  30%  { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+
+/* 天気ラベル */
+.ga-weather-label {
+  position: absolute; top: 30px; left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 14px; font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transition: opacity 0.4s, transform 0.4s;
+  z-index: 50;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.ga-weather-label.ga-label-show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* スキップ */
+.ga-skip-hint {
+  position: absolute; bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.6);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  z-index: 50;
+  animation: ga-skip-blink 1.5s ease-in-out infinite;
+}
+@keyframes ga-skip-blink {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 0.9; }
+}
