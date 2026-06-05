@@ -441,6 +441,7 @@ function goPage(id, btn) {
   if (id === 'home')      { _refreshHomeFeedFromDB(); _checkAnnouncementBadge(); }
   if (id === 'mypage')    {
     _refreshMypageStats(); loadUserFavorites(); _loadMypageSocialLinks(); _updateMypageMeta(); _renderDisplayBadges();
+    renderProfileEquipmentMini(localStorage.getItem('trendy_account_id'), 'mypage-equipment-mini');
     const _le = document.getElementById('mypage-like-emoji-current');
     if (_le) _le.textContent = myLikeEmoji;
     const _tb = document.getElementById('mypage-title-current');
@@ -458,6 +459,7 @@ function goPage(id, btn) {
   if (id === 'peak-points') renderPeakPointsPage();
   if (id === 'feedback') openFeedbackPage();
   if (id === 'gacha')    renderGachaPage();
+  if (id === 'equipment') renderEquipmentPage();
   if (id === 'dev-gacha') { renderDevGachaList(); setTimeout(() => { _loadCutinRatesUI(); _loadBoostAmountsUI(); _loadRarityProbsUI(); }, 100); }
   if (id === 'dev-rank-rewards') { setTimeout(() => _loadRankRewardsUI(), 100); }
   if (id === 'follows') renderFollows();
@@ -6532,6 +6534,10 @@ function openUserPage(handle) {
   document.getElementById('user-page-back-btn').onclick = () => goPage(prevPageId, null);
   document.getElementById('user-page-title').textContent = u.n;
 
+  // 装備ミニ表示
+  const _upAcc = handle.startsWith('@') ? handle.slice(1) : handle;
+  renderProfileEquipmentMini(_upAcc, 'user-page-equipment-mini');
+
   const avEl = document.getElementById('user-page-av');
   // アバターをいったんデフォルト（文字）にリセット
   avEl.innerHTML = (u.av && u.av.includes?.('<img')) ? u.av : (u.av || '?');
@@ -7591,26 +7597,37 @@ function _rollOne() {
     if (r < cum) { rarity = rar; break; }
   }
 
-  // 2) そのレアリティで絵文字/称号が出るか抽選
+  // 2) そのレアリティで絵文字/称号/装備が出るか抽選
   let specialRarity = null;
   if (EMOJI_POOL[rarity] && Math.random() < (EMOJI_RATE_IN_RARITY[rarity] || 0)) {
     specialRarity = rarity;
   } else if (rarity === 'R' && Math.random() < R_EMOJI_RATE) {
-    // Rでも一定確率でSR絵文字/称号が出る
+    // Rでも一定確率でSR絵文字/称号/装備が出る
     specialRarity = 'SR';
   }
   if (specialRarity) {
-    // 50/50で絵文字 or 称号
-    if (Math.random() < 0.5 && EMOJI_POOL[specialRarity]) {
+    const r = Math.random();
+    // 絵文字 35% / 称号 35% / 装備 20% / 強化オーブ 10%
+    if (r < 0.35 && EMOJI_POOL[specialRarity]) {
       const pool = EMOJI_POOL[specialRarity];
       const idx = Math.floor(Math.random() * pool.length);
       const id = `emoji_${specialRarity}_${String(idx+1).padStart(3,'0')}`;
       return { id, label: pool[idx], rarity: specialRarity, type: 'emoji', emoji: pool[idx] };
-    } else if (TITLE_POOL[specialRarity]) {
+    } else if (r < 0.7 && TITLE_POOL[specialRarity]) {
       const pool = TITLE_POOL[specialRarity];
       const idx = Math.floor(Math.random() * pool.length);
       const id = `title_${specialRarity}_${String(idx+1).padStart(3,'0')}`;
       return { id, label: pool[idx], rarity: specialRarity, type: 'title', title: pool[idx] };
+    } else if (r < 0.9) {
+      // 装備（5種類のいずれかをランダムに）
+      const slot = EQUIP_SLOTS[Math.floor(Math.random() * EQUIP_SLOTS.length)];
+      const info = EQUIP_INFO[slot];
+      return { id: `equip_${slot}`, label: info.label, rarity: specialRarity, type: 'equip', slot };
+    } else {
+      // 強化オーブ（30/60/90から）
+      const orbs = Object.keys(ENHANCE_ORBS);
+      const oid = orbs[Math.floor(Math.random() * orbs.length)];
+      return { id: oid, label: ENHANCE_ORBS[oid].label, rarity: specialRarity, type: 'orb' };
     }
   }
 
@@ -7752,13 +7769,22 @@ async function doGacha(count) {
 
   // アイテム加算（最終結果で）
   const gained = {};
+  const equipResults = [];
   for (const item of finalResults) {
-    gained[item.id] = (gained[item.id] || 0) + 1;
+    if (item.type === 'equip') {
+      // 装備は user_equipments に個別保存
+      equipResults.push(item);
+    } else {
+      gained[item.id] = (gained[item.id] || 0) + 1;
+    }
   }
+  // 通常アイテム
   await Promise.all(Object.entries(gained).map(([id, qty]) => dbAddItem(aid, id, qty)));
   for (const [id, qty] of Object.entries(gained)) {
     _gachaItems[id] = (_gachaItems[id] || 0) + qty;
   }
+  // 装備
+  await Promise.all(equipResults.map(item => dbAddEquipment(aid, item.slot, item.rarity)));
 
   _renderGachaInventory();
   _updateGachaNavBadge();
@@ -7834,6 +7860,382 @@ function _waitForKakuhenClick(results, postCutins) {
 // ══════════════════════════════════════════
 // カットイン演出
 // ══════════════════════════════════════════
+
+// ══════════════════════════════════════════
+// ⚒️ 装備システム
+// ══════════════════════════════════════════
+const EQUIP_SLOTS = ['jewel','amulet','artifact','soul','medal'];
+const EQUIP_INFO = {
+  jewel:    { label:'宝石',          icon:'ti-diamond',  effect:'投稿スコア',     unit:'%' },
+  amulet:   { label:'お守り',        icon:'ti-shield',   effect:'高レア排出率',   unit:'%' },
+  artifact: { label:'アーティファクト', icon:'ti-flask',    effect:'コイン獲得',     unit:'%' },
+  soul:     { label:'ソウル',        icon:'ti-flame',    effect:'いいねコイン',   unit:'+' },
+  medal:    { label:'メダル',        icon:'ti-trophy',   effect:'ランキング報酬', unit:'%' },
+};
+// レアリティ別の基礎効果値
+const EQUIP_BASE_VALUE = { N:1, R:2, SR:5, SSR:10, UR:25, LG:50 };
+// 強化レベル毎の追加効果値
+const EQUIP_PER_LEVEL  = { N:1, R:2, SR:3, SSR:5, UR:8, LG:12 };
+
+// 装備の総効果値（基礎 + 強化レベル × 加算）
+function _equipValue(rarity, level) {
+  const base = EQUIP_BASE_VALUE[rarity] || 0;
+  const per  = EQUIP_PER_LEVEL[rarity] || 0;
+  return base + per * (level || 0);
+}
+
+// 強化オーブ
+const ENHANCE_ORBS = {
+  enhance_orb_30: { label:'強化のオーブ30%', rate:0.30, minLv:0, maxLv:999 },
+  enhance_orb_60: { label:'強化のオーブ60%', rate:0.60, minLv:0, maxLv:10  },
+  enhance_orb_90: { label:'強化のオーブ90%', rate:0.90, minLv:1, maxLv:3   },
+};
+
+// ── DB 関数 ──
+async function dbFetchEquipments(accountId) {
+  if (!accountId) return [];
+  const { data } = await db.from('user_equipments').select('*').eq('account_id', accountId).order('obtained_at', { ascending: false });
+  return data || [];
+}
+
+async function dbAddEquipment(accountId, slot, rarity, variant = '01') {
+  if (!accountId || !slot || !rarity) return null;
+  const { data, error } = await db.from('user_equipments').insert({
+    account_id: accountId, slot, rarity, variant, enhance_level: 0,
+  }).select().single();
+  if (error) { console.error('[DB] 装備追加エラー:', error.message); return null; }
+  return data;
+}
+
+async function dbUpdateEquipmentLevel(equipmentId, newLevel, newRarity) {
+  const patch = { enhance_level: newLevel };
+  if (newRarity) patch.rarity = newRarity;
+  const { error } = await db.from('user_equipments').update(patch).eq('id', equipmentId);
+  if (error) console.error('[DB] 装備更新エラー:', error.message);
+  return !error;
+}
+
+async function dbDeleteEquipment(equipmentId) {
+  const { error } = await db.from('user_equipments').delete().eq('id', equipmentId);
+  return !error;
+}
+
+async function dbEquipSlot(accountId, slot, equipmentId) {
+  const col = `equipped_${slot}`;
+  const { error } = await db.from('profiles').update({ [col]: equipmentId }).eq('account_id', accountId);
+  return !error;
+}
+
+async function dbFetchEquippedSlots(accountId) {
+  if (!accountId) return {};
+  const { data } = await db.from('profiles').select('equipped_jewel,equipped_amulet,equipped_artifact,equipped_soul,equipped_medal').eq('account_id', accountId).maybeSingle();
+  return data || {};
+}
+
+// ── 装備ページ ──
+let _myEquipments = []; // ローカルキャッシュ
+let _equippedSlots = {}; // {slot: equipmentId}
+let _equipmentFilter = 'all';
+let _detailEquipId = null;
+
+// プロフィールの装備ミニ表示を描画
+async function renderProfileEquipmentMini(accountId, elementId) {
+  const el = document.getElementById(elementId);
+  if (!el || !accountId) return;
+  const [equipments, slots] = await Promise.all([
+    dbFetchEquipments(accountId),
+    dbFetchEquippedSlots(accountId),
+  ]);
+  el.innerHTML = EQUIP_SLOTS.map(slot => {
+    const info = EQUIP_INFO[slot];
+    const eqId = slots['equipped_' + slot];
+    const eq = eqId ? equipments.find(e => e.id === eqId) : null;
+    if (eq) {
+      return `<div class="profile-equip-mini-slot rarity-bg-${eq.rarity.toLowerCase()}" title="${info.label} ${eq.rarity} +${eq.enhance_level}">
+        <i class="ti ${info.icon}"></i>
+      </div>`;
+    }
+    return `<div class="profile-equip-mini-slot profile-equip-mini-empty" title="${info.label}（未装備）">
+      <i class="ti ${info.icon}"></i>
+    </div>`;
+  }).join('');
+}
+
+async function renderEquipmentPage() {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) return;
+  // 並列読込
+  const [equipments, slots, items] = await Promise.all([
+    dbFetchEquipments(aid),
+    dbFetchEquippedSlots(aid),
+    dbGetUserItems(aid),
+  ]);
+  _myEquipments = equipments;
+  _equippedSlots = slots || {};
+  _gachaItems = items || {};
+  _renderEquipmentSlots();
+  _renderEquipmentInventory();
+}
+
+function _renderEquipmentSlots() {
+  const el = document.getElementById('equipment-slots');
+  if (!el) return;
+  el.innerHTML = EQUIP_SLOTS.map(slot => {
+    const info = EQUIP_INFO[slot];
+    const equippedId = _equippedSlots['equipped_' + slot];
+    const eq = equippedId ? _myEquipments.find(e => e.id === equippedId) : null;
+    if (eq) {
+      const val = _equipValue(eq.rarity, eq.enhance_level);
+      const sign = info.unit === '+' ? '+' : '';
+      return `<div class="equipment-slot equipment-slot-filled rarity-bg-${eq.rarity.toLowerCase()}" onclick="openEquipmentDetail('${eq.id}')">
+        <div class="equipment-slot-icon"><i class="ti ${info.icon}"></i></div>
+        <div class="equipment-slot-name">${info.label}</div>
+        <div class="equipment-slot-rarity"><span class="rarity-${eq.rarity.toLowerCase()}">${eq.rarity}</span> <b>+${eq.enhance_level}</b></div>
+        <div class="equipment-slot-effect">${info.effect} ${sign}${val}${info.unit === '%' ? '%' : ''}</div>
+      </div>`;
+    }
+    return `<div class="equipment-slot equipment-slot-empty">
+      <div class="equipment-slot-icon"><i class="ti ${info.icon}"></i></div>
+      <div class="equipment-slot-name">${info.label}</div>
+      <div class="equipment-slot-empty-label">未装備</div>
+    </div>`;
+  }).join('');
+}
+
+function _renderEquipmentInventory() {
+  const el = document.getElementById('equipment-inventory');
+  if (!el) return;
+  let list = _myEquipments;
+  if (_equipmentFilter !== 'all') {
+    list = list.filter(e => e.slot === _equipmentFilter);
+  }
+  if (!list.length) {
+    el.innerHTML = '<div class="equipment-empty"><i class="ti ti-package-off" style="font-size:36px;display:block;margin-bottom:8px;color:var(--text3)"></i>装備がありません<br><small>ガチャで入手しましょう</small></div>';
+    return;
+  }
+  // 並び順: 装備中→レアリティ降順→強化レベル降順
+  const rarOrder = { LG:6, UR:5, SSR:4, SR:3, R:2, N:1 };
+  list.sort((a,b) => {
+    const aEq = _equippedSlots['equipped_' + a.slot] === a.id;
+    const bEq = _equippedSlots['equipped_' + b.slot] === b.id;
+    if (aEq !== bEq) return aEq ? -1 : 1;
+    if (rarOrder[a.rarity] !== rarOrder[b.rarity]) return rarOrder[b.rarity] - rarOrder[a.rarity];
+    return (b.enhance_level || 0) - (a.enhance_level || 0);
+  });
+  el.innerHTML = list.map(eq => {
+    const info = EQUIP_INFO[eq.slot];
+    const isEquipped = _equippedSlots['equipped_' + eq.slot] === eq.id;
+    return `<div class="equipment-card rarity-bg-${eq.rarity.toLowerCase()} ${isEquipped ? 'equipment-card-equipped' : ''}" onclick="openEquipmentDetail('${eq.id}')">
+      <div class="equipment-card-rarity"><span class="rarity-${eq.rarity.toLowerCase()}">${eq.rarity}</span></div>
+      <div class="equipment-card-icon"><i class="ti ${info.icon}"></i></div>
+      <div class="equipment-card-name">${info.label}</div>
+      <div class="equipment-card-level">+${eq.enhance_level}</div>
+      ${isEquipped ? '<div class="equipment-card-equipped-badge"><i class="ti ti-check"></i> 装備中</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function setEquipmentFilter(filter, btn) {
+  _equipmentFilter = filter;
+  document.querySelectorAll('.equipment-filter-pill').forEach(p => p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  _renderEquipmentInventory();
+}
+
+function openEquipmentDetail(equipmentId) {
+  const eq = _myEquipments.find(e => e.id === equipmentId);
+  if (!eq) return;
+  _detailEquipId = equipmentId;
+  const info = EQUIP_INFO[eq.slot];
+  const isEquipped = _equippedSlots['equipped_' + eq.slot] === eq.id;
+  const val = _equipValue(eq.rarity, eq.enhance_level);
+  const sign = info.unit === '+' ? '+' : '';
+
+  // オーブ所持数
+  const orb30 = _gachaItems['enhance_orb_30'] || 0;
+  const orb60 = _gachaItems['enhance_orb_60'] || 0;
+  const orb90 = _gachaItems['enhance_orb_90'] || 0;
+  // 同種・同レア装備（素材）の数
+  const sameAsMaterial = _myEquipments.filter(e =>
+    e.id !== eq.id && e.slot === eq.slot
+  );
+
+  // 強化使用可能判定
+  const orb60Ok = eq.enhance_level >= 0 && eq.enhance_level <= 10;
+  const orb90Ok = eq.enhance_level >= 1 && eq.enhance_level <= 3;
+
+  document.getElementById('equipment-detail-title').innerHTML = `<i class="ti ${info.icon}" style="color:${RARITY_COLORS[eq.rarity]}"></i> ${info.label} <span class="rarity-${eq.rarity.toLowerCase()}" style="margin-left:6px">${eq.rarity}</span> <b style="margin-left:4px">+${eq.enhance_level}</b>`;
+
+  const body = document.getElementById('equipment-detail-body');
+  body.innerHTML = `
+    <div class="equipment-detail-effect">
+      <div class="equipment-detail-effect-label">現在の効果</div>
+      <div class="equipment-detail-effect-val">${info.effect} <b style="color:${RARITY_COLORS[eq.rarity]}">${sign}${val}${info.unit==='%'?'%':''}</b></div>
+      <div class="equipment-detail-effect-sub">レアリティ ${eq.rarity} 基礎 ${EQUIP_BASE_VALUE[eq.rarity]} + 強化 ${EQUIP_PER_LEVEL[eq.rarity]} × ${eq.enhance_level}</div>
+    </div>
+    <div style="display:flex;gap:8px;margin:14px 0">
+      ${isEquipped
+        ? `<button class="btn-secondary" onclick="unequipSlot('${eq.slot}')" style="flex:1">外す</button>`
+        : `<button class="btn-primary" onclick="equipEquipment('${eq.id}')" style="flex:1">装備する</button>`}
+      <button class="btn-danger" onclick="confirmDeleteEquipment('${eq.id}')" title="削除"><i class="ti ti-trash"></i></button>
+    </div>
+
+    <div class="equipment-enhance-section">
+      <div class="equipment-enhance-title"><i class="ti ti-arrow-up-circle"></i> 強化</div>
+      <div class="equipment-enhance-rules">
+        大成功: レア+1 & +1 / 成功: +1 / 失敗: -2
+      </div>
+      <div class="equipment-enhance-options">
+        <button class="equipment-enhance-btn" onclick="enhanceEquipment('${eq.id}','enhance_orb_30')" ${orb30 <= 0 ? 'disabled' : ''}>
+          <div class="orb-icon orb-30">30%</div>
+          <div>強化のオーブ30%</div>
+          <small>所持: ${orb30}</small>
+        </button>
+        <button class="equipment-enhance-btn" onclick="enhanceEquipment('${eq.id}','enhance_orb_60')" ${(orb60 <= 0 || !orb60Ok) ? 'disabled' : ''}>
+          <div class="orb-icon orb-60">60%</div>
+          <div>強化のオーブ60%</div>
+          <small>+0〜+10限定 / 所持: ${orb60}</small>
+        </button>
+        <button class="equipment-enhance-btn" onclick="enhanceEquipment('${eq.id}','enhance_orb_90')" ${(orb90 <= 0 || !orb90Ok) ? 'disabled' : ''}>
+          <div class="orb-icon orb-90">90%</div>
+          <div>強化のオーブ90%</div>
+          <small>+1〜+3限定 / 所持: ${orb90}</small>
+        </button>
+      </div>
+
+      ${sameAsMaterial.length ? `
+      <div class="equipment-material-section">
+        <div class="equipment-material-title">同種装備を強化素材に使う（31%・上限なし）</div>
+        <div class="equipment-material-grid">
+          ${sameAsMaterial.map(m => {
+            const mIsEquipped = _equippedSlots['equipped_' + m.slot] === m.id;
+            return `<button class="equipment-material-card rarity-bg-${m.rarity.toLowerCase()}" onclick="enhanceEquipmentWithMaterial('${eq.id}','${m.id}')" ${mIsEquipped ? 'disabled title="装備中は素材にできません"' : ''}>
+              <span class="rarity-${m.rarity.toLowerCase()}">${m.rarity}</span>
+              <span>${EQUIP_INFO[m.slot].label} +${m.enhance_level}</span>
+            </button>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
+    </div>
+  `;
+  document.getElementById('equipment-detail-modal')?.classList.add('show');
+  document.getElementById('equipment-detail-overlay')?.classList.add('show');
+}
+
+function closeEquipmentDetail() {
+  document.getElementById('equipment-detail-modal')?.classList.remove('show');
+  document.getElementById('equipment-detail-overlay')?.classList.remove('show');
+}
+
+async function equipEquipment(equipmentId) {
+  const aid = localStorage.getItem('trendy_account_id');
+  const eq = _myEquipments.find(e => e.id === equipmentId);
+  if (!aid || !eq) return;
+  const ok = await dbEquipSlot(aid, eq.slot, equipmentId);
+  if (ok) {
+    _equippedSlots['equipped_' + eq.slot] = equipmentId;
+    showToast(`${EQUIP_INFO[eq.slot].label}を装備しました`, 'success');
+    _renderEquipmentSlots();
+    _renderEquipmentInventory();
+    openEquipmentDetail(equipmentId);
+  }
+}
+
+async function unequipSlot(slot) {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) return;
+  const ok = await dbEquipSlot(aid, slot, null);
+  if (ok) {
+    _equippedSlots['equipped_' + slot] = null;
+    showToast(`${EQUIP_INFO[slot].label}を外しました`, 'info');
+    _renderEquipmentSlots();
+    _renderEquipmentInventory();
+    closeEquipmentDetail();
+  }
+}
+
+async function confirmDeleteEquipment(equipmentId) {
+  const eq = _myEquipments.find(e => e.id === equipmentId);
+  if (!eq) return;
+  if (!confirm(`${EQUIP_INFO[eq.slot].label} ${eq.rarity} +${eq.enhance_level} を削除しますか？\nこの操作は取り消せません。`)) return;
+  const isEquipped = _equippedSlots['equipped_' + eq.slot] === eq.id;
+  if (isEquipped) {
+    const aid = localStorage.getItem('trendy_account_id');
+    await dbEquipSlot(aid, eq.slot, null);
+    _equippedSlots['equipped_' + eq.slot] = null;
+  }
+  await dbDeleteEquipment(equipmentId);
+  _myEquipments = _myEquipments.filter(e => e.id !== equipmentId);
+  closeEquipmentDetail();
+  _renderEquipmentSlots();
+  _renderEquipmentInventory();
+}
+
+async function enhanceEquipment(equipmentId, orbId) {
+  const aid = localStorage.getItem('trendy_account_id');
+  const eq = _myEquipments.find(e => e.id === equipmentId);
+  const orb = ENHANCE_ORBS[orbId];
+  if (!aid || !eq || !orb) return;
+  if (eq.enhance_level < orb.minLv || eq.enhance_level > orb.maxLv) {
+    showToast(`このオーブは +${orb.minLv}〜+${orb.maxLv} のみ使用可能`, 'error'); return;
+  }
+  const qty = _gachaItems[orbId] || 0;
+  if (qty <= 0) { showToast('オーブが足りません', 'error'); return; }
+  // 消費
+  await dbConsumeItem(aid, orbId, 1);
+  _gachaItems[orbId] = qty - 1;
+  await _runEnhance(eq, orb.rate);
+}
+
+async function enhanceEquipmentWithMaterial(equipmentId, materialId) {
+  const aid = localStorage.getItem('trendy_account_id');
+  const eq = _myEquipments.find(e => e.id === equipmentId);
+  const mat = _myEquipments.find(e => e.id === materialId);
+  if (!aid || !eq || !mat) return;
+  if (_equippedSlots['equipped_' + mat.slot] === mat.id) {
+    showToast('装備中の装備は素材にできません', 'error'); return;
+  }
+  if (!confirm(`${EQUIP_INFO[mat.slot].label} ${mat.rarity} +${mat.enhance_level} を素材として消費しますか？\n成功率: 31%`)) return;
+  // 素材削除
+  await dbDeleteEquipment(materialId);
+  _myEquipments = _myEquipments.filter(e => e.id !== materialId);
+  await _runEnhance(eq, 0.31);
+}
+
+async function _runEnhance(eq, rate) {
+  // 大成功確率: 全体の5%（成功時のうち）
+  const roll = Math.random();
+  let result;
+  if (roll < rate * 0.05) result = 'great';  // 大成功
+  else if (roll < rate)   result = 'success';
+  else                    result = 'fail';
+
+  const rarIdx = _RARITY_ASCEND.indexOf(eq.rarity);
+  let newRarity = eq.rarity;
+  let newLevel = eq.enhance_level;
+  let msg = '';
+
+  if (result === 'great') {
+    newLevel = eq.enhance_level + 1;
+    if (rarIdx < _RARITY_ASCEND.length - 1) newRarity = _RARITY_ASCEND[rarIdx + 1];
+    msg = `🌟 大成功！ レア${eq.rarity}→${newRarity} +${newLevel}`;
+  } else if (result === 'success') {
+    newLevel = eq.enhance_level + 1;
+    msg = `✨ 成功！ +${newLevel}`;
+  } else {
+    newLevel = Math.max(0, eq.enhance_level - 2);
+    msg = `💔 失敗… +${eq.enhance_level} → +${newLevel}`;
+  }
+
+  await dbUpdateEquipmentLevel(eq.id, newLevel, newRarity !== eq.rarity ? newRarity : null);
+  eq.enhance_level = newLevel;
+  eq.rarity = newRarity;
+  showToast(msg, result === 'fail' ? 'error' : 'success');
+  // 再描画
+  _renderEquipmentSlots();
+  _renderEquipmentInventory();
+  openEquipmentDetail(eq.id);
+}
 
 const _RARITY_ASCEND = ['N','R','SR','SSR','UR','LG'];
 const _ITEM_BY_RARITY = { N:'boost_n', R:'boost_r', SR:'boost_sr', SSR:'boost_ssr', UR:'boost_ur', LG:'boost_lg' };
@@ -8162,11 +8564,18 @@ function _showGachaResult(results) {
   const renderDesc = (r) => {
     if (r.type === 'emoji') return `いいねの絵文字をGET！`;
     if (r.type === 'title') return `称号バッジをGET！`;
+    if (r.type === 'equip') return `装備をGET！`;
+    if (r.type === 'orb')   return `強化アイテムをGET！`;
     return `+${r.boost}スコア（${r.boost}閲覧相当）`;
   };
   const renderMain = (r) => {
     if (r.type === 'emoji') return `<div class="gacha-result-emoji">${r.emoji}</div>`;
     if (r.type === 'title') return `<div class="gacha-result-title">「${r.title}」</div>`;
+    if (r.type === 'equip') {
+      const info = EQUIP_INFO[r.slot];
+      return `<div class="gacha-result-equip"><i class="ti ${info.icon}"></i><span>${info.label}</span></div>`;
+    }
+    if (r.type === 'orb') return `<div class="gacha-result-orb">🔮 ${r.label}</div>`;
     return '';
   };
 

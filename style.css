@@ -8491,3 +8491,91 @@ mark.hs-mark {
   50%  { opacity: 1; transform: translateY(-14px) scale(1); }
   100% { opacity: 0; transform: translateY(-32px) scale(0.9); }
 }
+
+/* === 装備システム（錬金術師の部屋） === */
+#page-equipment {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, #1a1230 0%, transparent 60%),
+    radial-gradient(ellipse at bottom, #0a0512 0%, #000 100%),
+    #050208;
+  color: #e9e0c8;
+  min-height: 100vh;
+}
+#page-equipment .page-header { background: transparent; border-bottom: 1px solid rgba(168,139,250,0.2); color: #e9e0c8; }
+#page-equipment .page-header h1 { color: #e9e0c8; }
+
+.alchemy-room { position: relative; padding: 14px; min-height: calc(100vh - 60px); }
+.alchemy-room-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.alchemy-smoke { position: absolute; width: 200px; height: 200px; border-radius: 50%; filter: blur(40px); opacity: 0.5; }
+.alchemy-smoke-1 { top: 10%; left: 10%; background: rgba(139,92,246,0.5); animation: alchemy-float 8s ease-in-out infinite; }
+.alchemy-smoke-2 { top: 50%; right: 5%; background: rgba(236,72,153,0.4); animation: alchemy-float 10s ease-in-out infinite reverse; }
+.alchemy-smoke-3 { bottom: 10%; left: 30%; background: rgba(34,197,94,0.3); animation: alchemy-float 12s ease-in-out infinite; }
+@keyframes alchemy-float { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(30px,-20px) scale(1.1); } }
+
+.alchemy-section-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; color: #c4b5fd; margin-bottom: 10px; letter-spacing: 0.08em; position: relative; z-index: 1; }
+.alchemy-section-title > i { color: #a78bfa; filter: drop-shadow(0 0 6px rgba(167,139,250,0.6)); }
+
+.equipment-slots-wrap { position: relative; z-index: 1; margin-bottom: 24px; }
+.equipment-slots { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.equipment-slot { display: flex; flex-direction: column; align-items: center; padding: 12px 6px; border-radius: 10px; border: 1px solid rgba(168,139,250,0.25); background: linear-gradient(180deg, rgba(40,20,70,0.55), rgba(10,5,18,0.7)); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; text-align: center; }
+.equipment-slot:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(168,139,250,0.3); }
+.equipment-slot-icon { font-size: 26px; color: #c4b5fd; margin-bottom: 4px; filter: drop-shadow(0 0 8px rgba(168,139,250,0.5)); }
+.equipment-slot-name { font-size: 11px; font-weight: 700; color: #e9e0c8; }
+.equipment-slot-rarity { font-size: 10px; margin-top: 4px; color: #fde68a; }
+.equipment-slot-rarity > b { font-weight: 900; }
+.equipment-slot-effect { font-size: 10px; color: #c4b5fd; margin-top: 4px; }
+.equipment-slot-empty-label { font-size: 10px; color: rgba(196,181,253,0.4); margin-top: 6px; }
+.equipment-slot-filled .equipment-slot-icon { color: var(--text1); }
+
+.equipment-inventory-wrap { position: relative; z-index: 1; }
+.equipment-filter-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+.equipment-filter-pill { padding: 3px 9px; border-radius: 999px; background: rgba(168,139,250,0.1); border: 1px solid rgba(168,139,250,0.3); color: #c4b5fd; font-size: 11px; font-weight: 700; cursor: pointer; }
+.equipment-filter-pill.active { background: #8b5cf6; color: #fff; border-color: #8b5cf6; }
+.equipment-inventory { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.equipment-card { position: relative; display: flex; flex-direction: column; align-items: center; padding: 12px 8px; border-radius: 10px; border: 1px solid rgba(168,139,250,0.3); background: linear-gradient(180deg, rgba(40,20,70,0.6), rgba(10,5,18,0.8)); cursor: pointer; transition: all 0.15s; }
+.equipment-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(168,139,250,0.3); }
+.equipment-card-equipped { border-color: #fbbf24; box-shadow: 0 0 12px rgba(251,191,36,0.3), inset 0 0 8px rgba(251,191,36,0.1); }
+.equipment-card-rarity { position: absolute; top: 4px; left: 4px; }
+.equipment-card-icon { font-size: 32px; color: #c4b5fd; margin: 6px 0 4px; }
+.equipment-card-name { font-size: 11px; font-weight: 700; color: #e9e0c8; }
+.equipment-card-level { font-size: 14px; font-weight: 900; color: #fde68a; text-shadow: 0 0 6px rgba(251,191,36,0.5); margin-top: 2px; }
+.equipment-card-equipped-badge { position: absolute; top: -6px; right: -6px; background: #fbbf24; color: #422006; padding: 2px 6px; border-radius: 999px; font-size: 9px; font-weight: 900; border: 1.5px solid #fff; }
+.equipment-empty { grid-column: 1 / -1; text-align: center; padding: 40px 20px; color: var(--text3); font-size: 13px; }
+
+.equipment-detail-modal { max-width: 480px !important; max-height: 85vh; }
+.equipment-detail-modal.show { display: flex !important; flex-direction: column; }
+.equipment-detail-modal .modal-body { overflow-y: auto; flex: 1; }
+.equipment-detail-effect { padding: 14px; background: var(--bg2); border-radius: 10px; border: 1px solid var(--border); }
+.equipment-detail-effect-label { font-size: 11px; color: var(--text3); font-weight: 700; }
+.equipment-detail-effect-val { font-size: 18px; font-weight: 800; margin-top: 4px; }
+.equipment-detail-effect-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+.equipment-enhance-section { margin-top: 16px; }
+.equipment-enhance-title { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 800; color: var(--text1); margin-bottom: 6px; }
+.equipment-enhance-rules { font-size: 11px; color: var(--text3); margin-bottom: 10px; }
+.equipment-enhance-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.equipment-enhance-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 10px; background: var(--bg2); border: 1px solid var(--border); cursor: pointer; font-size: 11px; font-weight: 700; color: var(--text1); transition: transform 0.1s; }
+.equipment-enhance-btn:not(:disabled):hover { transform: translateY(-2px); border-color: var(--accent); }
+.equipment-enhance-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.equipment-enhance-btn small { font-size: 10px; color: var(--text3); font-weight: 500; }
+.orb-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+.orb-30 { background: linear-gradient(135deg,#60a5fa,#3b82f6); }
+.orb-60 { background: linear-gradient(135deg,#a78bfa,#7c3aed); }
+.orb-90 { background: linear-gradient(135deg,#fbbf24,#d97706); }
+
+.equipment-material-section { margin-top: 14px; padding: 12px; background: rgba(168,139,250,0.06); border-radius: 10px; border: 1px dashed rgba(168,139,250,0.3); }
+.equipment-material-title { font-size: 12px; font-weight: 700; color: var(--text2); margin-bottom: 6px; }
+.equipment-material-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+.equipment-material-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 11px; }
+.equipment-material-card:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.profile-equipment-mini { display: flex; gap: 3px; justify-content: center; margin-top: 6px; cursor: pointer; }
+.profile-equip-mini-slot { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.18); }
+.profile-equip-mini-empty { background: var(--bg2); color: var(--text3); opacity: 0.4; }
+
+.gacha-result-equip { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 12px 0 4px; font-size: 20px; font-weight: 900; color: #c4b5fd; }
+.gacha-result-equip > i { font-size: 40px; filter: drop-shadow(0 0 12px rgba(168,139,250,0.6)); }
+.gacha-result-orb { font-size: 22px; font-weight: 900; margin: 12px 0 4px; color: #c4b5fd; }
+
+.rarity-bg-n  { background: linear-gradient(180deg, rgba(60,60,60,0.6), rgba(20,20,20,0.8)); border-color: rgba(156,163,175,0.5); }
+.rarity-bg-r  { background: linear-gradient(180deg, rgba(20,40,80,0.6), rgba(8,16,30,0.8)); border-color: rgba(96,165,250,0.5); }

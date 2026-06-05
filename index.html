@@ -58,6 +58,9 @@
         <i class="ti ti-dice"></i><span>ガチャ</span>
         <span class="nav-badge" id="gacha-nav-badge" style="display:none"></span>
       </button>
+      <button class="nav-item" data-page="equipment" onclick="goPage('equipment',this)">
+        <i class="ti ti-flask"></i><span>装備</span>
+      </button>
       <button class="nav-item" data-page="feedback" onclick="goPage('feedback',this)">
         <i class="ti ti-bulb"></i><span>意見箱</span>
       </button>
@@ -486,6 +489,8 @@
           <button class="av-badge-btn" id="av-badge-btn" onclick="goPage('badge-apply',null)" title="バッジを申請する">
             <i class="ti ti-rosette-discount-check"></i>
           </button>
+          <!-- 装備ミニ表示（アイコン下） -->
+          <div class="profile-equipment-mini" id="mypage-equipment-mini" onclick="goPage('equipment',null)" title="装備"></div>
         </div>
         <!-- 称号バッジ（アバター右隣） -->
         <div class="profile-av-badges" id="mypage-display-badges">
@@ -1817,6 +1822,7 @@
         </div>
         <div class="profile-av-wrap" id="user-page-av-wrap">
           <div class="profile-av-lg" id="user-page-av">?</div>
+          <div class="profile-equipment-mini" id="user-page-equipment-mini" title="装備"></div>
         </div>
         <!-- 称号バッジ（アバター右隣） -->
         <div class="profile-av-badges" id="user-page-display-badges" style="display:none"></div>
@@ -2174,6 +2180,53 @@
       <div id="peak-points-content"></div>
     </div>
 
+
+    <!-- ══ 装備ページ（錬金術師の部屋） ══ -->
+    <div class="page" id="page-equipment">
+      <div class="page-header">
+        <h1><i class="ti ti-flask" style="color:#a78bfa"></i> 錬金術師の部屋</h1>
+      </div>
+      <div class="alchemy-room">
+        <!-- 背景演出 -->
+        <div class="alchemy-room-bg">
+          <div class="alchemy-smoke alchemy-smoke-1"></div>
+          <div class="alchemy-smoke alchemy-smoke-2"></div>
+          <div class="alchemy-smoke alchemy-smoke-3"></div>
+        </div>
+
+        <!-- 装備中スロット 5つ -->
+        <div class="equipment-slots-wrap">
+          <div class="alchemy-section-title"><i class="ti ti-shield-check"></i> 装備中</div>
+          <div class="equipment-slots" id="equipment-slots"></div>
+        </div>
+
+        <!-- 所持装備一覧 -->
+        <div class="equipment-inventory-wrap">
+          <div class="alchemy-section-title">
+            <i class="ti ti-backpack"></i> 所持装備
+            <div class="equipment-filter-pills" style="margin-left:auto">
+              <button class="equipment-filter-pill active" onclick="setEquipmentFilter('all',this)">すべて</button>
+              <button class="equipment-filter-pill" onclick="setEquipmentFilter('jewel',this)">宝石</button>
+              <button class="equipment-filter-pill" onclick="setEquipmentFilter('amulet',this)">お守り</button>
+              <button class="equipment-filter-pill" onclick="setEquipmentFilter('artifact',this)">アーティ</button>
+              <button class="equipment-filter-pill" onclick="setEquipmentFilter('soul',this)">ソウル</button>
+              <button class="equipment-filter-pill" onclick="setEquipmentFilter('medal',this)">メダル</button>
+            </div>
+          </div>
+          <div class="equipment-inventory" id="equipment-inventory"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 装備詳細 / 強化モーダル -->
+    <div class="modal-overlay" id="equipment-detail-overlay" onclick="closeEquipmentDetail()"></div>
+    <div class="modal equipment-detail-modal" id="equipment-detail-modal">
+      <div class="modal-header">
+        <span class="modal-title" id="equipment-detail-title">装備</span>
+        <button class="modal-close" onclick="closeEquipmentDetail()" style="background:none;border:none;cursor:pointer;font-size:18px;padding:6px;color:var(--text2)"><i class="ti ti-x"></i></button>
+      </div>
+      <div class="modal-body" id="equipment-detail-body"></div>
+    </div>
 
     <!-- ══ ガチャページ ══ -->
     <div class="page" id="page-gacha">
