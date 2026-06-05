@@ -7888,7 +7888,7 @@ function _equipValue(rarity, level) {
 const ENHANCE_ORBS = {
   enhance_orb_30: { label:'強化のオーブ30%', rate:0.30, minLv:0, maxLv:999 },
   enhance_orb_60: { label:'強化のオーブ60%', rate:0.60, minLv:0, maxLv:10  },
-  enhance_orb_90: { label:'強化のオーブ90%', rate:0.90, minLv:1, maxLv:3   },
+  enhance_orb_90: { label:'強化のオーブ90%', rate:0.90, minLv:0, maxLv:3   },
 };
 
 // ── DB 関数 ──
@@ -8062,7 +8062,7 @@ function openEquipmentDetail(equipmentId) {
 
   // 強化使用可能判定
   const orb60Ok = eq.enhance_level >= 0 && eq.enhance_level <= 10;
-  const orb90Ok = eq.enhance_level >= 1 && eq.enhance_level <= 3;
+  const orb90Ok = eq.enhance_level >= 0 && eq.enhance_level <= 3;
 
   document.getElementById('equipment-detail-title').innerHTML = `<i class="ti ${info.icon}" style="color:${RARITY_COLORS[eq.rarity]}"></i> ${info.label} <span class="rarity-${eq.rarity.toLowerCase()}" style="margin-left:6px">${eq.rarity}</span> <b style="margin-left:4px">+${eq.enhance_level}</b>`;
 
@@ -8099,7 +8099,7 @@ function openEquipmentDetail(equipmentId) {
         <button class="equipment-enhance-btn" onclick="enhanceEquipment('${eq.id}','enhance_orb_90')" ${(orb90 <= 0 || !orb90Ok) ? 'disabled' : ''}>
           <div class="orb-icon orb-90">90%</div>
           <div>強化のオーブ90%</div>
-          <small>+1〜+3限定 / 所持: ${orb90}</small>
+          <small>+0〜+3限定 / 所持: ${orb90}</small>
         </button>
       </div>
 
