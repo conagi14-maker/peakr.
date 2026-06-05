@@ -7880,9 +7880,9 @@ const EQUIP_EFFECTS = {
   login_bonus:   { label:'ログインボーナス増加', type:'numeric', unit:'+',  desc:p=>`ログイン報酬 +${p}コイン`         },
   rank_reward:   { label:'ランキング報酬増加', type:'numeric', unit:'%',  desc:p=>`ランキング報酬が +${p}%`          },
   view_score:    { label:'閲覧スコア増加',     type:'numeric', unit:'%',  desc:p=>`閲覧によるスコアが +${p}%`        },
-  stats_unlock:  { label:'統計機能解放',       type:'unlock',  unit:'',   desc:_=>'装備中は統計機能が解放される'    },
-  fav_slot:      { label:'推しユーザー枠+1',  type:'slot',    unit:'+',  desc:p=>`推しユーザー枠 +${p}`             },
-  badge_slot:    { label:'称号バッジ枠+1',    type:'slot',    unit:'+',  desc:p=>`称号バッジ枠 +${p}`              },
+  stats_unlock:  { label:'統計機能解放',       type:'unlock',  unit:'',   desc:_=>'装備中は統計機能が解放される' },
+  fav_slot:      { label:'推しユーザー枠+1',  type:'unlock',  unit:'+',  desc:_=>'推しユーザー枠 +1（装備中のみ）' },
+  badge_slot:    { label:'称号バッジ枠+1',    type:'unlock',  unit:'+',  desc:_=>'称号バッジ枠 +1（装備中のみ）' },
 };
 const EQUIP_EFFECT_KEYS = Object.keys(EQUIP_EFFECTS);
 
@@ -8040,7 +8040,9 @@ function _renderEquipmentSlots() {
       const val = _equipValue(eq.rarity, eq.enhance_level, eq.effect_type);
       const effLabel = eff.label || '効果不明';
       const sign = eff.unit === '+' ? '+' : '';
-      const valStr = eff.type === 'unlock' ? '解放' : `${sign}${val}${eff.unit === '%' ? '%' : ''}`;
+      const valStr = eff.type === 'unlock'
+        ? (eq.effect_type === 'stats_unlock' ? '解放' : '+1')
+        : `${sign}${val}${eff.unit === '%' ? '%' : ''}`;
       return `<div class="equipment-slot equipment-slot-filled rarity-bg-${eq.rarity.toLowerCase()}" onclick="openEquipmentDetail('${eq.id}')">
         <div class="equipment-slot-icon"><i class="ti ${info.icon}"></i></div>
         <div class="equipment-slot-name">${info.label}</div>
@@ -8124,11 +8126,11 @@ function openEquipmentDetail(equipmentId) {
   document.getElementById('equipment-detail-title').innerHTML = `<i class="ti ${info.icon}" style="color:${RARITY_COLORS[eq.rarity]}"></i> ${info.label} <span class="rarity-${eq.rarity.toLowerCase()}" style="margin-left:6px">${eq.rarity}</span> <b style="margin-left:4px">+${eq.enhance_level}</b>`;
 
   const body = document.getElementById('equipment-detail-body');
-  const valStr = eff.type === 'unlock' ? '解放' : `${sign}${val}${eff.unit==='%'?'%':''}`;
+  const valStr = eff.type === 'unlock'
+    ? (eq.effect_type === 'stats_unlock' ? '解放' : '+1')
+    : `${sign}${val}${eff.unit==='%'?'%':''}`;
   const subLine = eff.type === 'numeric'
     ? `レアリティ ${eq.rarity} 基礎 ${EQUIP_BASE_VALUE[eq.rarity]} + 強化 ${EQUIP_PER_LEVEL[eq.rarity]} × ${eq.enhance_level}`
-    : eff.type === 'slot'
-    ? `+1 + 強化 ${eq.enhance_level} = ${val} 枠`
     : '装備中のみ有効（強化レベル影響なし）';
   body.innerHTML = `
     <div class="equipment-detail-effect">
