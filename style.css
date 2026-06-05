@@ -8605,3 +8605,14 @@ mark.hs-mark {
 
 .rarity-bg-n  { background: linear-gradient(180deg, rgba(60,60,60,0.6), rgba(20,20,20,0.8)); border-color: rgba(156,163,175,0.5); }
 .rarity-bg-r  { background: linear-gradient(180deg, rgba(20,40,80,0.6), rgba(8,16,30,0.8)); border-color: rgba(96,165,250,0.5); }
+/* 装備カード効果ラベル */
+.equipment-card-effect {
+  font-size: 10px;
+  color: #c4b5fd;
+  text-align: center;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}

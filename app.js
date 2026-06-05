@@ -7866,22 +7866,63 @@ function _waitForKakuhenClick(results, postCutins) {
 // ══════════════════════════════════════════
 const EQUIP_SLOTS = ['jewel','amulet','artifact','soul','medal'];
 const EQUIP_INFO = {
-  jewel:    { label:'宝石',          icon:'ti-diamond',  effect:'投稿スコア',     unit:'%' },
-  amulet:   { label:'お守り',        icon:'ti-shield',   effect:'高レア排出率',   unit:'%' },
-  artifact: { label:'アーティファクト', icon:'ti-flask',    effect:'コイン獲得',     unit:'%' },
-  soul:     { label:'ソウル',        icon:'ti-flame',    effect:'いいねコイン',   unit:'+' },
-  medal:    { label:'メダル',        icon:'ti-trophy',   effect:'ランキング報酬', unit:'%' },
+  jewel:    { label:'宝石',          icon:'ti-diamond' },
+  amulet:   { label:'お守り',        icon:'ti-shield'  },
+  artifact: { label:'アーティファクト', icon:'ti-flask'   },
+  soul:     { label:'ソウル',        icon:'ti-flame'   },
+  medal:    { label:'メダル',        icon:'ti-trophy'  },
 };
+
+// 装備効果プール（ガチャ獲得時にランダム付与）
+const EQUIP_EFFECTS = {
+  like_boost:    { label:'いいね効果増加',     type:'numeric', unit:'+',  desc:p=>`いいね報酬を ${p}コイン 増やす`   },
+  coin_boost:    { label:'コイン獲得増加',     type:'numeric', unit:'%',  desc:p=>`コイン獲得が +${p}%`              },
+  login_bonus:   { label:'ログインボーナス増加', type:'numeric', unit:'+',  desc:p=>`ログイン報酬 +${p}コイン`         },
+  rank_reward:   { label:'ランキング報酬増加', type:'numeric', unit:'%',  desc:p=>`ランキング報酬が +${p}%`          },
+  view_score:    { label:'閲覧スコア増加',     type:'numeric', unit:'%',  desc:p=>`閲覧によるスコアが +${p}%`        },
+  stats_unlock:  { label:'統計機能解放',       type:'unlock',  unit:'',   desc:_=>'装備中は統計機能が解放される'    },
+  fav_slot:      { label:'推しユーザー枠+1',  type:'slot',    unit:'+',  desc:p=>`推しユーザー枠 +${p}`             },
+  badge_slot:    { label:'称号バッジ枠+1',    type:'slot',    unit:'+',  desc:p=>`称号バッジ枠 +${p}`              },
+};
+const EQUIP_EFFECT_KEYS = Object.keys(EQUIP_EFFECTS);
+
 // レアリティ別の基礎効果値
 const EQUIP_BASE_VALUE = { N:1, R:2, SR:5, SSR:10, UR:25, LG:50 };
 // 強化レベル毎の追加効果値
 const EQUIP_PER_LEVEL  = { N:1, R:2, SR:3, SSR:5, UR:8, LG:12 };
 
+function _randomEffectKey() {
+  return EQUIP_EFFECT_KEYS[Math.floor(Math.random() * EQUIP_EFFECT_KEYS.length)];
+}
+
 // 装備の総効果値（基礎 + 強化レベル × 加算）
-function _equipValue(rarity, level) {
+function _equipValue(rarity, level, effectType) {
+  const eff = EQUIP_EFFECTS[effectType];
+  // slot/unlock は強化レベルで増えない or 違うルール
+  if (eff?.type === 'unlock') return 1; // 解放系は1（オンオフ）
+  if (eff?.type === 'slot')   return 1 + (level || 0); // 枠系は 1 + 強化レベル
+  // numeric: 基礎 + 強化×加算
   const base = EQUIP_BASE_VALUE[rarity] || 0;
   const per  = EQUIP_PER_LEVEL[rarity] || 0;
   return base + per * (level || 0);
+}
+
+// 装備が現在もたらしている効果値を集計（全装備中スロット）
+function _aggregateEquippedEffects(equipments, equippedSlots) {
+  const result = {}; // { effectType: { type, value } }
+  EQUIP_SLOTS.forEach(slot => {
+    const id = equippedSlots['equipped_' + slot];
+    if (!id) return;
+    const eq = equipments.find(e => e.id === id);
+    if (!eq || !eq.effect_type) return;
+    const eff = EQUIP_EFFECTS[eq.effect_type];
+    if (!eff) return;
+    const v = _equipValue(eq.rarity, eq.enhance_level, eq.effect_type);
+    if (!result[eq.effect_type]) result[eq.effect_type] = { type: eff.type, value: 0 };
+    if (eff.type === 'unlock') result[eq.effect_type].value = 1;
+    else                       result[eq.effect_type].value += v;
+  });
+  return result;
 }
 
 // 強化オーブ
@@ -7898,10 +7939,11 @@ async function dbFetchEquipments(accountId) {
   return data || [];
 }
 
-async function dbAddEquipment(accountId, slot, rarity, variant = '01') {
+async function dbAddEquipment(accountId, slot, rarity, variant = '01', effectType = null) {
   if (!accountId || !slot || !rarity) return null;
+  const effect = effectType || _randomEffectKey();
   const { data, error } = await db.from('user_equipments').insert({
-    account_id: accountId, slot, rarity, variant, enhance_level: 0,
+    account_id: accountId, slot, rarity, variant, enhance_level: 0, effect_type: effect,
   }).select().single();
   if (error) { console.error('[DB] 装備追加エラー:', error.message); return null; }
   return data;
@@ -7970,6 +8012,15 @@ async function renderEquipmentPage() {
     dbFetchEquippedSlots(aid),
     dbGetUserItems(aid),
   ]);
+  // 効果が未設定の装備にランダム効果を付与（マイグレーション）
+  const needMigration = equipments.filter(e => !e.effect_type);
+  if (needMigration.length > 0) {
+    await Promise.all(needMigration.map(e => {
+      const effectType = _randomEffectKey();
+      e.effect_type = effectType;
+      return db.from('user_equipments').update({ effect_type: effectType }).eq('id', e.id);
+    }));
+  }
   _myEquipments = equipments;
   _equippedSlots = slots || {};
   _gachaItems = items || {};
@@ -7985,13 +8036,16 @@ function _renderEquipmentSlots() {
     const equippedId = _equippedSlots['equipped_' + slot];
     const eq = equippedId ? _myEquipments.find(e => e.id === equippedId) : null;
     if (eq) {
-      const val = _equipValue(eq.rarity, eq.enhance_level);
-      const sign = info.unit === '+' ? '+' : '';
+      const eff = EQUIP_EFFECTS[eq.effect_type] || {};
+      const val = _equipValue(eq.rarity, eq.enhance_level, eq.effect_type);
+      const effLabel = eff.label || '効果不明';
+      const sign = eff.unit === '+' ? '+' : '';
+      const valStr = eff.type === 'unlock' ? '解放' : `${sign}${val}${eff.unit === '%' ? '%' : ''}`;
       return `<div class="equipment-slot equipment-slot-filled rarity-bg-${eq.rarity.toLowerCase()}" onclick="openEquipmentDetail('${eq.id}')">
         <div class="equipment-slot-icon"><i class="ti ${info.icon}"></i></div>
         <div class="equipment-slot-name">${info.label}</div>
         <div class="equipment-slot-rarity"><span class="rarity-${eq.rarity.toLowerCase()}">${eq.rarity}</span> <b>+${eq.enhance_level}</b></div>
-        <div class="equipment-slot-effect">${info.effect} ${sign}${val}${info.unit === '%' ? '%' : ''}</div>
+        <div class="equipment-slot-effect">${effLabel}<br><b>${valStr}</b></div>
       </div>`;
     }
     return `<div class="equipment-slot equipment-slot-empty">
@@ -8024,11 +8078,13 @@ function _renderEquipmentInventory() {
   });
   el.innerHTML = list.map(eq => {
     const info = EQUIP_INFO[eq.slot];
+    const eff = EQUIP_EFFECTS[eq.effect_type];
     const isEquipped = _equippedSlots['equipped_' + eq.slot] === eq.id;
     return `<div class="equipment-card rarity-bg-${eq.rarity.toLowerCase()} ${isEquipped ? 'equipment-card-equipped' : ''}" onclick="openEquipmentDetail('${eq.id}')">
       <div class="equipment-card-rarity"><span class="rarity-${eq.rarity.toLowerCase()}">${eq.rarity}</span></div>
       <div class="equipment-card-icon"><i class="ti ${info.icon}"></i></div>
       <div class="equipment-card-name">${info.label}</div>
+      <div class="equipment-card-effect">${eff?.label || '?'}</div>
       <div class="equipment-card-level">+${eq.enhance_level}</div>
       ${isEquipped ? '<div class="equipment-card-equipped-badge"><i class="ti ti-check"></i> 装備中</div>' : ''}
     </div>`;
@@ -8048,8 +8104,9 @@ function openEquipmentDetail(equipmentId) {
   _detailEquipId = equipmentId;
   const info = EQUIP_INFO[eq.slot];
   const isEquipped = _equippedSlots['equipped_' + eq.slot] === eq.id;
-  const val = _equipValue(eq.rarity, eq.enhance_level);
-  const sign = info.unit === '+' ? '+' : '';
+  const eff = EQUIP_EFFECTS[eq.effect_type] || { label:'効果不明', type:'numeric', unit:'', desc:_=>'-' };
+  const val = _equipValue(eq.rarity, eq.enhance_level, eq.effect_type);
+  const sign = eff.unit === '+' ? '+' : '';
 
   // オーブ所持数
   const orb30 = _gachaItems['enhance_orb_30'] || 0;
@@ -8067,11 +8124,17 @@ function openEquipmentDetail(equipmentId) {
   document.getElementById('equipment-detail-title').innerHTML = `<i class="ti ${info.icon}" style="color:${RARITY_COLORS[eq.rarity]}"></i> ${info.label} <span class="rarity-${eq.rarity.toLowerCase()}" style="margin-left:6px">${eq.rarity}</span> <b style="margin-left:4px">+${eq.enhance_level}</b>`;
 
   const body = document.getElementById('equipment-detail-body');
+  const valStr = eff.type === 'unlock' ? '解放' : `${sign}${val}${eff.unit==='%'?'%':''}`;
+  const subLine = eff.type === 'numeric'
+    ? `レアリティ ${eq.rarity} 基礎 ${EQUIP_BASE_VALUE[eq.rarity]} + 強化 ${EQUIP_PER_LEVEL[eq.rarity]} × ${eq.enhance_level}`
+    : eff.type === 'slot'
+    ? `+1 + 強化 ${eq.enhance_level} = ${val} 枠`
+    : '装備中のみ有効（強化レベル影響なし）';
   body.innerHTML = `
     <div class="equipment-detail-effect">
-      <div class="equipment-detail-effect-label">現在の効果</div>
-      <div class="equipment-detail-effect-val">${info.effect} <b style="color:${RARITY_COLORS[eq.rarity]}">${sign}${val}${info.unit==='%'?'%':''}</b></div>
-      <div class="equipment-detail-effect-sub">レアリティ ${eq.rarity} 基礎 ${EQUIP_BASE_VALUE[eq.rarity]} + 強化 ${EQUIP_PER_LEVEL[eq.rarity]} × ${eq.enhance_level}</div>
+      <div class="equipment-detail-effect-label">効果: ${eff.label}</div>
+      <div class="equipment-detail-effect-val">${eff.desc(val)}</div>
+      <div class="equipment-detail-effect-sub">${subLine}</div>
     </div>
     <div style="display:flex;gap:8px;margin:14px 0">
       ${isEquipped
