@@ -4268,7 +4268,15 @@ async function _refreshHomeFeedFromDB() {
   const feed = document.getElementById('home-feed');
   if (feed) feed.innerHTML = '';
   loadHomeMore();
-  await dbLoadAndMergePosts(myFollowingHandles);
+
+  // フォロー中 + トラック中（5pt以上）のユーザーを統合
+  const tracks = await dbFetchMyTracks().catch(() => []);
+  const trackedHandles = tracks
+    .filter(t => _isTracked(t.points))
+    .map(t => '@' + t.tracked_id);
+  const merged = [...new Set([...(myFollowingHandles || []), ...trackedHandles])];
+
+  await dbLoadAndMergePosts(merged);
 }
 
 // ── Tweet Detail ───────────────────────────────────────
