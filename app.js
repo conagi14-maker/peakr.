@@ -7407,8 +7407,9 @@ async function syncExternalPosts() {
 
 // ── pixiv ランキング同期 ──────────────────────────────────
 
-let _pixivSyncedAt = 0;
-const _PIXIV_SYNC_TTL = 10 * 60 * 1000;
+// localStorage で永続化して、ブラウザ閉じても日次同期される
+let _pixivSyncedAt = parseInt(localStorage.getItem('trendy_pixiv_synced_at') || '0', 10);
+const _PIXIV_SYNC_TTL = 60 * 60 * 1000; // 1時間（同じ端末で連打されるのを防ぐ）
 
 // pixivタグ → PEAKR カテゴリー
 const _PIXIV_TAG_CAT = {
@@ -7428,11 +7429,13 @@ function _detectCatFromPixivTags(tags) {
   return 'anime'; // pixiv はデフォルトをアニメ/イラストカテゴリーに
 }
 
-const _PIXIV_MODES = ['weekly', 'monthly', 'original', 'rookie'];
+// daily を含めることで日々新しい作品が流れる
+const _PIXIV_MODES = ['daily', 'weekly', 'monthly', 'original', 'rookie'];
 
 async function syncPixivPosts() {
   if (Date.now() - _pixivSyncedAt < _PIXIV_SYNC_TTL) return;
   _pixivSyncedAt = Date.now();
+  localStorage.setItem('trendy_pixiv_synced_at', _pixivSyncedAt.toString());
   try {
     // 4モードを並行取得（weekly/monthly/original/rookie 各200件 = 計最大800件）
     const results = await Promise.allSettled(
