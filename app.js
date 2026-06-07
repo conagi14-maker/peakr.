@@ -442,6 +442,7 @@ function goPage(id, btn) {
   if (id === 'mypage')    {
     _refreshMypageStats(); loadUserFavorites(); _loadMypageSocialLinks(); _updateMypageMeta(); _renderDisplayBadges();
     renderProfileEquipmentMini(localStorage.getItem('trendy_account_id'), 'mypage-equipment-mini');
+    _renderMyTrackerStats();
     const _le = document.getElementById('mypage-like-emoji-current');
     if (_le) _le.textContent = myLikeEmoji;
     const _tb = document.getElementById('mypage-title-current');
@@ -460,6 +461,7 @@ function goPage(id, btn) {
   if (id === 'feedback') openFeedbackPage();
   if (id === 'gacha')    renderGachaPage();
   if (id === 'equipment') renderEquipmentPage();
+  if (id === 'tracks')    renderTracksPage();
   if (id === 'dev-gacha') { renderDevGachaList(); setTimeout(() => { _loadCutinRatesUI(); _loadBoostAmountsUI(); _loadRarityProbsUI(); }, 100); }
   if (id === 'dev-rank-rewards') { setTimeout(() => _loadRankRewardsUI(), 100); }
   if (id === 'follows') renderFollows();
@@ -1302,6 +1304,10 @@ function _renderRecommendSlice() {
     if (t.db_id && !_seenReelIds.has(String(t.db_id))) {
       _seenReelIds.add(String(t.db_id));
       newSeenCount++;
+      // トラックポイント +1/閲覧（外部投稿は対象外）
+      if (!t.extSource && t.user?.h) {
+        _addTrackPoint(_handleToAccountId(t.user.h), TRACK_POINTS.view);
+      }
     }
   });
   recommendLoaded += slice.length;
@@ -3997,6 +4003,10 @@ function toggleLike(idx, btn) {
     if (t.db_id) likedDbIds.add(String(t.db_id));
     t.likes++;
     btn.classList.add('liked');
+    // トラックポイント +3/いいね
+    if (!t.extSource && t.user?.h) {
+      _addTrackPoint(_handleToAccountId(t.user.h), TRACK_POINTS.like);
+    }
   } else {
     likedTweets.delete(idx);
     if (t.db_id) likedDbIds.delete(String(t.db_id));
@@ -4268,6 +4278,10 @@ function openTweetDetail(idx) {
   // 外部投稿は外部URLへ
   if (t.extUrl) { window.open(t.extUrl, '_blank', 'noopener,noreferrer'); return; }
   const u = t.user;
+  // トラックポイント +2/つぶやきクリック
+  if (!t.extSource && u?.h) {
+    _addTrackPoint(_handleToAccountId(u.h), TRACK_POINTS.click);
+  }
   const hasRank = t.rank > 0;
   // 自分のアバター（コメント入力欄用）
   const myAvData = localStorage.getItem('trendy_av');
@@ -6574,6 +6588,16 @@ function openUserPage(handle) {
   document.getElementById('user-page-follower-count').textContent  = '-';
   document.getElementById('user-page-post-count').textContent      = '-';
 
+  // トラックpt表示
+  const _upTrackPt = document.getElementById('user-page-track-pt');
+  if (_upTrackPt) {
+    dbFetchTrackPoints(_upAcc).then(pt => {
+      _upTrackPt.innerHTML = pt > 0
+        ? `<span class="${_isTracked(pt) ? 'user-page-track-active' : ''}"><i class="ti ti-radar-2"></i> 興味度 ${pt}pt${_isTracked(pt) ? ' <small>トラック中</small>' : ''}</span>`
+        : '';
+    });
+  }
+
   // フォローボタン
   const followBtn = document.getElementById('user-page-follow-btn');
   const isFollowing = followingSet.has(handle);
@@ -7864,6 +7888,161 @@ function _waitForKakuhenClick(results, postCutins) {
 // ══════════════════════════════════════════
 // ⚒️ 装備システム
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// 🎯 トラック機能（自動フォロー風・興味スコア）
+// ══════════════════════════════════════════
+const TRACK_THRESHOLD = 5;      // 5pt 以上でトラック扱い
+const TRACK_EXPIRE_DAYS = 30;   // 30日無更新で自動解除
+const TRACK_POINTS = { view: 1, click: 2, like: 3 };
+
+// ローカルバッファ（DB アクセス削減）
+let _trackBuffer = {}; // { tracked_id: 累積pt }
+let _trackBufferTimer = null;
+
+function _addTrackPoint(trackedAccountId, points) {
+  if (!trackedAccountId) return;
+  const myAid = localStorage.getItem('trendy_account_id');
+  if (!myAid || myAid === trackedAccountId) return; // 自分は対象外
+  _trackBuffer[trackedAccountId] = (_trackBuffer[trackedAccountId] || 0) + points;
+  // 3秒後にまとめてDB反映
+  clearTimeout(_trackBufferTimer);
+  _trackBufferTimer = setTimeout(_flushTrackBuffer, 3000);
+}
+
+async function _flushTrackBuffer() {
+  const myAid = localStorage.getItem('trendy_account_id');
+  if (!myAid || Object.keys(_trackBuffer).length === 0) return;
+  const buf = { ..._trackBuffer };
+  _trackBuffer = {};
+  for (const [trackedId, pt] of Object.entries(buf)) {
+    if (pt <= 0) continue;
+    // 既存レコードを確認
+    const { data: cur } = await db.from('user_tracks')
+      .select('points').eq('tracker_id', myAid).eq('tracked_id', trackedId).maybeSingle();
+    const newPt = (cur?.points || 0) + pt;
+    await db.from('user_tracks').upsert({
+      tracker_id: myAid, tracked_id: trackedId,
+      points: newPt,
+      last_activity: new Date().toISOString(),
+    }, { onConflict: 'tracker_id,tracked_id' });
+  }
+}
+
+// 興味スコアでトラック状態を判定
+function _isTracked(points) { return (points || 0) >= TRACK_THRESHOLD; }
+
+// 自分がトラックしている一覧を取得（pt順、降順）
+async function dbFetchMyTracks() {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) return [];
+  // 期限切れ削除
+  const expireDate = new Date(Date.now() - TRACK_EXPIRE_DAYS * 86400000).toISOString();
+  await db.from('user_tracks').delete().eq('tracker_id', aid).lt('last_activity', expireDate);
+  const { data } = await db.from('user_tracks').select('*').eq('tracker_id', aid).order('points', { ascending: false });
+  return data || [];
+}
+
+// 自分をトラックしている人数を取得
+async function dbFetchTrackerCount(targetAccountId) {
+  if (!targetAccountId) return 0;
+  const { count } = await db.from('user_tracks')
+    .select('id', { count: 'exact', head: true })
+    .eq('tracked_id', targetAccountId).gte('points', TRACK_THRESHOLD);
+  return count || 0;
+}
+
+// 特定相手への自分のスコアを取得
+async function dbFetchTrackPoints(trackedAccountId) {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid || !trackedAccountId) return 0;
+  const { data } = await db.from('user_tracks').select('points').eq('tracker_id', aid).eq('tracked_id', trackedAccountId).maybeSingle();
+  return data?.points || 0;
+}
+
+// トラックページ
+let _trackTab = 'tracking';
+
+async function renderTracksPage() {
+  await _flushTrackBuffer(); // 未保存ぶんを反映
+  const tracks = await dbFetchMyTracks();
+  _renderTracksList(tracks);
+}
+
+function setTrackTab(tab, btn) {
+  _trackTab = tab;
+  document.querySelectorAll('.tracks-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderTracksPage();
+}
+
+async function _renderTracksList(tracks) {
+  const el = document.getElementById('tracks-list');
+  if (!el) return;
+
+  let list = tracks;
+  if (_trackTab === 'tracking') list = tracks.filter(t => _isTracked(t.points));
+
+  if (!list.length) {
+    el.innerHTML = `<div class="tracks-empty">
+      <i class="ti ti-radar" style="font-size:48px;display:block;margin-bottom:12px;color:var(--text3)"></i>
+      ${_trackTab === 'tracking' ? '5pt以上のトラック対象はまだいません' : 'まだ誰の投稿も見ていません'}
+      <p style="font-size:12px;color:var(--text3);margin-top:6px">気になる投稿を見たり、いいねしたりすると貯まります</p>
+    </div>`;
+    return;
+  }
+
+  // プロフィール情報を一括取得
+  const ids = list.map(t => t.tracked_id);
+  const { data: profiles } = await db.from('profiles')
+    .select('account_id, nickname, avatar_data, name_tag')
+    .in('account_id', ids);
+  const profMap = {};
+  (profiles || []).forEach(p => { profMap[p.account_id] = p; });
+
+  el.innerHTML = list.map(t => {
+    const p = profMap[t.tracked_id] || {};
+    const name = p.nickname || t.tracked_id;
+    const avHtml = p.avatar_data
+      ? `<img src="${p.avatar_data}" alt="">`
+      : `<span style="background:#3b82f6;color:#fff;width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-weight:700;border-radius:50%">${(name[0]||'?').toUpperCase()}</span>`;
+    const lastActivityStr = _relativeTime(t.last_activity);
+    const pct = Math.min(100, (t.points / TRACK_THRESHOLD) * 100);
+    const isTracked = _isTracked(t.points);
+    return `<div class="track-card${isTracked ? ' track-card-active' : ''}" onclick="openUserPage('@${t.tracked_id}')">
+      <div class="track-card-av">${avHtml}</div>
+      <div class="track-card-info">
+        <div class="track-card-name">${name} ${p.name_tag ? `<span class="track-card-tag">＠${p.name_tag}</span>` : ''}</div>
+        <div class="track-card-handle">@${t.tracked_id}</div>
+        <div class="track-card-bar">
+          <div class="track-card-bar-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="track-card-meta">
+          <span class="track-card-pt"><i class="ti ti-flame"></i> ${t.points}pt</span>
+          <span class="track-card-time">${lastActivityStr}</span>
+          ${isTracked ? '<span class="track-card-badge"><i class="ti ti-radar-2"></i> トラック中</span>' : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// マイページに「あなたへの興味」表示
+async function _renderMyTrackerStats() {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) return;
+  const count = await dbFetchTrackerCount(aid);
+  const el = document.getElementById('mypage-tracker-count');
+  if (el) el.textContent = count;
+}
+
+// ハンドル→アカウントID変換ヘルパー
+function _handleToAccountId(handle) {
+  if (!handle) return null;
+  const h = handle.startsWith('@') ? handle.slice(1) : handle;
+  if (h.endsWith('_sub')) return h.slice(0, -4); // サブはメインに統合
+  return h;
+}
+
 const EQUIP_SLOTS = ['jewel','amulet','artifact','soul','medal'];
 const EQUIP_INFO = {
   jewel:    { label:'宝石',          icon:'ti-diamond' },
@@ -13221,6 +13400,7 @@ function _flushSessionTracking() {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     _flushSessionTracking();
+    _flushTrackBuffer();
   } else {
     _startSessionTracking();
     _syncProfileFromSupabase();
@@ -13233,6 +13413,7 @@ window.addEventListener('focus', () => {
 });
 window.addEventListener('beforeunload', () => {
   _flushSessionTracking();
+  _flushTrackBuffer();
 });
 
 // 5分ごとにセッションデータを自動保存（タブを閉じなくてもDBに記録）

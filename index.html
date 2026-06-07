@@ -61,6 +61,9 @@
       <button class="nav-item" data-page="equipment" onclick="goPage('equipment',this)">
         <i class="ti ti-flask"></i><span>装備</span>
       </button>
+      <button class="nav-item" data-page="tracks" onclick="goPage('tracks',this)">
+        <i class="ti ti-radar-2"></i><span>トラック</span>
+      </button>
       <button class="nav-item" data-page="feedback" onclick="goPage('feedback',this)">
         <i class="ti ti-bulb"></i><span>意見箱</span>
       </button>
@@ -560,6 +563,7 @@
         <div class="profile-stat-row">
           <button class="profile-stat-link" onclick="goPage('follows',null)"><b id="mypage-following-count">-</b> フォロー</button>
           <button class="profile-stat-link" onclick="goPage('follows',null)"><b id="mypage-follower-count">-</b> フォロワー</button>
+          <button class="profile-stat-link" onclick="goPage('tracks',null)"><b id="mypage-tracker-count">0</b> <span style="color:#10b981">トラッカー</span></button>
           <span class="profile-stat-link"><b id="mypage-post-count">-</b> 投稿</span>
           <span class="profile-stat-link"><b id="mypage-best-rank">-</b> 最高ランク</span>
         </div>
@@ -1862,6 +1866,7 @@
           <span class="profile-stat-link"><b id="user-page-following-count">-</b> フォロー</span>
           <span class="profile-stat-link"><b id="user-page-follower-count">-</b> フォロワー</span>
           <span class="profile-stat-link"><b id="user-page-post-count">-</b> 投稿</span>
+          <span class="profile-stat-link user-page-track-pt-wrap" id="user-page-track-pt"></span>
         </div>
         <!-- カテゴリー -->
         <div class="profile-cats-section" id="user-page-cats-section">
@@ -2181,6 +2186,25 @@
       <div id="peak-points-content"></div>
     </div>
 
+
+    <!-- ══ トラックページ ══ -->
+    <div class="page" id="page-tracks">
+      <div class="page-header">
+        <h1><i class="ti ti-radar-2" style="color:#10b981"></i> トラック</h1>
+      </div>
+      <div class="tracks-body">
+        <div class="tracks-explain">
+          <i class="ti ti-info-circle"></i>
+          閲覧 +1pt / クリック +2pt / いいね +3pt で<b>興味度</b>が貯まります。<br>
+          <b>${5}pt以上</b>で「トラック中」扱い、<b>30日間更新なし</b>で自動解除されます。
+        </div>
+        <div class="tracks-tabs">
+          <button class="tracks-tab active" onclick="setTrackTab('tracking',this)"><i class="ti ti-radar"></i> トラック中</button>
+          <button class="tracks-tab" onclick="setTrackTab('all',this)"><i class="ti ti-list"></i> 全興味リスト</button>
+        </div>
+        <div id="tracks-list"></div>
+      </div>
+    </div>
 
     <!-- ══ 装備ページ（錬金術師の部屋） ══ -->
     <div class="page" id="page-equipment">
