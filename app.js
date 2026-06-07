@@ -6605,6 +6605,12 @@ function openUserPage(handle) {
         : '';
     });
   }
+  // トラッカー数（このユーザーをトラックしている人数。誰かは見せない）
+  const _upTrackerCnt = document.getElementById('user-page-tracker-count');
+  if (_upTrackerCnt) {
+    _upTrackerCnt.textContent = '0';
+    dbFetchTrackerCount(_upAcc).then(c => { _upTrackerCnt.textContent = c; });
+  }
 
   // フォローボタン
   const followBtn = document.getElementById('user-page-follow-btn');
