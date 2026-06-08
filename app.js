@@ -931,7 +931,11 @@ async function _loadRecommendFeed(reset = false) {
 
   try {
     // Supabase から人気投稿を取得（フォロー関係なく全ユーザー）
-    let query = db.from('posts').select('*').order('likes_count', { ascending: false }).limit(300);
+    // ext_pop_score（pixivブックマーク数等）と likes_count どちらかでソート
+    let query = db.from('posts').select('*')
+      .order('ext_pop_score', { ascending: false, nullsFirst: false })
+      .order('likes_count', { ascending: false })
+      .limit(500);
     // カテゴリーフィルター
     if (recommendCatFilter && recommendCatFilter !== 'all') {
       query = query.eq('cat_id', recommendCatFilter);
@@ -940,10 +944,10 @@ async function _loadRecommendFeed(reset = false) {
     if (homeMediaFilters.size > 0) {
       const orParts = [];
       if (homeMediaFilters.has('text'))  orParts.push('and(media_type.is.null,ext_source.is.null)');
-      // 画像: media_type=image かつ YouTube/Shorts以外（ext_source is null）
-      if (homeMediaFilters.has('image')) orParts.push('and(media_type.eq.image,ext_source.is.null)');
-      // 動画: media_type=video または YouTube/Shorts
-      if (homeMediaFilters.has('video')) orParts.push('media_type.eq.video,ext_source.eq.youtube,ext_source.eq.shorts');
+      // 画像: media_type=image（pixiv画像も含む）
+      if (homeMediaFilters.has('image')) orParts.push('media_type.eq.image');
+      // 動画: media_type=video
+      if (homeMediaFilters.has('video')) orParts.push('media_type.eq.video');
       if (orParts.length > 0) query = query.or(orParts.join(','));
     }
 
