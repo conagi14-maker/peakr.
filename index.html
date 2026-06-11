@@ -37,6 +37,9 @@
       <button class="nav-item" data-page="ranking" onclick="goPage('ranking',this)">
         <i class="ti ti-trophy"></i><span>ランキング</span>
       </button>
+      <button class="nav-item" data-page="latest" onclick="goPage('latest',this)">
+        <i class="ti ti-clock"></i><span>新着</span>
+      </button>
       <button class="nav-item" data-page="notif" onclick="goPage('notif',this)">
         <i class="ti ti-bell"></i><span>通知</span>
         <span class="nav-badge" style="display:none"></span>
@@ -60,9 +63,6 @@
       <button class="nav-item" data-page="gacha" onclick="goPage('gacha',this)">
         <i class="ti ti-dice"></i><span>ガチャ</span>
         <span class="nav-badge" id="gacha-nav-badge" style="display:none"></span>
-      </button>
-      <button class="nav-item" data-page="equipment" onclick="goPage('equipment',this)">
-        <i class="ti ti-flask"></i><span>装備</span>
       </button>
       <button class="nav-item" data-page="feedback" onclick="goPage('feedback',this)">
         <i class="ti ti-bulb"></i><span>意見箱</span>
@@ -122,7 +122,7 @@
       <div class="compose-box">
         <div class="av me" id="home-compose-av">あ</div>
         <div class="compose-inner">
-          <div class="compose-acct-row">
+          <div class="compose-acct-row" style="display:none">
             <span class="compose-acct-label">投稿アカウント</span>
             <button class="acct-btn active-main" id="acct-main-btn" onclick="selectAccount('main')">
               <i class="ti ti-user-check"></i> メイン
@@ -169,7 +169,7 @@
               <button class="compose-media-btn compose-emoji-btn" id="compose-like-emoji-btn" onclick="openComposeLikeEmojiPicker()" title="いいねの絵文字を設定">
                 <span id="compose-like-emoji-current" style="font-size:18px;line-height:1">❤️</span>
               </button>
-              <input type="file" id="compose-img-input" accept="image/*" style="display:none" onchange="handleComposeMedia(this,'image')">
+              <input type="file" id="compose-img-input" accept="image/*" multiple style="display:none" onchange="handleComposeMedia(this,'image')">
               <input type="file" id="compose-vid-input" accept="video/*" style="display:none" onchange="handleComposeMedia(this,'video')">
             </div>
             <!-- カテゴリー・タグ（インライン） -->
@@ -206,8 +206,28 @@
         </div>
       </div>
       <div class="feed" id="home-feed"></div>
-      <div class="load-more-btn" id="home-load-more-btn" onclick="loadHomeMore()">
-        <i class="ti ti-refresh"></i> さらに読み込む
+      <div id="home-sentinel" style="height:1px"></div>
+      <div class="load-more-btn" id="home-load-more-btn" style="display:none;pointer-events:none;color:var(--text3)">
+        <i class="ti ti-check"></i> すべて表示しました
+      </div>
+    </div>
+
+    <!-- ══ 新着ページ ══ -->
+    <div class="page" id="page-latest">
+      <div class="page-header">
+        <h1><i class="ti ti-clock" style="color:var(--accent)"></i> 新着</h1>
+        <button class="btn-sm" style="margin-left:auto" onclick="loadLatestFeed(true)" title="更新"><i class="ti ti-refresh"></i></button>
+      </div>
+      <div class="latest-filter-row" style="display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+        <button class="latest-filter-btn active" data-type="all" onclick="setLatestFilter('all',this)"><i class="ti ti-apps"></i> 全て</button>
+        <button class="latest-filter-btn" data-type="text" onclick="setLatestFilter('text',this)"><i class="ti ti-align-left"></i> 文字</button>
+        <button class="latest-filter-btn" data-type="image" onclick="setLatestFilter('image',this)"><i class="ti ti-photo"></i> 画像</button>
+        <button class="latest-filter-btn" data-type="video" onclick="setLatestFilter('video',this)"><i class="ti ti-video"></i> 動画</button>
+      </div>
+      <div class="feed" id="latest-feed"></div>
+      <div id="latest-sentinel" style="height:1px"></div>
+      <div class="load-more-btn" id="latest-end-msg" style="display:none;pointer-events:none;color:var(--text3)">
+        <i class="ti ti-check"></i> すべて表示しました
       </div>
     </div>
 
@@ -269,6 +289,16 @@
           <div class="welcome-logo-wrap">T</div>
           <div class="welcome-title-text">Trendy</div>
           <div class="welcome-tagline">今、話題のことをいち早く。<br>カテゴリーで探す、新しいSNS体験。</div>
+        </div>
+        <div style="margin:14px 18px;padding:16px 18px;border:3px solid #dc2626;border-radius:12px;background:#fff;color:#dc2626;font-size:14px;line-height:1.7;box-shadow:0 4px 20px rgba(220,38,38,.4)">
+          <div style="display:flex;align-items:center;gap:8px;font-weight:900;color:#b91c1c;margin-bottom:8px;font-size:16px">
+            <i class="ti ti-alert-triangle" style="font-size:20px"></i> クローズベータテスト中
+          </div>
+          <div style="color:#b91c1c;font-weight:700">
+            適当なIDとパスワードで作成してください。<br>
+            お飾りの機能やページがまだまだあります。<br>
+            よければ <span style="color:#1d4ed8;font-weight:900">意見箱</span> 投稿よろしくお願いします。
+          </div>
         </div>
         <div class="welcome-bottom">
           <button class="welcome-btn-primary" onclick="goPage('register',null)">
@@ -495,8 +525,8 @@
             <i class="ti ti-rosette-discount-check"></i>
           </button>
         </div>
-        <!-- 装備ミニ表示（カバー右上） -->
-        <div class="profile-equipment-mini" id="mypage-equipment-mini" onclick="goPage('equipment',null)" title="装備"></div>
+        <!-- 装備ミニ表示（廃止） -->
+        <div class="profile-equipment-mini" id="mypage-equipment-mini" style="display:none"></div>
         <!-- 称号バッジ（アバター右隣） -->
         <div class="profile-av-badges" id="mypage-display-badges">
           <div class="dbadge-slot" id="dbadge-0" onclick="goPage('badges',null)" title="バッジを設定"></div>
@@ -843,25 +873,6 @@
               <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode(this)">
               <span class="toggle-track"><span class="toggle-thumb"></span></span>
             </label>
-          </div>
-          <div class="settings-row">
-            <span class="settings-key">R18モード</span>
-            <label class="toggle-wrap">
-              <input type="checkbox" id="r18-toggle" onchange="toggleR18(this)">
-              <span class="toggle-track"><span class="toggle-thumb"></span></span>
-            </label>
-            <span class="settings-note">年齢確認済みの方のみ</span>
-          </div>
-          <div class="r18-warn" id="r18-warn" style="display:none">
-            <i class="ti ti-alert-triangle"></i> R18コンテンツが表示されます。18歳以上の方のみ有効にしてください。
-          </div>
-          <div class="settings-row">
-            <span class="settings-key">子供モード</span>
-            <label class="toggle-wrap">
-              <input type="checkbox" id="kids-toggle" onchange="toggleKidsMode(this)">
-              <span class="toggle-track"><span class="toggle-thumb"></span></span>
-            </label>
-            <span class="settings-note">未成年アカウントの管理・保護機能</span>
           </div>
         </section>
 
@@ -1262,58 +1273,87 @@
         </section>
 
         <!-- アクセス分析 -->
-        <section class="settings-section">
-          <h2><i class="ti ti-trending-up" style="color:#10b981"></i> アクセス分析</h2>
-          <div id="dev-access-stats"></div>
+        <section class="settings-section dev-stats-collapse">
+          <button class="dev-stats-toggle" onclick="toggleDevStats(this)">
+            <h2 style="margin:0"><i class="ti ti-trending-up" style="color:#10b981"></i> アクセス分析</h2>
+            <i class="ti ti-chevron-down dev-stats-chev"></i>
+          </button>
+          <div class="dev-stats-body" style="display:none"><div id="dev-access-stats"></div></div>
         </section>
 
         <!-- コンテンツ統計 -->
-        <section class="settings-section">
-          <h2><i class="ti ti-file-text" style="color:#f59e0b"></i> コンテンツ統計</h2>
-          <div id="dev-content-stats"></div>
+        <section class="settings-section dev-stats-collapse">
+          <button class="dev-stats-toggle" onclick="toggleDevStats(this)">
+            <h2 style="margin:0"><i class="ti ti-file-text" style="color:#f59e0b"></i> コンテンツ統計</h2>
+            <i class="ti ti-chevron-down dev-stats-chev"></i>
+          </button>
+          <div class="dev-stats-body" style="display:none"><div id="dev-content-stats"></div></div>
         </section>
 
         <!-- カテゴリー分析 -->
-        <section class="settings-section">
-          <h2><i class="ti ti-category" style="color:#8b5cf6"></i> カテゴリー分析</h2>
-          <div id="dev-category-stats"></div>
+        <section class="settings-section dev-stats-collapse">
+          <button class="dev-stats-toggle" onclick="toggleDevStats(this)">
+            <h2 style="margin:0"><i class="ti ti-category" style="color:#8b5cf6"></i> カテゴリー分析</h2>
+            <i class="ti ti-chevron-down dev-stats-chev"></i>
+          </button>
+          <div class="dev-stats-body" style="display:none"><div id="dev-category-stats"></div></div>
         </section>
 
         <!-- ユーザー行動 -->
-        <section class="settings-section">
-          <h2><i class="ti ti-users" style="color:#ef4444"></i> ユーザー行動</h2>
-          <div id="dev-user-behavior"></div>
+        <section class="settings-section dev-stats-collapse">
+          <button class="dev-stats-toggle" onclick="toggleDevStats(this)">
+            <h2 style="margin:0"><i class="ti ti-users" style="color:#ef4444"></i> ユーザー行動</h2>
+            <i class="ti ti-chevron-down dev-stats-chev"></i>
+          </button>
+          <div class="dev-stats-body" style="display:none"><div id="dev-user-behavior"></div></div>
         </section>
 
         <!-- 時間帯分布 -->
-        <section class="settings-section">
-          <h2><i class="ti ti-clock" style="color:#06b6d4"></i> 時間帯分布</h2>
-          <p class="settings-desc">投稿・いいね・閲覧の時間帯別アクティビティ</p>
-          <div id="dev-time-stats"></div>
+        <section class="settings-section dev-stats-collapse">
+          <button class="dev-stats-toggle" onclick="toggleDevStats(this)">
+            <h2 style="margin:0"><i class="ti ti-clock" style="color:#06b6d4"></i> 時間帯分布</h2>
+            <i class="ti ti-chevron-down dev-stats-chev"></i>
+          </button>
+          <div class="dev-stats-body" style="display:none">
+            <p class="settings-desc">投稿・いいね・閲覧の時間帯別アクティビティ</p>
+            <div id="dev-time-stats"></div>
+          </div>
         </section>
 
         <!-- トップユーザー -->
-        <section class="settings-section">
-          <h2><i class="ti ti-trophy" style="color:#fbbf24"></i> トップユーザー</h2>
-          <div id="dev-top-users"></div>
+        <section class="settings-section dev-stats-collapse">
+          <button class="dev-stats-toggle" onclick="toggleDevStats(this)">
+            <h2 style="margin:0"><i class="ti ti-trophy" style="color:#fbbf24"></i> トップユーザー</h2>
+            <i class="ti ti-chevron-down dev-stats-chev"></i>
+          </button>
+          <div class="dev-stats-body" style="display:none"><div id="dev-top-users"></div></div>
         </section>
 
         <!-- 経済統計（ガチャ・コイン） -->
-        <section class="settings-section">
-          <h2><i class="ti ti-coin" style="color:#d97706"></i> 経済統計</h2>
-          <div id="dev-economy-stats"></div>
+        <section class="settings-section dev-stats-collapse">
+          <button class="dev-stats-toggle" onclick="toggleDevStats(this)">
+            <h2 style="margin:0"><i class="ti ti-coin" style="color:#d97706"></i> 経済統計</h2>
+            <i class="ti ti-chevron-down dev-stats-chev"></i>
+          </button>
+          <div class="dev-stats-body" style="display:none"><div id="dev-economy-stats"></div></div>
         </section>
 
         <!-- ガチャ統計 -->
-        <section class="settings-section">
-          <h2><i class="ti ti-sparkles" style="color:#a855f7"></i> ガチャ統計</h2>
-          <div id="dev-gacha-stats"></div>
+        <section class="settings-section dev-stats-collapse">
+          <button class="dev-stats-toggle" onclick="toggleDevStats(this)">
+            <h2 style="margin:0"><i class="ti ti-sparkles" style="color:#a855f7"></i> ガチャ統計</h2>
+            <i class="ti ti-chevron-down dev-stats-chev"></i>
+          </button>
+          <div class="dev-stats-body" style="display:none"><div id="dev-gacha-stats"></div></div>
         </section>
 
         <!-- 外部投稿統計 -->
-        <section class="settings-section">
-          <h2><i class="ti ti-world" style="color:#6366f1"></i> 外部投稿（NHK・pixiv） </h2>
-          <div id="dev-ext-stats"></div>
+        <section class="settings-section dev-stats-collapse">
+          <button class="dev-stats-toggle" onclick="toggleDevStats(this)">
+            <h2 style="margin:0"><i class="ti ti-world" style="color:#6366f1"></i> 外部投稿（NHK・pixiv）</h2>
+            <i class="ti ti-chevron-down dev-stats-chev"></i>
+          </button>
+          <div class="dev-stats-body" style="display:none"><div id="dev-ext-stats"></div></div>
         </section>
       </div>
     </div>
@@ -1829,8 +1869,8 @@
         <div class="profile-av-wrap" id="user-page-av-wrap">
           <div class="profile-av-lg" id="user-page-av">?</div>
         </div>
-        <!-- 装備ミニ表示（カバー右上） -->
-        <div class="profile-equipment-mini" id="user-page-equipment-mini" title="装備"></div>
+        <!-- 装備ミニ表示（廃止） -->
+        <div class="profile-equipment-mini" id="user-page-equipment-mini" style="display:none"></div>
         <!-- 称号バッジ（アバター右隣） -->
         <div class="profile-av-badges" id="user-page-display-badges" style="display:none"></div>
         <!-- 外部リンク（カバー下・右寄せ） -->
@@ -2209,10 +2249,10 @@
       </div>
     </div>
 
-    <!-- ══ 装備ページ（錬金術師の部屋） ══ -->
-    <div class="page" id="page-equipment">
+    <!-- ══ 装備ページ（廃止 - 非表示） ══ -->
+    <div class="page" id="page-equipment" style="display:none !important">
       <div class="page-header">
-        <h1><i class="ti ti-flask" style="color:#a78bfa"></i> 錬金術師の部屋</h1>
+        <h1><i class="ti ti-flask" style="color:#a78bfa"></i> 装備</h1>
       </div>
       <div class="alchemy-room">
         <!-- 背景演出 -->
@@ -2260,6 +2300,9 @@
     <div class="page" id="page-gacha">
       <div class="page-header">
         <h1><i class="ti ti-sparkles" style="color:var(--accent)"></i> ガチャ</h1>
+        <button onclick="goPage('highlow',null)" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:22px;border:1px solid #fbbf24;background:linear-gradient(135deg,#92400e,#b45309);color:#fef3c7;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(251,191,36,.25)">
+          <i class="ti ti-cards"></i> ハイ&ロー
+        </button>
       </div>
       <div class="gacha-page-body">
         <!-- ヒーローカード -->
@@ -2385,6 +2428,102 @@
       </div>
     </div>
 
+    <!-- ══ HIGH & LOW PAGE ══ -->
+    <div class="page" id="page-highlow">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('gacha',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1 style="background:linear-gradient(135deg,#fbbf24,#f59e0b,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text"><i class="ti ti-cards" style="-webkit-text-fill-color:#fbbf24"></i> ハイ&ロー</h1>
+        <span style="margin-left:auto;color:#fbbf24;font-weight:700"><i class="ti ti-coin"></i> <span id="hl-coin-display">0</span></span>
+      </div>
+      <div class="highlow-page">
+        <div class="hl-table">
+          <div class="hl-felt-decor"></div>
+          <div class="hl-title">HIGH &amp; LOW</div>
+          <div class="hl-subtitle">次のカードは高い？低い？</div>
+
+          <!-- カード表示エリア -->
+          <div class="hl-cards-area">
+            <div class="hl-card-slot">
+              <div class="hl-card-label">現在</div>
+              <div class="hl-card" id="hl-card-current">
+                <div class="hl-card-back"></div>
+              </div>
+            </div>
+            <div class="hl-vs">VS</div>
+            <div class="hl-card-slot">
+              <div class="hl-card-label">次</div>
+              <div class="hl-card" id="hl-card-next">
+                <div class="hl-card-back"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 結果表示 -->
+          <div class="hl-result" id="hl-result"></div>
+
+          <!-- 賭け金エリア -->
+          <div class="hl-bet-area" id="hl-bet-area">
+            <div class="hl-bet-label">賭け金</div>
+            <div class="hl-bet-chips">
+              <button class="hl-chip" onclick="hlSetBet(50)">50</button>
+              <button class="hl-chip" onclick="hlSetBet(100)">100</button>
+              <button class="hl-chip" onclick="hlSetBet(250)">250</button>
+              <button class="hl-chip" onclick="hlSetBet(500)">500</button>
+              <button class="hl-chip" onclick="hlSetBet(1000)">1,000</button>
+              <button class="hl-chip" onclick="hlSetBet(1500)">1,500</button>
+            </div>
+            <div class="hl-bet-display">
+              <input type="number" id="hl-bet-input" min="1" max="1500" value="100" oninput="hlOnBetInput()">
+              <span class="hl-bet-unit">コイン</span>
+            </div>
+            <button class="hl-start-btn" onclick="hlStartGame()">ゲーム開始</button>
+          </div>
+
+          <!-- アクションエリア（ハイ/ロー選択） -->
+          <div class="hl-action-area" id="hl-action-area" style="display:none">
+            <div class="hl-pot">現在の獲得予定: <span id="hl-pot">0</span> コイン</div>
+            <div class="hl-choice-row">
+              <button class="hl-choice-btn hl-high" onclick="hlChoose('high')">
+                <i class="ti ti-arrow-up"></i>
+                <span>HIGH</span>
+                <small>高い</small>
+              </button>
+              <button class="hl-choice-btn hl-low" onclick="hlChoose('low')">
+                <i class="ti ti-arrow-down"></i>
+                <span>LOW</span>
+                <small>低い</small>
+              </button>
+            </div>
+          </div>
+
+          <!-- 勝利後の継続/降りる -->
+          <div class="hl-continue-area" id="hl-continue-area" style="display:none">
+            <div class="hl-win-msg" id="hl-win-msg"></div>
+            <div class="hl-choice-row">
+              <button class="hl-cont-btn hl-cont" onclick="hlContinue()">
+                <i class="ti ti-player-play"></i> 続ける（2倍に挑戦）
+              </button>
+              <button class="hl-cont-btn hl-quit" onclick="hlQuit()">
+                <i class="ti ti-coin"></i> 降りる（受け取る）
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hl-rules">
+          <h4><i class="ti ti-info-circle"></i> ルール</h4>
+          <ul>
+            <li>賭け金上限: <b>1,500コイン</b></li>
+            <li>勝つたびに獲得予定額が <b>2倍</b></li>
+            <li>最大 <b>4回戦</b> まで</li>
+            <li>続けるか降りるか毎回選択可能</li>
+            <li>同じ数字（A〜K）が出たら <b>引き分け</b>（再抽選）</li>
+            <li>負けると賭け金は<b>没収</b></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ DM LIST PAGE ══ -->
     <div class="page" id="page-dm">
       <div class="page-header">
@@ -2427,6 +2566,7 @@
         <button class="back-btn" onclick="goPage('dm',null)"><i class="ti ti-arrow-left"></i></button>
         <h1 id="dm-chat-title">DM</h1>
         <div id="dm-chat-header-badges" style="margin-left:4px;display:flex;gap:3px;align-items:center"></div>
+        <div id="dm-chat-self-acct" style="margin-left:auto"></div>
       </div>
       <div class="dm-messages-area" id="dm-messages-area"></div>
       <div class="dm-input-bar">
@@ -2444,23 +2584,25 @@
         <h1><i class="ti ti-medal" style="color:#f59e0b;vertical-align:-2px"></i> 称号バッジ</h1>
       </div>
       <div class="settings-body">
-        <!-- ガチャ称号バッジ -->
-        <section class="settings-section">
-          <h2><i class="ti ti-sparkles" style="color:#fbbf24"></i> ガチャ称号バッジ <span class="settings-note">（クリックで設定/解除）</span></h2>
-          <div id="gacha-title-current-display" style="margin-bottom:10px"></div>
-          <div id="gacha-title-badges-grid"></div>
-        </section>
-
-        <!-- 選択中スロット -->
-        <section class="settings-section">
-          <h2><i class="ti ti-trophy" style="color:#f59e0b"></i> ランキング入賞バッジ <span class="settings-note">（最大3つ）</span></h2>
+        <!-- ① バッジ設定スロット（最上部） -->
+        <section class="settings-section badge-slots-section">
+          <h2><i class="ti ti-trophy" style="color:#f59e0b"></i> バッジ設定 <span class="settings-note">（最大3つ・クリックで設定/解除）</span></h2>
           <div class="badge-display-slots" id="badge-display-slots">
             <!-- JS で描画 -->
           </div>
+          <p class="badge-slots-hint">下から称号バッジ・ランキング入賞バッジを選択して設定できます。</p>
         </section>
 
-        <!-- 検索・フィルター -->
+        <!-- ② 称号バッジ一覧（ガチャ獲得） -->
         <section class="settings-section">
+          <h2><i class="ti ti-sparkles" style="color:#a855f7"></i> 称号バッジ <span class="settings-note">（ガチャで獲得）</span></h2>
+          <div id="gacha-title-current-display" style="display:none"></div>
+          <div id="gacha-title-badges-grid"></div>
+        </section>
+
+        <!-- ③ ランキング入賞バッジ -->
+        <section class="settings-section">
+          <h2><i class="ti ti-medal" style="color:#f59e0b"></i> ランキング入賞バッジ <span class="settings-note">（ランキング上位で獲得）</span></h2>
           <div class="badge-search-bar">
             <i class="ti ti-search" style="font-size:13px;color:var(--text3)"></i>
             <input type="search" id="badge-search-input" class="badge-search-input" placeholder="カテゴリー・ランク・月で検索..." oninput="filterBadges(this.value)">
@@ -2566,6 +2708,17 @@
     </div>
     <input class="post-input" id="user-announce-title" placeholder="タイトル（必須・50文字以内）" maxlength="50" style="font-size:14px;padding:10px">
     <textarea class="post-input" id="user-announce-message" placeholder="本文（必須・300文字以内）" maxlength="300" rows="4" style="font-size:13px;padding:10px;resize:vertical"></textarea>
+    <!-- 画像添付 -->
+    <div>
+      <input type="file" id="user-announce-img-input" accept="image/*" style="display:none" onchange="handleAnnounceImage(this)">
+      <div id="user-announce-img-preview" style="display:none;position:relative;margin-bottom:8px">
+        <img id="user-announce-img-thumb" src="" style="max-width:100%;max-height:160px;border-radius:8px;display:block;border:1px solid var(--border)">
+        <button type="button" onclick="removeAnnounceImage()" style="position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,.7);color:#fff;cursor:pointer">×</button>
+      </div>
+      <button type="button" class="btn-sm" onclick="document.getElementById('user-announce-img-input').click()" style="display:inline-flex;align-items:center;gap:5px">
+        <i class="ti ti-photo"></i> 画像を添付
+      </button>
+    </div>
     <p style="font-size:11px;color:var(--text3);margin:0">通知をONにしているフォロワーにのみ届きます。</p>
   </div>
   <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;padding:12px 20px">
@@ -2890,7 +3043,12 @@
 <script src="supabase-client.js"></script>
 
 <script src="data.js"></script>
-<script src="app.js"></script>
+<!-- app.js を機能別に分割（読み込み順厳守） -->
+<script src="app-core.js"></script>
+<script src="app-ranking.js"></script>
+<script src="app-social.js"></script>
+<script src="app-gacha.js"></script>
+<script src="app-dev-ads.js"></script>
 </body>
 </html>
 

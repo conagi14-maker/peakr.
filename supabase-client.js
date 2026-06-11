@@ -4,6 +4,69 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const { createClient } = window.supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ══════════════════════════════════════════
+// Supabase Storage（画像・動画アップロード）
+// base64 を DB に直接保存すると容量を圧迫するため、
+// Storage バケット 'post-media' にアップロードして URL を保存する。
+// バケット未作成・失敗時は元の dataURL を返す（後方互換）。
+// ══════════════════════════════════════════
+const STORAGE_BUCKET = 'post-media';
+
+function _dataUrlToBlob(dataUrl) {
+  const [meta, b64] = dataUrl.split(',');
+  const mime = (meta.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+/** dataURL を Storage にアップロードして公開URLを返す。失敗時は元の dataURL を返す */
+async function dbUploadMedia(dataUrl, prefix = 'img') {
+  if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return dataUrl;
+  try {
+    const blob = _dataUrlToBlob(dataUrl);
+    const ext = blob.type.includes('png') ? 'png'
+              : blob.type.includes('webp') ? 'webp'
+              : blob.type.includes('gif') ? 'gif'
+              : blob.type.includes('video') ? 'mp4'
+              : 'jpg';
+    const aid = localStorage.getItem('trendy_account_id') || 'anon';
+    const path = `${aid}/${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const { error } = await db.storage.from(STORAGE_BUCKET).upload(path, blob, {
+      contentType: blob.type,
+      upsert: false,
+    });
+    if (error) {
+      console.warn('[STORAGE] アップロード失敗（base64のまま保存します）:', error.message);
+      return dataUrl;
+    }
+    const { data } = db.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+    return data?.publicUrl || dataUrl;
+  } catch(e) {
+    console.warn('[STORAGE] 例外（base64のまま保存します）:', e);
+    return dataUrl;
+  }
+}
+
+/** media_data（単一 dataURL or JSON配列）を Storage URL に変換 */
+async function dbUploadMediaData(mediaData, prefix = 'post') {
+  if (!mediaData || typeof mediaData !== 'string') return mediaData;
+  const s = mediaData.trim();
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s);
+      if (Array.isArray(arr)) {
+        const out = [];
+        for (const u of arr) out.push(await dbUploadMedia(u, prefix));
+        return JSON.stringify(out);
+      }
+    } catch(e) {}
+    return mediaData;
+  }
+  return dbUploadMedia(mediaData, prefix);
+}
+
 // ── 匿名セッションキー（端末ごとのユーザー識別） ──────────
 function getSessionKey() {
   let key = localStorage.getItem('trendy_session_v1');
@@ -161,7 +224,27 @@ async function dbSavePost({ handle, name, isSub, content, aiType, mediaData, med
   // 画像は Supabase 保存前に圧縮（容量削減）
   let finalMedia = mediaData || null;
   if (mediaData && mediaType === 'image' && typeof _compressImage === 'function') {
-    try { finalMedia = await _compressImage(mediaData, 1080, 1080, 0.82); } catch(e) { /* 圧縮失敗時はそのまま */ }
+    // JSON 配列（複数画像）の場合は各画像を個別に圧縮
+    const isJsonArray = typeof mediaData === 'string' && mediaData.trim().startsWith('[');
+    if (isJsonArray) {
+      try {
+        const arr = JSON.parse(mediaData);
+        if (Array.isArray(arr)) {
+          const compressed = [];
+          for (const u of arr) {
+            try { compressed.push(await _compressImage(u, 1080, 1080, 0.82)); }
+            catch(e) { compressed.push(u); }
+          }
+          finalMedia = JSON.stringify(compressed);
+        }
+      } catch(e) { /* JSON parse 失敗時はそのまま */ }
+    } else {
+      try { finalMedia = await _compressImage(mediaData, 1080, 1080, 0.82); } catch(e) {}
+    }
+  }
+  // Storage にアップロードして URL 参照に変換（DB容量削減）
+  if (finalMedia) {
+    try { finalMedia = await dbUploadMediaData(finalMedia, 'post'); } catch(e) {}
   }
   const { data, error } = await db.from('posts').insert({
     user_handle     : handle    || '@you',
@@ -1687,14 +1770,21 @@ async function dbLoadFavData(accountId) {
 // ══════════════════════════════════════════
 
 /** ユーザー告知を送信（user_announcements テーブル） */
-async function dbSendUserAnnouncement(senderId, title, message, type = 'general') {
+async function dbSendUserAnnouncement(senderId, title, message, type = 'general', imageData = null) {
   if (!senderId || !title || !message) return { ok: false, msg: 'パラメータ不足: ' + JSON.stringify({senderId,title,message}) };
-  const { error } = await db.from('user_announcements').insert({
-    sender_id : senderId,
-    title,
-    message,
-    type,
-  });
+  // 画像があれば圧縮 → Storage アップロード
+  let finalImg = null;
+  if (imageData && typeof _compressImage === 'function') {
+    try { finalImg = await _compressImage(imageData, 1080, 1080, 0.82); } catch(e) { finalImg = imageData; }
+  } else if (imageData) {
+    finalImg = imageData;
+  }
+  if (finalImg) {
+    try { finalImg = await dbUploadMedia(finalImg, 'announce'); } catch(e) {}
+  }
+  const payload = { sender_id: senderId, title, message, type };
+  if (finalImg) payload.image_data = finalImg;
+  const { error } = await db.from('user_announcements').insert(payload);
   if (error) { console.error('[DB] 告知送信エラー:', error.message); return { ok: false, msg: error.message }; }
   return { ok: true };
 }
@@ -1831,8 +1921,37 @@ async function dbGetMyPoints(accountId) {
   const { data } = await db.from('peak_points').select('points,total_earned').eq('account_id', accountId).maybeSingle();
   return data || { points: 0, total_earned: 0 };
 }
-async function dbAddPoints(accountId, amount) {
+// サーバーサイド coin-api が使えるか（初回判定後キャッシュ）
+let _coinApiAvailable = null;
+async function _callCoinApi(action, accountId, amount, reason) {
+  if (_coinApiAvailable === false) return null;
+  try {
+    const res = await fetch('/.netlify/functions/coin-api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, accountId, amount, reason }),
+    });
+    if (res.status === 503 || res.status === 404) {
+      _coinApiAvailable = false; // 未設定 → 以降は直接書き込みにフォールバック
+      return null;
+    }
+    _coinApiAvailable = true;
+    return await res.json();
+  } catch(e) {
+    _coinApiAvailable = false;
+    return null;
+  }
+}
+
+async function dbAddPoints(accountId, amount, reason = 'other') {
   if (!accountId || amount <= 0) return { ok: false, error: '無効なパラメータ' };
+  // サーバーサイド API 優先（日次上限・不正対策）
+  const apiResult = await _callCoinApi('add', accountId, amount, reason);
+  if (apiResult) {
+    if (apiResult.ok) return { ok: true, points: apiResult.points };
+    return { ok: false, error: apiResult.error };
+  }
+  // フォールバック：直接書き込み（ローカル開発・API未設定時）
   const cur = await dbGetMyPoints(accountId);
   const newPoints = (cur.points || 0) + amount;
   const newTotal  = (cur.total_earned || 0) + amount;
@@ -1848,8 +1967,12 @@ async function dbAddPoints(accountId, amount) {
   }
   return { ok: true, points: newPoints };
 }
-async function dbUsePoints(accountId, amount) {
+async function dbUsePoints(accountId, amount, reason = 'spend') {
   if (!accountId || amount <= 0) return false;
+  // サーバーサイド API 優先
+  const apiResult = await _callCoinApi('use', accountId, amount, reason);
+  if (apiResult) return !!apiResult.ok;
+  // フォールバック：直接書き込み
   const cur = await dbGetMyPoints(accountId);
   if ((cur.points || 0) < amount) return false;
   await db.from('peak_points').upsert({
