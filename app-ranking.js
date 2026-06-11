@@ -1916,10 +1916,17 @@ function updateNotifBadge() {
   const mainCount = NOTIFS.filter(n => n.unread).length;
   const subCount  = NOTIFS_SUB.filter(n => n.unread).length;
   const count = mainCount + subCount + _unreadAnnounceCount;
-  const badge = document.querySelector('.nav-badge');
-  if (!badge) return;
-  badge.textContent = count > 99 ? '99+' : count;
-  badge.style.display = count ? '' : 'none';
+  const badge = document.getElementById('notif-nav-badge') || document.querySelector('.nav-badge');
+  if (badge) {
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.style.display = count ? '' : 'none';
+  }
+  // ボトムナビ側のバッジも同期
+  const bBadge = document.getElementById('bnav-notif-badge');
+  if (bBadge) {
+    bBadge.textContent = count > 99 ? '99+' : count;
+    bBadge.style.display = count ? '' : 'none';
+  }
 }
 
 /** 告知の未読数をチェックしてバッジを更新（バックグラウンドで定期実行） */
@@ -1945,179 +1952,255 @@ function markAllNotifsRead() {
   showToast('全ての通知を既読にしました', 'success');
 }
 
-// ── My Page ────────────────────────────────────────────
-function setMyTab(tabId, btn) {
-  btn.closest('.tab-bar').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  ['my-posts','my-favs','my-rank','my-stats'].forEach(id => {
-    document.getElementById(id).style.display = id===tabId ? 'block' : 'none';
-  });
-  if (tabId==='my-posts') renderMyPosts();
-  if (tabId==='my-favs')  renderMyFavs();
-  if (tabId==='my-rank')  renderMyRank();
-  if (tabId==='my-stats') renderMyStats();
+// ── My Page アクセス解析ダッシュボード ─────────────────
+let _dashPeriod = 'week';
+let _dashCache  = null;
+
+function setDashPeriod(period, btn) {
+  _dashPeriod = period;
+  document.querySelectorAll('#mydash-period .mydash-pill').forEach(b =>
+    b.classList.toggle('active', b.dataset.period === period));
+  if (_dashCache) _renderDashBody(_dashCache);
+  else renderMyDashboard();
 }
 
-// ── My Stats ───────────────────────────────────────────
-async function renderMyStats() {
-  const body = document.getElementById('mystats-body');
+async function renderMyDashboard() {
+  const body = document.getElementById('mydash-body');
   if (!body) return;
-
-  body.innerHTML = '<div style="text-align:center;padding:40px 0;color:#94a3b8"><i class="ti ti-loader-2" style="font-size:28px"></i><div style="margin-top:8px;font-size:13px">読み込み中...</div></div>';
-
   const aid = localStorage.getItem('trendy_account_id');
   if (!aid || typeof db === 'undefined') {
-    body.innerHTML = '<div style="text-align:center;padding:40px 0;color:#94a3b8;font-size:14px">ログインが必要です</div>';
+    body.innerHTML = '<div class="mydash-empty">ログインすると解析データが表示されます</div>';
     return;
   }
-
+  body.innerHTML = '<div class="mydash-empty"><i class="ti ti-loader-2"></i> 解析データを読み込み中...</div>';
   try {
-    await _renderMyStatsInner(aid, body);
+    _dashCache = await _fetchDashData(aid);
+    _renderDashBody(_dashCache);
   } catch(e) {
-    console.error('[Stats] エラー:', e);
-    body.innerHTML = '<div style="text-align:center;padding:40px 0;color:#f87171;font-size:14px"><i class="ti ti-alert-circle"></i> データ取得に失敗しました<br><small style="color:#94a3b8">' + (e.message || '') + '</small></div>';
+    console.error('[Dashboard] エラー:', e);
+    body.innerHTML = '<div class="mydash-empty" style="color:var(--red)"><i class="ti ti-alert-circle"></i> データ取得に失敗しました<br><small>' + (e.message || '') + '</small></div>';
   }
 }
 
-async function _renderMyStatsInner(aid, body) {
+async function _fetchDashData(aid) {
   const handle = '@' + aid;
 
-  // ① 全投稿取得（いいね降順）— is_sub フィルターは使わず取得後に除外
-  const { data: allPosts, error: postsError } = await db.from('posts')
-    .select('id, content, likes_count, views_count, cat_id, created_at, is_sub')
-    .eq('user_handle', handle)
-    .order('likes_count', { ascending: false });
-  if (postsError) console.warn('[Stats] 投稿取得エラー:', postsError.message);
-  // is_sub が true のもの（AIサブ投稿）は除外
-  const posts = (allPosts || []).filter(p => !p.is_sub);
+  // ① 自分の投稿（サブ投稿は除外）
+  const { data: postsRaw, error: pErr } = await db.from('posts')
+    .select('id, likes_count, views_count, created_at, is_sub')
+    .eq('user_handle', handle);
+  if (pErr) throw pErr;
+  const posts = (postsRaw || []).filter(p => !p.is_sub);
+  const ids = posts.map(p => String(p.id));
+  const idSet = new Set(ids);
 
-  // ② 今月の投稿数
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const thisMonthCount = posts.filter(p => p.created_at >= monthStart).length;
+  // ② 閲覧・いいね・コメント（自分の投稿に対するもの）
+  let views = [], viewsHasMeta = false, likes = [], comments = [];
+  if (ids.length) {
+    // post_views の created_at / source はマイグレーション後のみ存在
+    let vq = await db.from('post_views').select('post_id, created_at, source').in('post_id', ids);
+    if (vq.error) {
+      vq = await db.from('post_views').select('post_id').in('post_id', ids);
+    } else {
+      viewsHasMeta = true;
+    }
+    views = vq.data || [];
 
-  // ③ 累計いいね・閲覧数
-  const totalLikes = posts.reduce((s, p) => s + (p.likes_count || 0), 0);
-  const totalViews = posts.reduce((s, p) => s + (p.views_count || 0), 0);
-
-  // ④ フォロー数・フォロワー数（アクティブアカウントの情報）
-  const counts = typeof dbFetchFollowCounts === 'function'
-    ? await dbFetchFollowCounts(_activeAid() || aid)
-    : { following: 0, followers: 0 };
-
-  // ⑤ 最高ランク（いいね最多投稿の同カテゴリー内順位）
-  let bestRankText = '-';
-  if (posts.length > 0 && posts[0].cat_id) {
-    const best = posts[0];
-    const { count: aboveCount } = await db.from('posts')
-      .select('*', { count: 'exact', head: true })
-      .eq('cat_id', best.cat_id)
-      .gt('likes_count', best.likes_count || 0);
-    bestRankText = ((aboveCount || 0) + 1).toLocaleString() + '位';
+    const [lq, cq] = await Promise.all([
+      db.from('post_likes').select('post_id, created_at').in('post_id', ids),
+      db.from('comments').select('post_id, created_at, user_handle').in('post_id', ids),
+    ]);
+    likes = lq.data || [];
+    // 自分の投稿への自分の返信はカウントしない
+    comments = (cq.data || []).filter(c => c.user_handle !== handle);
   }
 
-  // ⑥ いいね率
-  const likeRate = totalViews > 0 ? ((totalLikes / totalViews) * 100).toFixed(1) : '0.0';
+  // ③ フォロワー（created_at で期間内の新規が分かる）
+  const { data: fol } = await db.from('follows').select('created_at').eq('following_id', aid);
 
-  // ⑦ カテゴリー名マップ
-  const catMap = {};
-  if (typeof CATS_DATA !== 'undefined') CATS_DATA.forEach(c => { catMap[c.id] = c.name || c.id; });
+  // ④ トラッカー数（現在値）
+  const trackers = typeof dbFetchTrackerCount === 'function' ? await dbFetchTrackerCount(aid) : 0;
 
-  // ⑧ TOP3投稿HTML
-  const topPosts = posts.slice(0, 3);
-  const topPostsHTML = topPosts.length === 0
-    ? '<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:13px">投稿がありません</div>'
-    : topPosts.map((p, i) => `
-      <div class="stats-top-post">
-        <span class="stats-rank-num">#${i + 1}</span>
-        <div class="stats-top-post-body">
-          <div class="stats-top-post-text">${(p.content || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-          <div class="stats-top-post-meta">
-            <span class="stats-cat-badge">${catMap[p.cat_id] || p.cat_id || '-'}</span>
-            <span><i class="ti ti-heart"></i> ${(p.likes_count || 0).toLocaleString()}</span>
-            <span><i class="ti ti-eye"></i> ${(p.views_count || 0).toLocaleString()}</span>
-          </div>
-        </div>
-      </div>`).join('');
+  // ⑤ お気に入り登録された数（全ユーザーの保存リストから自分の投稿を抽出）
+  const { data: savedRows } = await db.from('user_saved_items').select('account_id, saved_tweets');
+  const favs = [];
+  (savedRows || []).forEach(r => {
+    if (!r || r.account_id === aid) return; // 自分の保存は除外
+    (r.saved_tweets || []).forEach(s => {
+      if (s && s.db_id && idSet.has(String(s.db_id))) favs.push({ savedAt: s.savedAt || null });
+    });
+  });
 
-  // ⑨ 閲覧数の表示文字列
-  const viewsLabel = totalViews >= 10000
-    ? (totalViews / 10000).toFixed(1) + '万'
-    : totalViews >= 1000
-      ? (totalViews / 1000).toFixed(1) + 'k'
-      : totalViews.toLocaleString();
+  return { aid, handle, posts, views, viewsHasMeta, likes, comments, follows: fol || [], trackers, favs };
+}
+
+// 期間内/前期間のイベント数を数える
+function _dashCount(arr, since, prevSince, key) {
+  const k = key || 'created_at';
+  let now = 0, prev = 0;
+  arr.forEach(x => {
+    const t = x[k] ? new Date(x[k]).getTime() : null;
+    if (!t) return;
+    if (t >= since) now++;
+    else if (t >= prevSince) prev++;
+  });
+  return { now, prev, total: arr.length };
+}
+
+// 前期間比の表示（▲12% / ▼5% / 新規 / —）
+function _dashDelta(now, prev) {
+  if (now === null) return '';
+  if (prev === 0 && now === 0) return '<span class="mydash-delta flat">—</span>';
+  if (prev === 0) return '<span class="mydash-delta up">▲ 新規</span>';
+  const pct = Math.round(((now - prev) / prev) * 100);
+  if (pct > 0)  return `<span class="mydash-delta up">▲ ${pct}%</span>`;
+  if (pct < 0)  return `<span class="mydash-delta down">▼ ${Math.abs(pct)}%</span>`;
+  return '<span class="mydash-delta flat">±0%</span>';
+}
+
+// 時系列バケット（週=日次7本 / 月=日次30本 / 年=月次12本）
+function _dashBuckets(events, period, key) {
+  const k = key || 'created_at';
+  const out = [];
+  const now = new Date();
+  if (period === 'year') {
+    for (let i = 11; i >= 0; i--) {
+      const d0 = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const d1 = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      out.push({ label: (d0.getMonth() + 1) + '月', from: d0.getTime(), to: d1.getTime(), count: 0 });
+    }
+  } else {
+    const days = period === 'week' ? 7 : 30;
+    for (let i = days - 1; i >= 0; i--) {
+      const d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const d1 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i + 1);
+      out.push({ label: (d0.getMonth() + 1) + '/' + d0.getDate(), from: d0.getTime(), to: d1.getTime(), count: 0 });
+    }
+  }
+  events.forEach(e => {
+    const t = e[k] ? new Date(e[k]).getTime() : null;
+    if (!t) return;
+    for (const b of out) {
+      if (t >= b.from && t < b.to) { b.count++; break; }
+    }
+  });
+  return out;
+}
+
+const _DASH_SRC_LABELS = {
+  home: 'ホーム', dive: 'ダイブ', latest: '新着', ranking: 'ランキング',
+  profile: 'プロフィール', detail: '投稿詳細', favs: 'お気に入り',
+  mypage: 'マイページ', other: 'その他',
+};
+
+function _renderDashBody(d) {
+  const body = document.getElementById('mydash-body');
+  if (!body) return;
+  const period = _dashPeriod;
+  const DAY = 86400000;
+  const spanDays = period === 'week' ? 7 : period === 'month' ? 30 : 365;
+  const since = Date.now() - spanDays * DAY;
+  const prevSince = since - spanDays * DAY;
+  const periodLabel = period === 'week' ? '過去7日' : period === 'month' ? '過去30日' : '過去1年';
+
+  const totalViews = d.posts.reduce((s, p) => s + (p.views_count || 0), 0);
+  const vStat   = d.viewsHasMeta ? _dashCount(d.views, since, prevSince) : null;
+  const lStat   = _dashCount(d.likes, since, prevSince);
+  const cStat   = _dashCount(d.comments, since, prevSince);
+  const fStat   = _dashCount(d.favs, since, prevSince, 'savedAt');
+  const folStat = _dashCount(d.follows, since, prevSince);
+
+  const card = (icon, label, mainVal, deltaHTML, subText) => `
+    <div class="mydash-card">
+      <div class="mydash-card-top">
+        <span class="mydash-card-icon"><i class="ti ti-${icon}"></i></span>
+        <span class="mydash-card-label">${label}</span>
+        ${deltaHTML || ''}
+      </div>
+      <div class="mydash-card-val">${mainVal}</div>
+      <div class="mydash-card-sub">${subText || ''}</div>
+    </div>`;
+
+  const cardsHTML = `
+    <div class="mydash-cards">
+      ${card('eye', '閲覧',
+        vStat ? vStat.now.toLocaleString() : totalViews.toLocaleString(),
+        vStat ? _dashDelta(vStat.now, vStat.prev) : '',
+        vStat ? '累計 ' + totalViews.toLocaleString() : '累計（全期間）')}
+      ${card('heart', 'いいね', lStat.now.toLocaleString(), _dashDelta(lStat.now, lStat.prev), '累計 ' + lStat.total.toLocaleString())}
+      ${card('message-circle', 'コメント', cStat.now.toLocaleString(), _dashDelta(cStat.now, cStat.prev), '累計 ' + cStat.total.toLocaleString())}
+      ${card('star', 'お気に入り', fStat.now.toLocaleString(), _dashDelta(fStat.now, fStat.prev), '累計 ' + fStat.total.toLocaleString())}
+      ${card('users', 'フォロワー', d.follows.length.toLocaleString(), _dashDelta(folStat.now, folStat.prev), periodLabel + 'で +' + folStat.now.toLocaleString())}
+      ${card('radar-2', 'トラッカー', d.trackers.toLocaleString(), '', '現在あなたを追跡中')}
+    </div>`;
+
+  // ── 閲覧数の推移チャート ──
+  let chartHTML;
+  if (d.viewsHasMeta) {
+    const buckets = _dashBuckets(d.views.filter(v => new Date(v.created_at).getTime() >= since), period);
+    const max = Math.max(1, ...buckets.map(b => b.count));
+    const labelEvery = period === 'month' ? 5 : 1;
+    chartHTML = `
+      <div class="mydash-chart">
+        ${buckets.map((b, i) => `
+          <div class="mydash-col" title="${b.label}: ${b.count.toLocaleString()}回">
+            <div class="mydash-colbar" style="height:${Math.max(2, Math.round(b.count / max * 100))}%"></div>
+            <div class="mydash-collabel">${i % labelEvery === 0 ? b.label : ''}</div>
+          </div>`).join('')}
+      </div>`;
+  } else {
+    chartHTML = _dashMigrationNotice();
+  }
+
+  // ── どこで見られた ──
+  let srcHTML;
+  if (d.viewsHasMeta) {
+    const inRange = d.views.filter(v => new Date(v.created_at).getTime() >= since);
+    const bySrc = {};
+    inRange.forEach(v => {
+      const key = v.source || '_pre';
+      bySrc[key] = (bySrc[key] || 0) + 1;
+    });
+    const entries = Object.entries(bySrc).sort((a, b) => b[1] - a[1]);
+    const total = inRange.length;
+    srcHTML = entries.length === 0
+      ? '<div class="mydash-empty">この期間の閲覧データはまだありません</div>'
+      : entries.map(([src, n]) => {
+          const label = src === '_pre' ? '計測開始前' : (_DASH_SRC_LABELS[src] || src);
+          const pct = total ? Math.round(n / total * 100) : 0;
+          return `
+            <div class="mydash-src-row">
+              <span class="mydash-src-label">${label}</span>
+              <div class="mydash-src-track"><div class="mydash-src-fill" style="width:${pct}%"></div></div>
+              <span class="mydash-src-val">${n.toLocaleString()} <small>(${pct}%)</small></span>
+            </div>`;
+        }).join('');
+  } else {
+    srcHTML = _dashMigrationNotice();
+  }
 
   body.innerHTML = `
-  <div class="stats-wrap">
-
-    <div class="stats-period-note"><i class="ti ti-database"></i> リアルタイムデータ</div>
-
-    <!-- サマリーカード -->
-    <div class="stats-cards">
-      <div class="stats-card">
-        <div class="stats-card-icon" style="background:#ede9fe;color:#7c3aed"><i class="ti ti-users"></i></div>
-        <div class="stats-card-body">
-          <div class="stats-card-label">フォロワー数</div>
-          <div class="stats-card-val">${counts.followers.toLocaleString()} <span class="stats-card-sub">人</span></div>
-        </div>
-      </div>
-      <div class="stats-card">
-        <div class="stats-card-icon" style="background:#dbeafe;color:#1d4ed8"><i class="ti ti-eye"></i></div>
-        <div class="stats-card-body">
-          <div class="stats-card-label">累計閲覧数</div>
-          <div class="stats-card-val">${viewsLabel} <span class="stats-card-sub">回</span></div>
-        </div>
-      </div>
-      <div class="stats-card">
-        <div class="stats-card-icon" style="background:#dcfce7;color:#16a34a"><i class="ti ti-pencil"></i></div>
-        <div class="stats-card-body">
-          <div class="stats-card-label">今月の投稿数</div>
-          <div class="stats-card-val">${thisMonthCount.toLocaleString()} <span class="stats-card-sub">件</span></div>
-        </div>
-      </div>
-      <div class="stats-card">
-        <div class="stats-card-icon" style="background:#fce7f3;color:#be185d"><i class="ti ti-heart"></i></div>
-        <div class="stats-card-body">
-          <div class="stats-card-label">累計いいね数</div>
-          <div class="stats-card-val">${totalLikes.toLocaleString()} <span class="stats-card-sub">件</span></div>
-        </div>
-      </div>
+    ${cardsHTML}
+    <div class="mydash-section">
+      <div class="mydash-sec-title"><i class="ti ti-chart-bar"></i> 閲覧数の推移 <span class="mydash-sec-sub">${periodLabel}</span></div>
+      ${chartHTML}
     </div>
+    <div class="mydash-section">
+      <div class="mydash-sec-title"><i class="ti ti-map-pin"></i> どこで見られた <span class="mydash-sec-sub">${periodLabel}</span></div>
+      ${srcHTML}
+    </div>`;
+}
 
-    <!-- 投稿パフォーマンス -->
-    <div class="stats-section">
-      <div class="stats-section-title"><i class="ti ti-trophy"></i> 投稿パフォーマンス TOP3</div>
-      <div class="stats-top-posts">${topPostsHTML}</div>
-    </div>
-
-    <!-- エンゲージメント -->
-    <div class="stats-section">
-      <div class="stats-section-title"><i class="ti ti-activity"></i> エンゲージメント</div>
-      <div class="stats-engagement-row">
-        <div class="stats-eng-item">
-          <div class="stats-eng-val">${likeRate}%</div>
-          <div class="stats-eng-label">いいね率</div>
-        </div>
-        <div class="stats-eng-item">
-          <div class="stats-eng-val">${posts.length.toLocaleString()}</div>
-          <div class="stats-eng-label">総投稿数</div>
-        </div>
-        <div class="stats-eng-item">
-          <div class="stats-eng-val">${bestRankText}</div>
-          <div class="stats-eng-label">最高ランキング</div>
-        </div>
-        <div class="stats-eng-item">
-          <div class="stats-eng-val">${counts.following.toLocaleString()}</div>
-          <div class="stats-eng-label">フォロー中</div>
-        </div>
-      </div>
-    </div>
-
+function _dashMigrationNotice() {
+  return `<div class="mydash-empty">
+    <i class="ti ti-database-cog"></i> この解析には DB マイグレーションが必要です<br>
+    <small>sql/analytics-dashboard.sql を Supabase SQL Editor で実行してください</small>
   </div>`;
 }
 
 function renderMyPosts() {
   const feed = document.getElementById('mypost-feed');
+  if (!feed) return; // ダッシュボード化でマイページから投稿一覧は撤去済み
   const activeHandle = testActiveUser ? testActiveUser.h : null;
   const isSub = myAccountType === 'sub' && hasSubAccount;
   const posts = myPosts.filter(t =>
@@ -2151,6 +2234,7 @@ function renderMyFavs() {
 
 function renderMyRank() {
   const feed = document.getElementById('myrank-feed');
+  if (!feed) return; // ダッシュボード化でマイページからランキング入りは撤去済み
   if (!myPosts.length) {
     feed.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text3)">
       <i class="ti ti-trophy" style="font-size:32px;display:block;margin-bottom:10px"></i>

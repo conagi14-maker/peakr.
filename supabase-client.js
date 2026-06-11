@@ -887,10 +887,24 @@ async function dbFetchViewedPostIds(accountId) {
   return (data || []).map(r => r.post_id);
 }
 
-/** 閲覧数カウント（アカウントごとに1回のみ・DB側で重複防止） */
-async function dbIncrementView(postDbId, accountId) {
+/** 閲覧数カウント（アカウントごとに1回のみ・DB側で重複防止）
+ *  source: どの画面で見られたか（home/dive/latest/ranking/profile/detail など）
+ *  ※ sql/analytics-dashboard.sql 未実行の環境では自動的に旧2引数RPCへフォールバック */
+let _viewRpcHasSource = true;
+async function dbIncrementView(postDbId, accountId, source) {
   if (!postDbId || !accountId) return;
   try {
+    if (_viewRpcHasSource) {
+      const { error } = await db.rpc('increment_views_once', {
+        p_post_id: String(postDbId), p_account_id: accountId, p_source: source || null,
+      });
+      // 関数が見つからない（マイグレーション未実行）→ 旧形式に切り替え
+      if (error && /function|p_source|schema cache/i.test(error.message || '')) {
+        _viewRpcHasSource = false;
+      } else {
+        return;
+      }
+    }
     await db.rpc('increment_views_once', { p_post_id: String(postDbId), p_account_id: accountId });
   } catch(e) { /* silent */ }
 }

@@ -28,6 +28,7 @@
       <span class="logo-text">Trendy</span>
     </div>
     <nav class="sidebar-nav">
+      <div class="nav-section-label">みつける</div>
       <button class="nav-item active" data-page="home" onclick="goPage('home',this)">
         <i class="ti ti-home"></i><span>ホーム</span>
       </button>
@@ -40,30 +41,33 @@
       <button class="nav-item" data-page="latest" onclick="goPage('latest',this)">
         <i class="ti ti-clock"></i><span>新着</span>
       </button>
+      <div class="nav-section-label">つながる</div>
       <button class="nav-item" data-page="notif" onclick="goPage('notif',this)">
         <i class="ti ti-bell"></i><span>通知</span>
-        <span class="nav-badge" style="display:none"></span>
-      </button>
-      <button class="nav-item" data-page="follows" onclick="goPage('follows',this)">
-        <i class="ti ti-users"></i><span>フォロー</span>
-      </button>
-      <button class="nav-item" data-page="tracks" onclick="goPage('tracks',this)">
-        <i class="ti ti-radar-2"></i><span>トラック</span>
-      </button>
-      <button class="nav-item" data-page="favs" onclick="goPage('favs',this)">
-        <i class="ti ti-star"></i><span>お気に入り</span>
-      </button>
-      <button class="nav-item" data-page="mypage" onclick="goPage('mypage',this)">
-        <i class="ti ti-user"></i><span>マイページ</span>
+        <span class="nav-badge" id="notif-nav-badge" style="display:none"></span>
       </button>
       <button class="nav-item" data-page="dm" onclick="goPage('dm',this)">
         <i class="ti ti-mail"></i><span>DM</span>
         <span class="nav-badge" id="dm-nav-badge" style="display:none"></span>
       </button>
+      <button class="nav-item" data-page="follows" onclick="goPage('follows',this)">
+        <i class="ti ti-users"></i><span>フォロー</span>
+      </button>
+      <div class="nav-section-label">あなた</div>
+      <button class="nav-item" data-page="mypage" onclick="goPage('mypage',this)">
+        <i class="ti ti-user"></i><span>マイページ</span>
+      </button>
+      <button class="nav-item" data-page="favs" onclick="goPage('favs',this)">
+        <i class="ti ti-star"></i><span>お気に入り</span>
+      </button>
+      <button class="nav-item" data-page="tracks" onclick="goPage('tracks',this)">
+        <i class="ti ti-radar-2"></i><span>トラック</span>
+      </button>
       <button class="nav-item" data-page="gacha" onclick="goPage('gacha',this)">
         <i class="ti ti-dice"></i><span>ガチャ</span>
         <span class="nav-badge" id="gacha-nav-badge" style="display:none"></span>
       </button>
+      <div class="nav-section-label">その他</div>
       <button class="nav-item" data-page="feedback" onclick="goPage('feedback',this)">
         <i class="ti ti-bulb"></i><span>意見箱</span>
       </button>
@@ -134,7 +138,7 @@
               <i class="ti ti-alert-triangle"></i> サブマークが付きます
             </span>
           </div>
-          <textarea id="compose-input" placeholder="いまどうしてる？" rows="2" oninput="updateCompose()"></textarea>
+          <textarea id="compose-input" placeholder="いま気になるトレンドをシェアしよう" rows="2" oninput="updateCompose()"></textarea>
           <!-- 添付メディアプレビュー -->
           <div class="compose-media-preview" id="compose-media-preview" style="display:none">
             <div class="compose-media-inner" id="compose-media-inner"></div>
@@ -237,12 +241,14 @@
     <div class="page" id="page-recommend">
       <div class="page-header">
         <h1><i class="ti ti-sparkles" style="font-size:20px;vertical-align:-2px;margin-right:6px;color:var(--accent)"></i>ダイブ</h1>
+        <!-- コイン表示はダイブへの集中を妨げるため非表示（加算は裏で継続・残高はガチャページで確認可能）
         <div class="dive-coin-display" id="dive-coin-display" style="margin-left:auto">
           <i class="ti ti-coin"></i>
           <span id="dive-coin-count">0</span>
           <span style="font-size:11px;opacity:0.7">コイン</span>
           <span class="dive-coin-plus" id="dive-coin-plus"></span>
         </div>
+        -->
       </div>
       <!-- 統合フィルターバー（1行） -->
       <div class="dive-filter-bar" id="dive-filter-bar">
@@ -611,17 +617,18 @@
         </div>
       </div>
 
-      <!-- タブ -->
-      <div class="tab-bar" id="mypage-tabs">
-        <button class="tab-btn active" onclick="setMyTab('my-posts',this)">投稿</button>
-        <button class="tab-btn" onclick="setMyTab('my-favs',this)">お気に入り</button>
-        <button class="tab-btn" onclick="setMyTab('my-rank',this)">ランキング入り</button>
-        <button class="tab-btn" onclick="setMyTab('my-stats',this)"><i class="ti ti-chart-bar" style="font-size:13px;vertical-align:-1px"></i> 統計</button>
+      <!-- アクセス解析ダッシュボード -->
+      <div class="mydash" id="my-dashboard">
+        <div class="mydash-head">
+          <span class="mydash-title"><i class="ti ti-chart-dots"></i> アクセス解析</span>
+          <div class="mydash-period" id="mydash-period">
+            <button class="mydash-pill active" data-period="week" onclick="setDashPeriod('week',this)">週</button>
+            <button class="mydash-pill" data-period="month" onclick="setDashPeriod('month',this)">月</button>
+            <button class="mydash-pill" data-period="year" onclick="setDashPeriod('year',this)">年</button>
+          </div>
+        </div>
+        <div id="mydash-body"></div>
       </div>
-      <div id="my-posts"><div id="mypost-feed"></div></div>
-      <div id="my-favs" style="display:none"><div id="myfav-feed"></div></div>
-      <div id="my-rank" style="display:none"><div id="myrank-feed"></div></div>
-      <div id="my-stats" style="display:none"><div id="mystats-body"></div></div>
     </div>
 
     <!-- FOLLOWS PAGE -->
@@ -2422,7 +2429,7 @@
           </div>
           <div class="gacha-howto-item">
             <i class="ti ti-sparkles"></i>
-            <span>ダイブでつぶやきを見るたびに <b>+1コイン</b></span>
+            <span>ダイブで1つスクロールするたびに <b>+1コイン</b></span>
           </div>
         </div>
       </div>
@@ -2663,6 +2670,31 @@
   </main>
 </div>
 
+<!-- モバイル：ボトムナビゲーション -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bnav-item active" data-page="home" onclick="goPage('home',null)">
+    <i class="ti ti-home"></i><span>ホーム</span>
+  </button>
+  <button class="bnav-item" data-page="recommend" onclick="goPage('recommend',null)">
+    <i class="ti ti-sparkles"></i><span>ダイブ</span>
+  </button>
+  <button class="bnav-item" data-page="ranking" onclick="goPage('ranking',null)">
+    <i class="ti ti-trophy"></i><span>ランキング</span>
+  </button>
+  <button class="bnav-item" data-page="notif" onclick="goPage('notif',null)">
+    <i class="ti ti-bell"></i><span>通知</span>
+    <span class="bnav-badge" id="bnav-notif-badge" style="display:none"></span>
+  </button>
+  <button class="bnav-item" data-page="mypage" onclick="goPage('mypage',null)">
+    <i class="ti ti-user"></i><span>マイページ</span>
+  </button>
+</nav>
+
+<!-- モバイル：クイック投稿FAB -->
+<button class="fab-compose" id="fab-compose" onclick="fabCompose()" aria-label="投稿する">
+  <i class="ti ti-pencil-plus"></i>
+</button>
+
 <!-- HOME SEARCH OVERLAY -->
 <div class="home-search-overlay" id="home-search-overlay" style="display:none">
   <div class="home-search-panel">
@@ -2670,7 +2702,7 @@
       <div class="home-search-field">
         <i class="ti ti-search hs-icon"></i>
         <input type="text" id="home-search-input" class="home-search-input"
-               placeholder="アカウントやつぶやきを検索..."
+               placeholder="アカウントや投稿を検索..."
                autocomplete="off" spellcheck="false"
                oninput="onHomeSearchInput()"
                onkeydown="if(event.key==='Escape')closeHomeSearch()">
@@ -2679,14 +2711,6 @@
         </button>
       </div>
       <button class="hs-cancel-btn" onclick="closeHomeSearch()">キャンセル</button>
-    </div>
-    <div class="hs-tabs">
-      <button class="hs-tab active" id="hs-tab-posts" onclick="setHomeSearchTab('posts',this)">
-        <i class="ti ti-message"></i> つぶやき
-      </button>
-      <button class="hs-tab" id="hs-tab-accounts" onclick="setHomeSearchTab('accounts',this)">
-        <i class="ti ti-users"></i> アカウント
-      </button>
     </div>
     <div id="home-search-results" class="hs-results"></div>
   </div>
@@ -2851,7 +2875,7 @@
 <div class="modal-overlay" id="tweet-detail-overlay" onclick="closeTweetDetail()"></div>
 <div class="modal tweet-detail-modal" id="tweet-detail-modal">
   <div class="modal-header">
-    <span class="modal-title">つぶやき詳細</span>
+    <span class="modal-title">投稿の詳細</span>
     <button class="btn-icon" onclick="closeTweetDetail()"><i class="ti ti-x"></i></button>
   </div>
   <div class="tweet-detail-body" id="tweet-detail-body"></div>

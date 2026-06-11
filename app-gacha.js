@@ -2340,14 +2340,17 @@ function saveSettingsEdit() {
 // ホーム検索
 // ══════════════════════════════════════════
 
-let _hsTab       = 'posts';   // 'posts' | 'accounts'
-let _hsTimer     = null;
-let _hsPostCache = [];        // 検索結果の投稿を一時保存（index で参照）
+let _hsTimer       = null;
+let _hsPostCache   = [];      // 検索結果の投稿を一時保存（index で参照）
+let _hsAccExpanded = false;   // アカウント結果の「すべて表示」状態
+let _hsLastResult  = null;    // 再描画用キャッシュ { accounts, posts, q }
 
 function openHomeSearch() {
   const overlay = document.getElementById('home-search-overlay');
   if (!overlay) return;
   overlay.style.display = 'flex';
+  const q = (document.getElementById('home-search-input')?.value || '').trim();
+  if (!q) _hsShowHint();
   setTimeout(() => document.getElementById('home-search-input')?.focus(), 60);
 }
 
@@ -2361,15 +2364,18 @@ function clearHomeSearch() {
   const input = document.getElementById('home-search-input');
   if (input) { input.value = ''; input.focus(); }
   document.getElementById('hs-clear-btn').style.display = 'none';
-  document.getElementById('home-search-results').innerHTML = '';
+  _hsShowHint();
 }
 
-function setHomeSearchTab(tab, btn) {
-  _hsTab = tab;
-  document.querySelectorAll('.hs-tab').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  const q = (document.getElementById('home-search-input')?.value || '').trim();
-  if (q) _runHomeSearch(q);
+/* 未入力時のガイド表示 */
+function _hsShowHint() {
+  const results = document.getElementById('home-search-results');
+  if (!results) return;
+  results.innerHTML = `<div class="hs-hint">
+    <i class="ti ti-search"></i>
+    <div class="hs-hint-title">投稿とアカウントをまとめて検索</div>
+    <div class="hs-hint-sub">キーワード・名前・カテゴリーで探せます</div>
+  </div>`;
 }
 
 function onHomeSearchInput() {
@@ -2377,7 +2383,7 @@ function onHomeSearchInput() {
   const clrBtn = document.getElementById('hs-clear-btn');
   if (clrBtn) clrBtn.style.display = q ? '' : 'none';
   clearTimeout(_hsTimer);
-  if (!q) { document.getElementById('home-search-results').innerHTML = ''; return; }
+  if (!q) { _hsShowHint(); return; }
   _hsTimer = setTimeout(() => _runHomeSearch(q), 280);
 }
 
@@ -2385,13 +2391,20 @@ async function _runHomeSearch(q) {
   const results = document.getElementById('home-search-results');
   if (!results) return;
   results.innerHTML = `<div class="hs-loading"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite;font-size:24px"></i></div>`;
-  if (_hsTab === 'accounts') {
-    const data = await dbSearchProfiles(q);
-    _renderHsAccounts(data, q);
-  } else {
-    const data = await dbSearchPosts(q);
-    _renderHsPosts(data, q);
-  }
+  // 投稿とアカウントを同時に検索
+  const [accounts, posts] = await Promise.all([
+    dbSearchProfiles(q),
+    dbSearchPosts(q),
+  ]);
+  _hsAccExpanded = false;
+  _hsLastResult = { accounts: accounts || [], posts: posts || [], q };
+  _renderHsCombined();
+}
+
+/* アカウント「すべて表示」 */
+function _hsExpandAccounts() {
+  _hsAccExpanded = true;
+  _renderHsCombined();
 }
 
 function _hsEsc(s) {
@@ -2404,66 +2417,90 @@ function _hsHighlight(text, q) {
   return esc.replace(re, '<mark class="hs-mark">$1</mark>');
 }
 
-function _renderHsAccounts(data, q) {
-  const results = document.getElementById('home-search-results');
-  if (!results) return;
-  if (!data.length) {
-    results.innerHTML = `<div class="hs-empty"><i class="ti ti-user-off"></i><div>「${_hsEsc(q)}」のアカウントが見つかりません</div></div>`;
-    return;
-  }
-  const myId = localStorage.getItem('trendy_account_id');
-  results.innerHTML = data.map(p => {
-    const avContent = p.avatar_data
-      ? `<img src="${p.avatar_data}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-      : `<span style="font-size:15px;font-weight:700">${(p.nickname||p.account_id||'?').slice(0,1)}</span>`;
-    const isSelf = p.account_id === myId;
-    const isFollowing = followingSet && followingSet.has('@' + p.account_id);
-    const followBtn = !isSelf
-      ? `<button class="hs-follow-btn${isFollowing ? ' hs-following' : ''}"
-           onclick="event.stopPropagation();_hsToggleFollow('${p.account_id}',this)">
-           ${isFollowing ? 'フォロー中' : 'フォロー'}
-         </button>`
-      : '';
-    return `<div class="hs-user-item" onclick="openUserPage('@${p.account_id}');closeHomeSearch()">
-      <div class="hs-av">${avContent}</div>
-      <div class="hs-user-info">
-        <div class="hs-nickname">${_hsHighlight(p.nickname || p.account_id, q)}</div>
-        <div class="hs-handle">@${_hsEsc(p.account_id)}</div>
-        ${p.bio ? `<div class="hs-bio">${_hsEsc((p.bio||'').slice(0,50))}${(p.bio||'').length>50?'…':''}</div>` : ''}
-      </div>
-      ${followBtn}
-    </div>`;
-  }).join('');
+/* アカウント1行のHTML */
+function _hsUserRowHTML(p, q, myId) {
+  const avContent = p.avatar_data
+    ? `<img src="${p.avatar_data}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+    : `<span style="font-size:15px;font-weight:700">${(p.nickname||p.account_id||'?').slice(0,1)}</span>`;
+  const isSelf = p.account_id === myId;
+  const isFollowing = followingSet && followingSet.has('@' + p.account_id);
+  const followBtn = !isSelf
+    ? `<button class="hs-follow-btn${isFollowing ? ' hs-following' : ''}"
+         onclick="event.stopPropagation();_hsToggleFollow('${p.account_id}',this)">
+         ${isFollowing ? 'フォロー中' : 'フォロー'}
+       </button>`
+    : '';
+  return `<div class="hs-user-item" onclick="openUserPage('@${p.account_id}');closeHomeSearch()">
+    <div class="hs-av">${avContent}</div>
+    <div class="hs-user-info">
+      <div class="hs-nickname">${_hsHighlight(p.nickname || p.account_id, q)}</div>
+      <div class="hs-handle">@${_hsEsc(p.account_id)}</div>
+      ${p.bio ? `<div class="hs-bio">${_hsEsc((p.bio||'').slice(0,50))}${(p.bio||'').length>50?'…':''}</div>` : ''}
+    </div>
+    ${followBtn}
+  </div>`;
 }
 
-function _renderHsPosts(data, q) {
+/* 投稿1件のHTML（i は _hsPostCache のインデックス） */
+function _hsPostRowHTML(p, i, q) {
+  const diff = Date.now() - new Date(p.created_at).getTime();
+  const m = Math.floor(diff/60000);
+  const timeStr = m < 60 ? `${m}分前` : m < 1440 ? `${Math.floor(m/60)}時間前` : `${Math.floor(m/1440)}日前`;
+  const avChar = (p.user_name || p.user_handle || '?').replace(/^@/,'').slice(0,1).toUpperCase();
+  const hasImg = p.media_type === 'image' && p.media_data;
+  return `<div class="hs-post-item" onclick="_hsOpenPost(${i})">
+    <div class="hs-post-av">${avChar}</div>
+    <div class="hs-post-body">
+      <div class="hs-post-header">
+        <span class="hs-post-name">${_hsEsc(p.user_name||p.user_handle)}</span>
+        <span class="hs-post-handle">${_hsEsc(p.user_handle)}</span>
+        <span class="hs-post-time">${timeStr}</span>
+      </div>
+      <div class="hs-post-content">${_hsHighlight(p.content, q)}</div>
+      ${hasImg ? `<div class="hs-post-img"><img src="${p.media_data}" alt="" loading="lazy"></div>` : ''}
+      <div class="hs-post-meta"><i class="ti ti-heart"></i> ${p.likes_count||0} <span class="hs-meta-sep"></span><i class="ti ti-eye"></i> ${p.views_count||0}</div>
+    </div>
+  </div>`;
+}
+
+/* 投稿+アカウントの同時表示 */
+const HS_ACC_PREVIEW = 4; // 折りたたみ時に見せるアカウント数
+function _renderHsCombined() {
   const results = document.getElementById('home-search-results');
-  if (!results) return;
-  if (!data.length) {
-    results.innerHTML = `<div class="hs-empty"><i class="ti ti-message-off"></i><div>「${_hsEsc(q)}」のつぶやきが見つかりません</div></div>`;
+  if (!results || !_hsLastResult) return;
+  const { accounts, posts, q } = _hsLastResult;
+  const myId = localStorage.getItem('trendy_account_id');
+
+  if (!accounts.length && !posts.length) {
+    results.innerHTML = `<div class="hs-empty"><i class="ti ti-zoom-question"></i><div>「${_hsEsc(q)}」に一致する投稿・アカウントが見つかりません</div></div>`;
     return;
   }
-  _hsPostCache = data; // インデックスで参照できるようにキャッシュ
-  results.innerHTML = data.map((p, i) => {
-    const diff = Date.now() - new Date(p.created_at).getTime();
-    const m = Math.floor(diff/60000);
-    const timeStr = m < 60 ? `${m}分前` : m < 1440 ? `${Math.floor(m/60)}時間前` : `${Math.floor(m/1440)}日前`;
-    const avChar = (p.user_name || p.user_handle || '?').replace(/^@/,'').slice(0,1).toUpperCase();
-    const hasImg = p.media_type === 'image' && p.media_data;
-    return `<div class="hs-post-item" onclick="_hsOpenPost(${i})">
-      <div class="hs-post-av">${avChar}</div>
-      <div class="hs-post-body">
-        <div class="hs-post-header">
-          <span class="hs-post-name">${_hsEsc(p.user_name||p.user_handle)}</span>
-          <span class="hs-post-handle">${_hsEsc(p.user_handle)}</span>
-          <span class="hs-post-time">${timeStr}</span>
-        </div>
-        <div class="hs-post-content">${_hsHighlight(p.content, q)}</div>
-        ${hasImg ? `<div class="hs-post-img"><img src="${p.media_data}" alt="" loading="lazy"></div>` : ''}
-        <div class="hs-post-meta"><i class="ti ti-heart"></i> ${p.likes_count||0}</div>
-      </div>
+
+  let html = '';
+
+  // ── アカウントセクション ──
+  if (accounts.length) {
+    const shown = _hsAccExpanded ? accounts : accounts.slice(0, HS_ACC_PREVIEW);
+    const moreBtn = !_hsAccExpanded && accounts.length > HS_ACC_PREVIEW
+      ? `<button class="hs-more-btn" onclick="_hsExpandAccounts()">残り${accounts.length - HS_ACC_PREVIEW}人をすべて表示 <i class="ti ti-chevron-down"></i></button>`
+      : '';
+    html += `<div class="hs-section">
+      <div class="hs-sec-head"><i class="ti ti-users"></i> アカウント <span class="hs-sec-count">${accounts.length}</span></div>
+      ${shown.map(p => _hsUserRowHTML(p, q, myId)).join('')}
+      ${moreBtn}
     </div>`;
-  }).join('');
+  }
+
+  // ── 投稿セクション ──
+  if (posts.length) {
+    _hsPostCache = posts;
+    html += `<div class="hs-section">
+      <div class="hs-sec-head"><i class="ti ti-message"></i> 投稿 <span class="hs-sec-count">${posts.length}</span></div>
+      ${posts.map((p, i) => _hsPostRowHTML(p, i, q)).join('')}
+    </div>`;
+  }
+
+  results.innerHTML = html;
 }
 
 function _hsOpenPost(cacheIdx) {

@@ -208,6 +208,16 @@ let _viewObserver = null;
 let _viewMutObs   = null;
 let _viewObsTimer = null;
 
+/** カードがどの画面で表示されたか（アクセス解析の「どこで見られた」用） */
+function _viewSourceOf(el) {
+  if (el.closest('#tweet-detail-modal')) return 'detail';
+  const pg = el.closest('.page');
+  if (!pg) return 'other';
+  const id = (pg.id || '').replace(/^page-/, '');
+  const map = { home: 'home', latest: 'latest', recommend: 'dive', ranking: 'ranking', user: 'profile' };
+  return map[id] || id || 'other';
+}
+
 /** data-db-id 付きの未観測カードを IntersectionObserver に登録 */
 function _observeCards() {
   if (!_viewObserver) return;
@@ -238,8 +248,8 @@ function _initViewObserver() {
       // ローカル _tc の views を +1
       const t = _tc.find(x => String(x.db_id) === dbId);
       if (t) t.views = (t.views || 0) + 1;
-      // Supabase へ送信（DB側でも重複防止）
-      if (typeof dbIncrementView === 'function') dbIncrementView(dbId, aid);
+      // Supabase へ送信（DB側でも重複防止）。どの画面で見られたかも記録
+      if (typeof dbIncrementView === 'function') dbIncrementView(dbId, aid, _viewSourceOf(el));
       // 推しレベル更新（推しユーザーの投稿のみ）
       if (t && t.user && t.user.h && typeof dbUpdateFanLevel === 'function') {
         const authorId = t.user.h.startsWith('@') ? t.user.h.slice(1) : t.user.h;
@@ -415,15 +425,24 @@ function goPage(id, btn) {
 
   // DM チャット以外のページに移動したらポーリングを止める
   if (id !== 'dm-chat') _stopDmPoll();
+  // ダイブを離れるときに未送信のコインをフラッシュ
+  if (id !== 'recommend' && typeof _flushReelCoins === 'function') _flushReelCoins();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   const pg = document.getElementById('page-'+id);
   if (pg) pg.classList.add('active');
   if (btn) btn.classList.add('active');
   else {
-    const nb = document.querySelector(`[data-page="${id}"]`);
+    const nb = document.querySelector(`.nav-item[data-page="${id}"]`);
     if (nb) nb.classList.add('active');
   }
+  // ── ボトムナビのアクティブ状態を同期 ──
+  document.querySelectorAll('.bnav-item').forEach(b =>
+    b.classList.toggle('active', b.dataset.page === id));
+  // DMチャット中はボトムナビを隠す（入力欄と重なるため）
+  document.body.classList.toggle('bnav-hidden', id === 'dm-chat');
+  // ダイブ（リール画面）ではFABを隠す
+  document.body.classList.toggle('fab-hidden', id === 'dm-chat' || id === 'recommend');
   if (id === 'test')         renderTestPage();
   if (id === 'dev')          renderDevPage();
   if (id === 'dev-brand')    renderDevBrandSection();
@@ -446,6 +465,7 @@ function goPage(id, btn) {
     _refreshMypageStats(); loadUserFavorites(); _loadMypageSocialLinks(); _updateMypageMeta(); _renderDisplayBadges();
     renderProfileEquipmentMini(localStorage.getItem('trendy_account_id'), 'mypage-equipment-mini');
     _renderMyTrackerStats();
+    if (typeof renderMyDashboard === 'function') renderMyDashboard();
     const _le = document.getElementById('mypage-like-emoji-current');
     if (_le) _le.textContent = myLikeEmoji;
     const _tb = document.getElementById('mypage-title-current');
@@ -479,6 +499,18 @@ function goPage(id, btn) {
   if (id === 'register') { registerStep(1); }
   if (id === 'login')    { /* single-screen */ }
   if (id === 'sub-create') subCreateStep(1);
+}
+
+// ── クイック投稿FAB：ホームのコンポーズへジャンプしてフォーカス ──
+function fabCompose() {
+  goPage('home', null);
+  setTimeout(() => {
+    const ta = document.getElementById('compose-input');
+    if (ta) {
+      ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      ta.focus({ preventScroll: true });
+    }
+  }, 80);
 }
 
 function pillActive(btn, groupId) {
@@ -743,6 +775,52 @@ function setDiveCat(catId) {
   if (reel) reel.innerHTML = '';
   _loadRecommendFeed(true);
 }
+
+// ── ダイブ: 1スクロール（1カード表示）ごとに +1コイン ──────
+let _reelCoinObserver   = null;
+let _reelCoinBuffer     = 0;     // DB未送信のコイン
+let _reelCoinFlushTimer = null;
+
+/** バッファに溜めたコインをまとめてDBへ送信（スクロール連打でAPIを叩きすぎない） */
+function _flushReelCoins() {
+  clearTimeout(_reelCoinFlushTimer);
+  _reelCoinFlushTimer = null;
+  const amount = _reelCoinBuffer;
+  if (!amount) return;
+  _reelCoinBuffer = 0;
+  const aid = localStorage.getItem('trendy_account_id');
+  if (aid && typeof dbAddPoints === 'function') {
+    dbAddPoints(aid, amount, 'dive').catch(() => {});
+  }
+}
+
+/** カードが画面に表示された瞬間に+1（カードごとに1回だけ） */
+function _awardReelScrollCoin(card) {
+  if (card.dataset.coined) return;
+  card.dataset.coined = '1';
+  if (recommendSearchQuery.trim()) return; // 検索中は対象外（同じ投稿を再表示できるため）
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) return;
+  _myPoints += 1;
+  _reelCoinBuffer += 1;
+  _updateDiveCoinDisplay(1);
+  const coinEl = document.getElementById('gacha-ticket-count');
+  if (coinEl) coinEl.textContent = _myPoints.toLocaleString();
+  clearTimeout(_reelCoinFlushTimer);
+  _reelCoinFlushTimer = setTimeout(_flushReelCoins, 1500);
+}
+
+function _initReelCoinObserver() {
+  if (_reelCoinObserver) return;
+  _reelCoinObserver = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (en.isIntersecting) _awardReelScrollCoin(en.target);
+    });
+  }, { threshold: 0.6 });
+}
+
+// ページ離脱時も未送信分を取りこぼさない（ベストエフォート）
+window.addEventListener('beforeunload', () => { try { _flushReelCoins(); } catch(e) {} });
 
 // ── ダイブのコイン残高表示 & +N アニメーション ──
 function _updateDiveCoinDisplay(plusAmount) {
@@ -1405,19 +1483,12 @@ function _renderRecommendSlice() {
   });
   recommendLoaded += slice.length;
 
-  // ダイブ閲覧でピークコイン +1/件（新規分のみ）
-  if (newSeenCount > 0 && !recommendSearchQuery.trim()) {
-    const aid = localStorage.getItem('trendy_account_id');
-    if (aid && typeof dbAddPoints === 'function') {
-      dbAddPoints(aid, newSeenCount, 'dive').then(() => {
-        _myPoints += newSeenCount;
-        _updateDiveCoinDisplay(newSeenCount);
-        // ガチャページのコイン表示も更新
-        const coinEl = document.getElementById('gacha-ticket-count');
-        if (coinEl) coinEl.textContent = _myPoints.toLocaleString();
-      }).catch(() => {});
-    }
-  }
+  // コイン付与: カードが実際に表示（スクロール）されるたびに+1（_awardReelScrollCoin）
+  _initReelCoinObserver();
+  reel.querySelectorAll('.reel-card:not([data-coin-obs])').forEach(c => {
+    c.dataset.coinObs = '1';
+    _reelCoinObserver.observe(c);
+  });
   // 新しく追加した動画カードも監視
   if (_reelVideoObserver) {
     reel.querySelectorAll('.reel-card--video').forEach(c => {
