@@ -172,6 +172,27 @@ async function dbUpdateProfile({ accountId, nickname, bio, isDev }) {
   if (error) console.error('[DB] プロフィール更新エラー:', error.message);
 }
 
+// ── オンボーディング完了状態（アカウント単位・全端末で1回） ──
+// profiles.onboarded 列。sql/onboarded-column.sql 未実行の環境では null を返し
+// 端末ローカル(localStorage)の挙動にフォールバックする
+let _onboardedColExists = true;
+async function dbGetOnboarded(accountId) {
+  if (!accountId || !_onboardedColExists) return null;
+  const { data, error } = await db.from('profiles')
+    .select('onboarded').eq('account_id', accountId).maybeSingle();
+  if (error) {
+    if (/onboarded|column|schema cache/i.test(error.message || '')) _onboardedColExists = false;
+    return null;
+  }
+  return data ? data.onboarded === true : null;
+}
+async function dbSetOnboarded(accountId) {
+  if (!accountId || !_onboardedColExists) return;
+  const { error } = await db.from('profiles')
+    .update({ onboarded: true }).eq('account_id', accountId);
+  if (error && /onboarded|column|schema cache/i.test(error.message || '')) _onboardedColExists = false;
+}
+
 /** 名前タグ・地域・性別・生年月日をSupabaseへ保存 */
 async function dbUpdateProfileMeta(accountId, { nameTag, region, gender, dob } = {}) {
   if (!accountId) return;

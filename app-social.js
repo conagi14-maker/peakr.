@@ -1247,16 +1247,29 @@ function _isOnboarded() {
   return localStorage.getItem('trendy_onboarded') === 'true'
       || localStorage.getItem(_onbDoneKey()) === 'true';
 }
-function _markOnboarded() {
-  // アカウント別フラグに記録（次回以降は二度と出さない）
+function _markOnboardedLocal() {
+  // 端末ローカルのキャッシュ（次回は即スキップ）
   try { localStorage.setItem(_onbDoneKey(), 'true'); } catch(e) {}
 }
+function _markOnboarded() {
+  // ローカル＋DB（アカウント単位で全端末に反映）
+  _markOnboardedLocal();
+  const aid = localStorage.getItem('trendy_account_id');
+  if (aid && typeof dbSetOnboarded === 'function') dbSetOnboarded(aid);
+}
 
-/** ログイン済みで未オンボーディングなら選択画面を表示 */
-function _maybeShowOnboarding() {
+/** ログイン済みで未オンボーディングなら選択画面を表示（DBでアカウント単位に確認） */
+async function _maybeShowOnboarding() {
   if (!localStorage.getItem('trendy_logged_in')) return;
-  if (_isOnboarded()) return;
   if (typeof CATS_DATA === 'undefined' || !CATS_DATA.length) return;
+  if (_isOnboarded()) return; // ローカルキャッシュで既知なら即スキップ
+  // 別端末で完了済みかDBで確認（列が無ければ null → ローカル基準で表示）
+  const aid = localStorage.getItem('trendy_account_id');
+  if (aid && typeof dbGetOnboarded === 'function') {
+    const done = await dbGetOnboarded(aid);
+    if (done === true) { _markOnboardedLocal(); return; }
+  }
+  if (document.getElementById('onboard-overlay')) return; // 待機中に開いていたら二重表示しない
   _showOnboarding();
 }
 
