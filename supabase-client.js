@@ -1860,6 +1860,137 @@ async function dbGetFollowNotifyStatus(myAccountId, targetId) {
   return data.notify_enabled !== false;
 }
 
+// ── 通知内容（文字/画像/動画/告知）の個別設定 ────────────────
+const NOTIFY_TYPE_KEYS = ['text', 'image', 'video', 'announce'];
+const NOTIFY_TYPE_DEFAULT = { text: true, image: true, video: true, announce: true };
+
+// notify_types 列が存在するか（未マイグレーション環境を検出してフォールバック）
+let _notifyTypesColExists = true;
+
+/** 通知内容設定を取得（フォロー先ごと・既定は全ON） */
+async function dbGetFollowNotifyTypes(myAccountId, targetId) {
+  if (!myAccountId || !targetId) return { ...NOTIFY_TYPE_DEFAULT };
+  if (_notifyTypesColExists) {
+    const { data, error } = await db.from('follows')
+      .select('notify_types, notify_enabled')
+      .eq('follower_id', myAccountId)
+      .eq('following_id', targetId)
+      .maybeSingle();
+    if (!error) {
+      if (!data) return { ...NOTIFY_TYPE_DEFAULT };
+      const t = (data.notify_types && typeof data.notify_types === 'object') ? data.notify_types : {};
+      return {
+        text:     t.text     !== false,
+        image:    t.image    !== false,
+        video:    t.video    !== false,
+        announce: t.announce !== undefined ? t.announce !== false : (data.notify_enabled !== false),
+      };
+    }
+    if (/notify_types|column|schema cache/i.test(error.message || '')) _notifyTypesColExists = false;
+  }
+  // フォールバック: notify_enabled のみで告知ON/OFFを反映（文字/画像/動画は既定ON）
+  const { data } = await db.from('follows')
+    .select('notify_enabled')
+    .eq('follower_id', myAccountId)
+    .eq('following_id', targetId)
+    .maybeSingle();
+  return { text: true, image: true, video: true, announce: data ? data.notify_enabled !== false : true };
+}
+
+/** 通知内容設定を更新（notify_enabled は告知フラグと同期＝後方互換） */
+async function dbSetFollowNotifyTypes(myAccountId, targetId, types) {
+  if (!myAccountId || !targetId) return false;
+  const clean = {
+    text:     types.text     !== false,
+    image:    types.image    !== false,
+    video:    types.video    !== false,
+    announce: types.announce !== false,
+  };
+  if (_notifyTypesColExists) {
+    const { error } = await db.from('follows')
+      .update({ notify_types: clean, notify_enabled: clean.announce })
+      .eq('follower_id', myAccountId)
+      .eq('following_id', targetId);
+    if (!error) return true;
+    if (/notify_types|column|schema cache/i.test(error.message || '')) {
+      _notifyTypesColExists = false;
+    } else {
+      console.error('[DB] 通知内容設定エラー:', error.message);
+      return false;
+    }
+  }
+  // フォールバック: notify_types 列が無い環境では announce 分だけ notify_enabled に保存
+  const { error: e2 } = await db.from('follows')
+    .update({ notify_enabled: clean.announce })
+    .eq('follower_id', myAccountId).eq('following_id', targetId);
+  if (e2) { console.error('[DB] 通知内容設定エラー:', e2.message); return false; }
+  return true;
+}
+
+/** 投稿時：フォロワーのうち該当種別をONにしている人へ通知を生成（ファンアウト） */
+async function dbNotifyFollowersOfPost({ authorAccountId, authorName, mediaType, contentPreview, postId }) {
+  if (!authorAccountId) return;
+  // 種別キーを判定（文字のみ / 画像 / 動画）
+  const typeKey = mediaType === 'video' ? 'video' : mediaType === 'image' ? 'image' : 'text';
+  try {
+    // notify_types 列があれば種別フィルター、無ければ全フォロワー（既定ON相当）
+    let followers = null;
+    if (_notifyTypesColExists) {
+      const r = await db.from('follows')
+        .select('follower_id, notify_types')
+        .eq('following_id', authorAccountId);
+      if (r.error && /notify_types|column|schema cache/i.test(r.error.message || '')) {
+        _notifyTypesColExists = false;
+      } else if (!r.error) {
+        followers = r.data;
+      }
+    }
+    if (!followers) {
+      const r2 = await db.from('follows')
+        .select('follower_id')
+        .eq('following_id', authorAccountId);
+      if (r2.error || !r2.data) return;
+      followers = r2.data;
+    }
+    if (!followers.length) return;
+
+    // 該当種別がON（または未設定＝既定ON）のフォロワーだけ抽出
+    const recipients = followers.filter(f => {
+      const t = (f.notify_types && typeof f.notify_types === 'object') ? f.notify_types : null;
+      if (!t) return true; // 未マイグレーション＝既定で受け取る
+      return t[typeKey] !== false;
+    }).map(f => f.follower_id).filter(Boolean);
+    if (!recipients.length) return;
+
+    const meta = {
+      text:  { icon: 'ti-message',   bg: '#e3f4f0', tc: '#0f766e', label: '投稿' },
+      image: { icon: 'ti-photo',     bg: '#e0f2fe', tc: '#0369a1', label: '画像' },
+      video: { icon: 'ti-video',     bg: '#ede9fe', tc: '#5b21b6', label: '動画' },
+    }[typeKey];
+    const name = authorName || authorAccountId;
+    const preview = (contentPreview || '').slice(0, 40);
+
+    const rows = recipients.map(rid => ({
+      account_id   : rid,
+      account_type : 'main',
+      icon         : meta.icon,
+      bg           : meta.bg,
+      tc           : meta.tc,
+      text         : `${name} さんが${meta.label}を投稿しました`,
+      hint         : preview || null,
+      notif_type   : 'post',
+      cat          : postId ? String(postId) : null, // タップで投稿を開くため post_id を cat に格納
+      unread       : true,
+    }));
+    // 1000件超は分割（Supabase の insert 上限対策）
+    for (let i = 0; i < rows.length; i += 500) {
+      await db.from('notifications').insert(rows.slice(i, i + 500));
+    }
+  } catch(e) {
+    console.warn('[DB] 投稿通知ファンアウト失敗:', e);
+  }
+}
+
 /** user_announcements のリアルタイム購読を開始 */
 let _announcementsChannel = null;
 function dbSubscribeAnnouncements(onNewAnnouncement) {

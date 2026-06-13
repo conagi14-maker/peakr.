@@ -2191,7 +2191,10 @@ async function sendUserAnnouncement() {
   }
 }
 
-/** 告知通知ベルボタンの状態を更新 */
+/** 通知設定ベルボタンの状態を更新（フォロー中のみ表示・1つでもONなら点灯） */
+let _notifySettingsState  = null;   // { text, image, video, announce }
+let _notifySettingsTarget = null;   // 対象アカウントID
+
 async function _updateFollowNotifyBtn(targetAccountId) {
   const notifyBtn = document.getElementById('user-page-notify-btn');
   if (!notifyBtn) return;
@@ -2204,29 +2207,84 @@ async function _updateFollowNotifyBtn(targetAccountId) {
     notifyBtn.style.display = 'none'; return;
   }
   notifyBtn.style.display = '';
-  const enabled = await dbGetFollowNotifyStatus(myAid, targetAccountId);
-  notifyBtn.classList.toggle('active', !!enabled);
-  notifyBtn.title = enabled ? '告知通知 ON（クリックでOFF）' : '告知通知 OFF（クリックでON）';
+  const types = await dbGetFollowNotifyTypes(myAid, targetAccountId);
+  const anyOn = types.text || types.image || types.video || types.announce;
+  const allOff = !anyOn;
+  notifyBtn.classList.toggle('active', anyOn);
+  notifyBtn.querySelector('i').className = allOff ? 'ti ti-bell-off' : 'ti ti-bell';
+  notifyBtn.title = allOff ? '通知OFF（タップで設定）' : '通知設定';
 }
 
-/** 告知通知の ON/OFF を切り替え */
-async function toggleFollowNotify() {
+/** 通知設定ポップオーバーを開く */
+async function openNotifySettings(btn) {
+  const pop = document.getElementById('notify-settings-pop');
+  if (!pop) return;
+  if (pop.style.display !== 'none') { closeNotifySettings(); return; }
+
   const myAid = localStorage.getItem('trendy_account_id');
-  if (!myAid) return;
   const handle = currentUserHandle;
-  if (!handle) return;
-  const targetAccountId = handle.startsWith('@') ? handle.slice(1) : handle;
-  const notifyBtn = document.getElementById('user-page-notify-btn');
-  const currentOn = !!notifyBtn?.classList.contains('active');
-  const newEnabled = !currentOn;
-  const ok = await dbSetFollowNotify(myAid, targetAccountId, newEnabled);
-  if (ok) {
-    if (notifyBtn) {
-      notifyBtn.classList.toggle('active', newEnabled);
-      notifyBtn.title = newEnabled ? '告知通知 ON（クリックでOFF）' : '告知通知 OFF（クリックでON）';
-    }
-    showToast(newEnabled ? '告知通知をONにしました 🔔' : '告知通知をOFFにしました 🔕', 'success');
+  if (!myAid || !handle) return;
+  _notifySettingsTarget = handle.startsWith('@') ? handle.slice(1) : handle;
+  _notifySettingsState = await dbGetFollowNotifyTypes(myAid, _notifySettingsTarget);
+  _renderNotifySettings();
+
+  // ボタン位置に合わせて配置（画面端は右寄せ補正）
+  pop.style.display = 'block';
+  const r = btn.getBoundingClientRect();
+  const w = pop.offsetWidth || 230;
+  let left = r.right - w;
+  if (left < 8) left = 8;
+  let top = r.bottom + 6;
+  if (top + pop.offsetHeight > window.innerHeight - 8) top = r.top - pop.offsetHeight - 6;
+  pop.style.left = left + 'px';
+  pop.style.top  = top  + 'px';
+
+  setTimeout(() => document.addEventListener('click', _notifySettingsOutside, { once: true }), 0);
+}
+
+function closeNotifySettings() {
+  const pop = document.getElementById('notify-settings-pop');
+  if (pop) pop.style.display = 'none';
+  document.removeEventListener('click', _notifySettingsOutside);
+}
+
+function _notifySettingsOutside(e) {
+  const pop = document.getElementById('notify-settings-pop');
+  const btn = document.getElementById('user-page-notify-btn');
+  if (pop && !pop.contains(e.target) && btn && !btn.contains(e.target)) {
+    closeNotifySettings();
   }
+}
+
+function _renderNotifySettings() {
+  const pop = document.getElementById('notify-settings-pop');
+  if (!pop || !_notifySettingsState) return;
+  pop.querySelectorAll('.nsp-row').forEach(row => {
+    const key = row.dataset.nstype;
+    row.classList.toggle('on', _notifySettingsState[key] !== false);
+  });
+}
+
+/** メモリ状態からベルの点灯/アイコンを反映（保存前でも一貫させる） */
+function _applyBellFromState() {
+  const btn = document.getElementById('user-page-notify-btn');
+  if (!btn || !_notifySettingsState) return;
+  const s = _notifySettingsState;
+  const anyOn = s.text || s.image || s.video || s.announce;
+  btn.classList.toggle('active', anyOn);
+  btn.querySelector('i').className = anyOn ? 'ti ti-bell' : 'ti ti-bell-off';
+  btn.title = anyOn ? '通知設定' : '通知OFF（タップで設定）';
+}
+
+/** トグル1つを切り替えて即保存 */
+async function toggleNotifyType(key) {
+  if (!_notifySettingsState || !_notifySettingsTarget) return;
+  _notifySettingsState[key] = !_notifySettingsState[key];
+  _renderNotifySettings();
+  _applyBellFromState();
+  const myAid = localStorage.getItem('trendy_account_id');
+  const ok = await dbSetFollowNotifyTypes(myAid, _notifySettingsTarget, _notifySettingsState);
+  if (!ok) showToast('設定の保存に失敗しました', 'error');
 }
 
 /** フォロー中ユーザーからの告知を告知タブに表示 */

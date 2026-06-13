@@ -1552,12 +1552,12 @@ async function renderFollowList() {
     const avHtml = p.avatar_data
       ? `<img src="${p.avatar_data}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
       : `<span style="font-size:16px;font-weight:700;color:#fff">${(p.nickname || p.account_id || '?')[0].toUpperCase()}</span>`;
-    const avBg = p.avatar_data ? 'transparent' : '#3b82f6';
+    const avBg = p.avatar_data ? 'transparent' : 'var(--accent)';
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border);cursor:pointer" onclick="openUserPage('@${p.account_id}')">
       <div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:${avBg}">${avHtml}</div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;color:var(--text)">${p.nickname || p.account_id}</div>
-        <div style="font-size:12px;color:var(--text3)">${p.bio || '自己紹介がありません'}</div>
+        <div style="font-size:12px;color:var(--text3)">@${p.account_id}${p.bio ? ' ・ ' + p.bio : ''}</div>
       </div>
       <button class="btn-sm" style="flex-shrink:0" onclick="event.stopPropagation();dbToggleFollow('${aid}','@${p.account_id}').then(() => renderFollowList())">フォロー中</button>
     </div>`;
@@ -1591,12 +1591,12 @@ async function renderFollowerList() {
     const avHtml = p.avatar_data
       ? `<img src="${p.avatar_data}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
       : `<span style="font-size:16px;font-weight:700;color:#fff">${(p.nickname || p.account_id || '?')[0].toUpperCase()}</span>`;
-    const avBg = p.avatar_data ? 'transparent' : '#7c3aed';
+    const avBg = p.avatar_data ? 'transparent' : 'var(--accent)';
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border);cursor:pointer" onclick="openUserPage('@${p.account_id}')">
       <div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:${avBg}">${avHtml}</div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;color:var(--text)">${p.nickname || p.account_id}</div>
-        <div style="font-size:12px;color:var(--text3)">${p.bio || '自己紹介がありません'}</div>
+        <div style="font-size:12px;color:var(--text3)">@${p.account_id}${p.bio ? ' ・ ' + p.bio : ''}</div>
       </div>
     </div>`;
   }).join('');
@@ -2527,7 +2527,8 @@ async function syncExternalPosts() {
 
 // localStorage で永続化して、ブラウザ閉じても日次同期される
 let _pixivSyncedAt = parseInt(localStorage.getItem('trendy_pixiv_synced_at') || '0', 10);
-const _PIXIV_SYNC_TTL = 60 * 60 * 1000; // 1時間（同じ端末で連打されるのを防ぐ）
+const _PIXIV_SYNC_TTL = 60 * 60 * 1000;        // 1時間（同じ端末で連打されるのを防ぐ）
+const _PIXIV_RETRY_COOLDOWN = 5 * 60 * 1000;   // 失敗時はこの時間だけ再試行を控える（毎回叩かない）
 
 // pixivタグ → PEAKR カテゴリー
 const _PIXIV_TAG_CAT = {
@@ -2563,15 +2564,22 @@ async function syncPixivPosts() {
       )
     );
 
+    const failedModes = [];
     const allItems = results.flatMap((r, i) => {
-      if (r.status !== 'fulfilled') {
-        console.warn(`[ext] pixiv ${_PIXIV_MODES[i]} failed`);
-        return [];
-      }
+      if (r.status !== 'fulfilled') { failedModes.push(_PIXIV_MODES[i]); return []; }
       return r.value.items || [];
     });
 
-    if (!allItems.length) throw new Error('all modes failed');
+    if (!allItems.length) {
+      // 全モード取得不可（ローカルdevではNetlify関数が無いため正常）。
+      // 即再試行せず一定時間クールダウン（毎回ランキングを開くたびに叩かない）
+      _pixivSyncedAt = Date.now() - _PIXIV_SYNC_TTL + _PIXIV_RETRY_COOLDOWN;
+      localStorage.setItem('trendy_pixiv_synced_at', _pixivSyncedAt.toString());
+      console.warn('[ext] pixiv同期スキップ: 取得不可（dev環境ではNetlify関数が無いため正常）');
+      return;
+    }
+    // 一部モードのみ失敗した場合はまとめて1行だけ通知
+    if (failedModes.length) console.warn('[ext] pixiv 一部モード取得失敗:', failedModes.join(', '));
 
     // ext_url で重複除去（複数モードに同じ作品が入る場合）
     const seen = new Set();
@@ -2603,7 +2611,9 @@ async function syncPixivPosts() {
     await _loadRankData(true);
     renderCatGrid();
   } catch (e) {
-    _pixivSyncedAt = 0;
+    // 失敗時もクールダウン（即時再試行で毎回叩かないように）
+    _pixivSyncedAt = Date.now() - _PIXIV_SYNC_TTL + _PIXIV_RETRY_COOLDOWN;
+    localStorage.setItem('trendy_pixiv_synced_at', _pixivSyncedAt.toString());
     console.warn('[ext] pixiv sync failed:', e.message);
   }
 }

@@ -1519,6 +1519,34 @@ function openTweetDetailBySaveId(saveId) {
   openTweetDetail(_reg(fakeTweet));
 }
 
+/** db_id から投稿詳細を開く（通知タップなどから利用） */
+async function openPostById(dbId) {
+  if (!dbId) return;
+  // すでにメモリにあれば即開く
+  const idx = _tc.findIndex(t => t && String(t.db_id) === String(dbId));
+  if (idx >= 0) { openTweetDetail(idx); return; }
+  // なければ DB から取得して仮ツイートを生成
+  if (typeof db === 'undefined') return;
+  try {
+    const { data: p } = await db.from('posts').select('*').eq('id', dbId).maybeSingle();
+    if (!p) { showToast('投稿が見つかりませんでした（削除された可能性があります）', 'info'); return; }
+    const t = {
+      db_id: p.id, text: p.content, catId: p.cat_id || null,
+      likes: p.likes_count || 0, rt: p.rt_count || 0, views: p.views_count || 0,
+      time: _relativeTime(p.created_at), ai: p.ai_type || 'none',
+      mediaData: p.media_data || null, mediaType: p.media_type || null,
+      linkUrl: p.link_url || null, imageLinkUrl: p.image_link_url || null,
+      tags: Array.isArray(p.tags) ? p.tags : [], isDummy: false, rank: 0,
+      user: {
+        h: p.user_handle, n: p.user_name || p.user_handle,
+        av: (p.user_name || p.user_handle || '?').replace(/^@/, '').slice(0, 1).toUpperCase(),
+        bg: 'var(--accent)', tc: '#ffffff', sub: p.is_sub, nameTag: p.name_tag || null,
+      },
+    };
+    openTweetDetail(_reg(t));
+  } catch(e) { console.warn('[notif] 投稿取得失敗:', e); }
+}
+
 /** お気に入りから削除 */
 function removeSavedTweet(saveId) {
   const entry = savedTweets.find(s => s.saveId === saveId);
@@ -1853,6 +1881,11 @@ function markNotifRead(acct, i) {
   // お知らせ（announce）は既読・未読問わず常に詳細モーダルを表示
   if (n.type === 'announce') {
     _showNotifAnnounce(n);
+    return;
+  }
+  // 投稿通知（フォロー先の新規投稿）は既読・未読問わずその投稿を開く
+  if (n.type === 'post' && n.cat) {
+    openPostById(n.cat);
     return;
   }
   if (!wasUnread) return;

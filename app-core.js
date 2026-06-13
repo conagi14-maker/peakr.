@@ -1687,6 +1687,17 @@ function confirmPost() {
         }
       });
       renderMyPosts();
+      // フォロワーへ通知（メイン投稿のみ・通知種別ONの人だけ）。投稿成功は妨げない
+      if (!isSub && typeof dbNotifyFollowersOfPost === 'function') {
+        const _aid = localStorage.getItem('trendy_account_id');
+        if (_aid) dbNotifyFollowersOfPost({
+          authorAccountId: _aid,
+          authorName     : myNickname || 'あなた',
+          mediaType      : _mediaType,
+          contentPreview : v,
+          postId         : savedPost.id,
+        });
+      }
     }
   });
 }

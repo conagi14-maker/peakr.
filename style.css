@@ -1080,32 +1080,38 @@ body { background: var(--bg); color: var(--text); min-height: 100vh; }
 }
 .cat-more-btn:hover { background: var(--accent-light); }
 
-/* ── Bookmark Panel ── */
-.bookmark-panel {
-  width: 36px; flex-shrink: 0;
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
+/* ── お気に入りバー（ヘッダー地域行に右寄せ・横並び） ── */
+.rank-region-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bookmark-bar {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 6px;
+  min-width: 0;
 }
-.bm-label-vert {
-  font-size: 9px; color: var(--text3); writing-mode: vertical-rl;
-  letter-spacing: 1px; padding: 3px 0;
+.bm-bar-icon { font-size: 15px; color: var(--accent); flex-shrink: 0; }
+.bm-bar-label { font-size: 11px; color: var(--text3); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+.bm-list-h {
+  display: flex; align-items: center; gap: 4px;
+  overflow-x: auto; max-width: 46vw;
+  scrollbar-width: none;
 }
+.bm-list-h::-webkit-scrollbar { display: none; }
 .bm-icon {
-  width: 32px; height: 32px; border-radius: 8px;
+  width: 30px; height: 30px; border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--surface);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  cursor: pointer; gap: 1px;
+  cursor: pointer; gap: 1px; flex-shrink: 0;
   transition: all 0.15s;
 }
 .bm-icon:hover { background: var(--surface2); border-color: var(--border-strong); }
 .bm-icon i { font-size: 13px; }
-.bm-icon span { font-size: 7px; color: var(--text3); max-width: 28px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bm-icon span { font-size: 7px; color: var(--text3); max-width: 26px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bm-add-btn {
-  width: 32px; height: 32px; border-radius: 8px;
+  width: 30px; height: 30px; border-radius: 8px;
   border: 1px dashed var(--border-strong);
   background: transparent; color: var(--text3);
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; font-size: 15px;
+  cursor: pointer; font-size: 15px; flex-shrink: 0;
   transition: all 0.15s;
 }
 .bm-add-btn:hover { background: var(--surface2); color: var(--text2); }
@@ -1919,7 +1925,7 @@ body { background: var(--bg); color: var(--text); min-height: 100vh; }
 /* ── タブレット：サイドバーをアイコンのみに縮小 */
 @media (max-width: 900px) {
   :root { --sidebar-w: 64px; }
-  .logo-text, .nav-item span, .user-info, .bm-label-vert { display: none; }
+  .logo-text, .nav-item span, .user-info { display: none; }
   .nav-item { justify-content: center; padding: 10px; }
   .sidebar-logo { justify-content: center; padding: 14px; }
   .user-chip { justify-content: center; }
@@ -2017,6 +2023,11 @@ body { background: var(--bg); color: var(--text); min-height: 100vh; }
     padding: 0 12px 10px;
     gap: 8px;
   }
+
+  /* お気に入りバー：スマホでは地域行で折り返し、ラベルを省略して省スペースに */
+  .rank-region-row { flex-wrap: wrap; row-gap: 6px; }
+  .bm-bar-label { display: none; }
+  .bm-list-h { max-width: 60vw; }
 
   /* ── カテゴリーカード：幅を小さく */
   .cat-card { min-width: 130px; }
@@ -6200,6 +6211,53 @@ body { background: var(--bg); color: var(--text); min-height: 100vh; }
   color: #fbbf24;
   border-color: #fbbf24;
 }
+
+/* ── 通知内容の設定ポップオーバー ── */
+.notify-settings-pop {
+  position: fixed;
+  z-index: 400;
+  width: 230px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+  padding: 8px;
+  animation: nspFade 0.14s ease;
+}
+@keyframes nspFade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.nsp-head {
+  font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px 2px;
+}
+.nsp-head i { color: var(--accent); font-size: 15px; }
+.nsp-sub { font-size: 11px; color: var(--text3); padding: 0 8px 8px; }
+.nsp-row {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  padding: 9px 8px;
+  background: none; border: none; cursor: pointer;
+  border-radius: 9px;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: background 0.12s;
+}
+.nsp-row:hover { background: var(--surface2); }
+.nsp-ic { font-size: 17px; color: var(--text3); width: 18px; text-align: center; flex-shrink: 0; }
+.nsp-label { font-size: 13px; color: var(--text); font-weight: 500; flex: 1; text-align: left; }
+.nsp-switch {
+  width: 38px; height: 22px; border-radius: 99px;
+  background: var(--border-strong); flex-shrink: 0;
+  position: relative; transition: background 0.18s;
+}
+.nsp-knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  transition: transform 0.18s;
+}
+.nsp-row.on .nsp-switch { background: var(--accent); }
+.nsp-row.on .nsp-knob { transform: translateX(16px); }
+.nsp-row.on .nsp-ic { color: var(--accent); }
 
 /* フォロー中ユーザーからの告知セクション */
 /* 通知ページ 通知/告知 タブバー */

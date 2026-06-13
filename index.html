@@ -382,15 +382,24 @@
             <button class="pill" onclick="setRankPeriod('female',this)"><i class="ti ti-gender-female"></i>女性人気</button>
             <button class="pill rank-pill-rookie" onclick="setRankPeriod('rookie',this)">🌱 ルーキー</button>
           </div>
-          <div class="rank-region-bar">
-            <i class="ti ti-map-pin" style="font-size:13px;color:var(--text3)"></i>
-            <button class="rank-region-chip" id="rank-region-chip" onclick="openRankRegionModal()">
-              <span id="rank-region-chip-text">全国</span>
-              <i class="ti ti-chevron-down" style="font-size:11px"></i>
-            </button>
-            <button class="rank-region-clear" id="rank-region-clear" onclick="clearRankRegion()" style="display:none" title="絞り込みを解除">
-              <i class="ti ti-x"></i>
-            </button>
+          <div class="rank-region-row">
+            <div class="rank-region-bar">
+              <i class="ti ti-map-pin" style="font-size:13px;color:var(--text3)"></i>
+              <button class="rank-region-chip" id="rank-region-chip" onclick="openRankRegionModal()">
+                <span id="rank-region-chip-text">全国</span>
+                <i class="ti ti-chevron-down" style="font-size:11px"></i>
+              </button>
+              <button class="rank-region-clear" id="rank-region-clear" onclick="clearRankRegion()" style="display:none" title="絞り込みを解除">
+                <i class="ti ti-x"></i>
+              </button>
+            </div>
+            <!-- お気に入りバー（ランキング表示の邪魔にならないよう右寄せでヘッダーに配置） -->
+            <div class="bookmark-bar" id="bookmark-panel">
+              <i class="ti ti-bookmarks bm-bar-icon"></i>
+              <span class="bm-bar-label">お気に入り</span>
+              <div class="bm-list-h" id="bm-list"></div>
+              <button class="bm-add-btn" onclick="openBmPicker()" title="お気に入りに追加"><i class="ti ti-bookmark-plus"></i></button>
+            </div>
           </div>
         </div>
       </div>
@@ -424,11 +433,6 @@
       <div class="cat-grid-wrap">
         <div class="scroll-x">
         <div class="cat-grid" id="cat-grid"></div>
-        </div>
-        <div class="bookmark-panel" id="bookmark-panel">
-          <div class="bm-label-vert">お気に入り</div>
-          <div id="bm-list"></div>
-          <button class="bm-add-btn" onclick="openBmPicker()" title="追加"><i class="ti ti-bookmark-plus"></i></button>
         </div>
       </div>
 
@@ -1895,7 +1899,7 @@
           <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px">
             <div style="display:flex;gap:6px">
               <button class="btn-sm" id="user-page-dm-btn" style="display:none" onclick="checkAndOpenDm()"><i class="ti ti-mail"></i> DM</button>
-              <button class="btn-icon notify-bell-btn" id="user-page-notify-btn" style="display:none" onclick="toggleFollowNotify()" title="告知通知の ON/OFF"><i class="ti ti-bell"></i></button>
+              <button class="btn-icon notify-bell-btn" id="user-page-notify-btn" style="display:none" onclick="openNotifySettings(this)" title="通知設定"><i class="ti ti-bell"></i></button>
               <button class="btn-sm" id="user-page-follow-btn">フォローする</button>
             </div>
             <!-- 推しユーザー -->
@@ -2323,7 +2327,7 @@
               <span>頂きへ、加速する。</span>
             </div>
             <div class="gacha-hero-desc">
-              ブーストアイテムでつぶやきのスコアを底上げし、<br>
+              ブーストアイテムで投稿のスコアを底上げし、<br>
               カテゴリーランキング上位を目指そう。
             </div>
             <div class="gacha-ticket-bar">
@@ -2421,7 +2425,7 @@
           <div class="gacha-howto-title"><i class="ti ti-info-circle"></i> ピークコインの入手方法</div>
           <div class="gacha-howto-item">
             <i class="ti ti-pencil"></i>
-            <span>つぶやきを投稿するたびに <b>+100コイン</b></span>
+            <span>投稿するたびに <b>+100コイン</b></span>
           </div>
           <div class="gacha-howto-item">
             <i class="ti ti-heart"></i>
@@ -2694,6 +2698,34 @@
 <button class="fab-compose" id="fab-compose" onclick="fabCompose()" aria-label="投稿する">
   <i class="ti ti-pencil-plus"></i>
 </button>
+
+<!-- 通知内容の設定ポップオーバー（プロフィールのベルから開く） -->
+<div class="notify-settings-pop" id="notify-settings-pop" style="display:none">
+  <div class="nsp-head">
+    <i class="ti ti-bell"></i> このユーザーの通知
+  </div>
+  <div class="nsp-sub">受け取りたい通知だけONにできます</div>
+  <button class="nsp-row" data-nstype="text" onclick="toggleNotifyType('text')">
+    <i class="ti ti-message nsp-ic"></i>
+    <span class="nsp-label">文字のみ</span>
+    <span class="nsp-switch"><span class="nsp-knob"></span></span>
+  </button>
+  <button class="nsp-row" data-nstype="image" onclick="toggleNotifyType('image')">
+    <i class="ti ti-photo nsp-ic"></i>
+    <span class="nsp-label">画像</span>
+    <span class="nsp-switch"><span class="nsp-knob"></span></span>
+  </button>
+  <button class="nsp-row" data-nstype="video" onclick="toggleNotifyType('video')">
+    <i class="ti ti-video nsp-ic"></i>
+    <span class="nsp-label">動画</span>
+    <span class="nsp-switch"><span class="nsp-knob"></span></span>
+  </button>
+  <button class="nsp-row" data-nstype="announce" onclick="toggleNotifyType('announce')">
+    <i class="ti ti-speakerphone nsp-ic"></i>
+    <span class="nsp-label">告知</span>
+    <span class="nsp-switch"><span class="nsp-knob"></span></span>
+  </button>
+</div>
 
 <!-- HOME SEARCH OVERLAY -->
 <div class="home-search-overlay" id="home-search-overlay" style="display:none">
