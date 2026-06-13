@@ -838,6 +838,72 @@ function _updateDiveCoinDisplay(plusAmount) {
 }
 
 // ── ダイブ キーワード検索 ───────────────────────────────────
+// ── ダイブの「舵」: カテゴリー興味の重み付け（もっと見たい/興味なし） ──
+let _diveInterest = {};
+try { _diveInterest = JSON.parse(localStorage.getItem('trendy_dive_interest') || '{}') || {}; } catch(e) { _diveInterest = {}; }
+function _diveWeight(catId) {
+  const w = _diveInterest[catId || 'other'];
+  return (typeof w === 'number') ? w : 1;
+}
+function _saveDiveInterest() {
+  try { localStorage.setItem('trendy_dive_interest', JSON.stringify(_diveInterest)); } catch(e) {}
+}
+// 興味の重みで安定ソート（重い＝上位。同重みは元の順序を維持）
+function _sortByInterest(tweets) {
+  return tweets
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => (_diveWeight(b.t.catId) - _diveWeight(a.t.catId)) || (a.i - b.i))
+    .map(x => x.t);
+}
+
+/** ダイブの舵: dir=+1 もっと見たい / dir=-1 興味なし。次のカードに即反映 */
+function _diveSteer(btn, idx, dir) {
+  const t = _tc[idx];
+  if (!t) return;
+  const cat = t.catId || 'other';
+  const catName = (typeof CATS_DATA !== 'undefined' && CATS_DATA.find(c => c.id === cat)?.name) || 'この内容';
+  const cur = _diveWeight(cat);
+  if (dir > 0) {
+    _diveInterest[cat] = Math.min(4, (cur < 1 ? 1 : cur) * 2);
+  } else {
+    _diveInterest[cat] = Math.max(0.05, cur * 0.25);
+  }
+  _saveDiveInterest();
+
+  // 未表示のキュー（recommendLoaded 以降）を重みで並べ替え → 次バッチに反映
+  if (recommendLoaded < RECOMMEND_TWEETS.length) {
+    const tail = _sortByInterest(RECOMMEND_TWEETS.slice(recommendLoaded));
+    RECOMMEND_TWEETS.splice(recommendLoaded, tail.length, ...tail);
+  }
+
+  const card = btn.closest('.reel-card');
+  if (dir < 0) {
+    showToast(`「${catName}」を減らします`, '');
+    // 次のカードを先に確保
+    const next = card && card.nextElementSibling;
+    // 以降に既に描画済みの同カテゴリーカードを除去
+    if (card) {
+      let sib = card.nextElementSibling;
+      while (sib) {
+        const nx = sib.nextElementSibling;
+        const sidx = parseInt(sib.dataset.idx, 10);
+        if (sib.classList.contains('reel-card') && _tc[sidx] && (_tc[sidx].catId || 'other') === cat) sib.remove();
+        sib = nx;
+      }
+      card.remove(); // 今のカードも消して次へ送る
+    }
+    // 次カードへスクロール（無ければ追加読み込み）
+    if (next && next.isConnected) {
+      next.scrollIntoView({ behavior: 'smooth' });
+    } else if (typeof _renderRecommendSlice === 'function') {
+      _renderRecommendSlice();
+    }
+  } else {
+    showToast(`「${catName}」を増やします`, 'success');
+    btn.classList.add('reel-steer-on');
+  }
+}
+
 function _applyDiveSearchFilter(tweets) {
   let result = tweets;
   // 検索中でなければ表示済みを除外
@@ -852,13 +918,17 @@ function _applyDiveSearchFilter(tweets) {
   }
   // キーワード検索フィルター
   const q = recommendSearchQuery.trim().toLowerCase();
-  if (!q) return result;
-  return result.filter(t =>
-    (t.text  || '').toLowerCase().includes(q) ||
-    (t.user?.n || '').toLowerCase().includes(q) ||
-    (t.user?.h || '').toLowerCase().includes(q) ||
-    (t.tags || []).some(tag => tag.toLowerCase().includes(q))
-  );
+  if (q) {
+    result = result.filter(t =>
+      (t.text  || '').toLowerCase().includes(q) ||
+      (t.user?.n || '').toLowerCase().includes(q) ||
+      (t.user?.h || '').toLowerCase().includes(q) ||
+      (t.tags || []).some(tag => tag.toLowerCase().includes(q))
+    );
+  }
+  // 検索中でなければ興味の重みで並べ替え（舵の結果を反映）
+  if (!q) result = _sortByInterest(result);
+  return result;
 }
 
 function resetReelSeen() {
@@ -1237,6 +1307,14 @@ function _reelMediaOverlay(t, idx) {
   const liked = likedTweets.has(idx);
   return `
     <div class="reel-overlay">
+      <div class="reel-steer">
+        <button class="reel-steer-btn" onclick="event.stopPropagation();_diveSteer(this,${idx},1)" title="もっと見たい">
+          <i class="ti ti-thumb-up"></i><span>もっと</span>
+        </button>
+        <button class="reel-steer-btn" onclick="event.stopPropagation();_diveSteer(this,${idx},-1)" title="興味なし">
+          <i class="ti ti-thumb-down"></i><span>興味なし</span>
+        </button>
+      </div>
       <div class="reel-overlay-author" onclick="event.stopPropagation();openUserPage('${u.h||''}')">
         <div class="reel-av">${_reelAvWrap(u)}</div>
         <div class="reel-author-info">

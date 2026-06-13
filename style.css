@@ -5303,6 +5303,113 @@ body { background: var(--bg); color: var(--text); min-height: 100vh; }
 .reel-action-btn.reel-liked i { color: #ef4444; }
 .reel-action-btn.reel-stat   { pointer-events: none; cursor: default; }
 
+/* ── ダイブの舵（もっと見たい / 興味なし） 右側中央 ── */
+.reel-steer {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 12;
+  pointer-events: all;
+}
+.reel-steer-btn {
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #fff;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1px;
+  cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: background 0.15s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.reel-steer-btn i { font-size: 20px; }
+.reel-steer-btn span { font-size: 8px; font-weight: 700; line-height: 1; }
+.reel-steer-btn:hover { background: rgba(0,0,0,0.6); }
+.reel-steer-btn:active { transform: scale(0.9); }
+.reel-steer-btn.reel-steer-on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ══════════════════════════════════════════
+   初訪問オンボーディング（カテゴリー選択）
+══════════════════════════════════════════ */
+.onboard-overlay {
+  position: fixed; inset: 0; z-index: 600;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; overflow-y: auto;
+  animation: onbFade 0.25s ease;
+}
+@keyframes onbFade { from { opacity: 0; } to { opacity: 1; } }
+.onboard-panel {
+  width: 100%; max-width: 520px;
+  text-align: center;
+}
+.onb-logo { margin-bottom: 16px; }
+.onb-logo .logo-mark {
+  width: 48px; height: 48px; font-size: 26px;
+  border-radius: 14px; display: inline-flex;
+  align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #2dd4bf, #0d9488);
+  color: #fff; font-weight: 700; font-family: 'DM Mono', monospace;
+}
+.onb-title { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 8px; }
+.onb-sub { font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 24px; }
+.onb-chips {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  justify-content: center; margin-bottom: 28px;
+}
+.onb-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 16px; border-radius: 99px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text); font-size: 14px; font-weight: 600;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.onb-chip i { font-size: 17px; }
+.onb-chip:hover { border-color: var(--border-strong); background: var(--surface2); }
+.onb-chip.on {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent-text);
+}
+.onb-chip.on i { color: var(--accent-text) !important; }
+.onb-actions {
+  display: flex; flex-direction: column; gap: 10px;
+  align-items: center;
+}
+.onb-go {
+  width: 100%; max-width: 320px;
+  padding: 14px 24px; border-radius: 14px;
+  border: none; cursor: pointer;
+  background: linear-gradient(135deg, #14b8a6, #0d9488);
+  color: #fff; font-size: 15px; font-weight: 700;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.onb-go:disabled { opacity: 0.4; cursor: default; }
+.onb-go:not(:disabled):active { transform: scale(0.97); }
+.onb-skip {
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); font-size: 13px;
+  font-family: 'Noto Sans JP', sans-serif;
+  padding: 6px;
+}
+.onb-skip:hover { color: var(--text2); }
+
 /* ── 文字カード ── */
 .reel-card--text {
   background: var(--bg);

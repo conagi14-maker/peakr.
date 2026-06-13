@@ -859,17 +859,22 @@ function _resetGachaStage() {
 // ブーストチケット選択モーダル
 async function openBoostPicker(postDbId) {
   // 最新の所持を取得
+  let curBoost = 0;
   try {
     const aid = localStorage.getItem('trendy_account_id');
     if (aid) _gachaItems = await dbGetUserItems(aid);
+    const { data: cur } = await db.from('posts').select('boost_score').eq('id', postDbId).maybeSingle();
+    curBoost = cur?.boost_score || 0;
   } catch(e) {}
+  const cap = (typeof BOOST_CAP === 'number' && BOOST_CAP > 0) ? BOOST_CAP : 1000;
+  const remain = Math.max(0, cap - curBoost);
   const inv = _gachaItems || {};
   const items = [
-    { id:'boost_lg',  label:'LG ブースト',  add:'+1000', color:'#ef4444', qty: inv['boost_lg']  || 0 },
-    { id:'boost_ssr', label:'SSR ブースト', add:'+100',  color:'#f59e0b', qty: inv['boost_ssr'] || 0 },
-    { id:'boost_sr',  label:'SR ブースト',  add:'+30',   color:'#a855f7', qty: inv['boost_sr']  || 0 },
-    { id:'boost_r',   label:'R ブースト',   add:'+5',    color:'#3b82f6', qty: inv['boost_r']   || 0 },
-    { id:'boost_n',   label:'N ブースト',   add:'+1',    color:'#64748b', qty: inv['boost_n']   || 0 },
+    { id:'boost_lg',  label:'LG ブースト',  add:'+1000', amt:1000, color:'#ef4444', qty: inv['boost_lg']  || 0 },
+    { id:'boost_ssr', label:'SSR ブースト', add:'+100',  amt:100,  color:'#f59e0b', qty: inv['boost_ssr'] || 0 },
+    { id:'boost_sr',  label:'SR ブースト',  add:'+30',   amt:30,   color:'#a855f7', qty: inv['boost_sr']  || 0 },
+    { id:'boost_r',   label:'R ブースト',   add:'+5',    amt:5,    color:'#3b82f6', qty: inv['boost_r']   || 0 },
+    { id:'boost_n',   label:'N ブースト',   add:'+1',    amt:1,    color:'#64748b', qty: inv['boost_n']   || 0 },
   ];
   // 既存モーダル除去
   document.getElementById('boost-picker-modal')?.remove();
@@ -880,18 +885,27 @@ async function openBoostPicker(postDbId) {
           <div style="font-weight:700;font-size:15px;color:var(--text1)"><i class="ti ti-rocket" style="color:#f59e0b"></i> ブーストチケット使用</div>
           <button onclick="document.getElementById('boost-picker-modal').remove()" style="background:none;border:none;font-size:20px;color:var(--text3);cursor:pointer">×</button>
         </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;margin-bottom:10px;border-radius:10px;background:var(--surface);border:1px solid var(--border)">
+          <span style="font-size:11px;color:var(--text3)"><i class="ti ti-shield-check" style="color:#10b981"></i> 公平性のため1投稿の上限あり</span>
+          <span style="font-size:12px;font-weight:700;color:${remain > 0 ? 'var(--text1)' : '#ef4444'}">残り +${remain.toLocaleString()} / +${cap.toLocaleString()}</span>
+        </div>
         <div style="display:flex;flex-direction:column;gap:8px">
-          ${items.map(b => b.qty > 0
-            ? `<button onclick="document.getElementById('boost-picker-modal').remove();applyBoostToPost('${postDbId}','${b.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px solid ${b.color};background:var(--bg2);color:var(--text1);font-size:13px;cursor:pointer;text-align:left">
+          ${items.map(b => {
+            const overCap = b.amt > remain;
+            if (b.qty > 0 && !overCap) {
+              return `<button onclick="document.getElementById('boost-picker-modal').remove();applyBoostToPost('${postDbId}','${b.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px solid ${b.color};background:var(--bg2);color:var(--text1);font-size:13px;cursor:pointer;text-align:left">
                 <span style="font-weight:700;color:${b.color};min-width:60px">${b.add}</span>
                 <span style="flex:1">${b.label}</span>
                 <span style="color:var(--text3);font-size:12px">残${b.qty}</span>
-              </button>`
-            : `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px dashed var(--border);background:var(--surface);color:var(--text3);font-size:13px;text-align:left">
+              </button>`;
+            }
+            const reason = b.qty <= 0 ? '所持なし' : '上限超過';
+            return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px dashed var(--border);background:var(--surface);color:var(--text3);font-size:13px;text-align:left">
                 <span style="font-weight:700;min-width:60px">${b.add}</span>
                 <span style="flex:1">${b.label}</span>
-                <span style="font-size:12px">所持なし</span>
-              </div>`).join('')}
+                <span style="font-size:12px">${reason}</span>
+              </div>`;
+          }).join('')}
         </div>
         <div style="margin-top:12px;font-size:11px;color:var(--text3);text-align:center">ブーストチケットはガチャで獲得できます</div>
       </div>
@@ -906,6 +920,21 @@ async function applyBoostToPost(postDbId, itemId) {
   if (!boostAmt) return;
   const qty = _gachaItems[itemId] || 0;
   if (qty <= 0) { showToast('アイテムがありません', 'error'); return; }
+  // ── 公平性: 1投稿あたりの合計ブースト上限チェック（チケット消費前） ──
+  const cap = (typeof BOOST_CAP === 'number' && BOOST_CAP > 0) ? BOOST_CAP : 1000;
+  try {
+    const { data: cur } = await db.from('posts').select('boost_score').eq('id', postDbId).maybeSingle();
+    const curBoost = cur?.boost_score || 0;
+    if (curBoost >= cap) {
+      showToast(`この投稿はブースト上限（+${cap.toLocaleString()}）に達しています`, 'warn');
+      return;
+    }
+    if (curBoost + boostAmt > cap) {
+      const remain = cap - curBoost;
+      showToast(`残り上限は +${remain.toLocaleString()} です。より小さいブーストをお使いください`, 'warn');
+      return;
+    }
+  } catch(e) { /* 取得失敗時はそのまま続行（従来動作） */ }
   const ok1 = await dbConsumeItem(aid, itemId, 1);
   if (!ok1) { showToast('消費に失敗しました', 'error'); return; }
   const ok2 = await dbApplyBoost(postDbId, boostAmt);
@@ -2052,6 +2081,8 @@ async function completeLogin() {
   goPage('home', null);
   const homeBtn = document.querySelector('.nav-item[data-page="home"]');
   if (homeBtn) homeBtn.classList.add('active');
+  // 未オンボーディングならカテゴリー選択を表示
+  setTimeout(() => { if (typeof _maybeShowOnboarding === 'function') _maybeShowOnboarding(); }, 500);
 }
 
 // ── Logout Confirm ────────────────────────────────────

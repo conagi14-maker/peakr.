@@ -1972,6 +1972,9 @@ function init() {
   // ── 起動時ランキング通知チェック（全period・バックグラウンド） ──
   // 4秒後に実行することで初期レンダリングをブロックしない
   setTimeout(_startupRankNotifCheck, 4000);
+
+  // ── 初訪問オンボーディング（ログイン済み・未オンボーディングのみ） ──
+  setTimeout(() => { if (typeof _maybeShowOnboarding === 'function') _maybeShowOnboarding(); }, 700);
 }
 
 document.addEventListener('DOMContentLoaded', init);

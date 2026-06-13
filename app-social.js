@@ -1139,6 +1139,9 @@ async function completeRegister() {
   // 戻るボタンを復元
   const regBack = document.getElementById('reg-back-btn');
   if (regBack) regBack.style.display = '';
+
+  // 新規登録直後にカテゴリー選択オンボーディングを表示
+  setTimeout(() => { if (typeof _maybeShowOnboarding === 'function') _maybeShowOnboarding(); }, 500);
 }
 
 // ── Sub Account Create Page ────────────────────────────
@@ -1229,6 +1232,80 @@ function moveUserCat(id, dir) {
   localStorage.setItem('trendy_cat_order_user', JSON.stringify(catOrder));
   renderCatSettings();
   renderCatGrid();
+}
+
+// ══════════════════════════════════════════
+// 初訪問オンボーディング: メインカテゴリー選択 → 自分向けランキング
+// ══════════════════════════════════════════
+let _onboardSel = [];
+
+/** ログイン済みで未オンボーディングなら選択画面を表示 */
+function _maybeShowOnboarding() {
+  if (!localStorage.getItem('trendy_logged_in')) return;
+  if (localStorage.getItem('trendy_onboarded') === 'true') return;
+  if (typeof CATS_DATA === 'undefined' || !CATS_DATA.length) return;
+  _showOnboarding();
+}
+
+function _showOnboarding() {
+  if (document.getElementById('onboard-overlay')) return; // 二重表示防止
+  _onboardSel = [];
+  const cats = CATS_DATA.filter(c => c.id !== 'all');
+  const chips = cats.map(c => `
+    <button class="onb-chip" data-cat="${c.id}" onclick="_toggleOnboardCat('${c.id}',this)">
+      <i class="ti ${c.icon}" style="color:${c.color}"></i>
+      <span>${c.name}</span>
+    </button>`).join('');
+  const html = `
+    <div class="onboard-overlay" id="onboard-overlay">
+      <div class="onboard-panel">
+        <div class="onb-logo"><span class="logo-mark">T</span></div>
+        <h2 class="onb-title">興味のあるカテゴリーを選ぼう</h2>
+        <p class="onb-sub">選んだカテゴリーがランキング・ダイブの先頭に来て、あなた向けの表示になります（後から設定で変更できます）</p>
+        <div class="onb-chips">${chips}</div>
+        <div class="onb-actions">
+          <button class="onb-skip" onclick="_finishOnboarding(false)">スキップ</button>
+          <button class="onb-go" id="onb-go" disabled onclick="_finishOnboarding(true)">
+            <span id="onb-go-label">カテゴリーを選択</span>
+          </button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function _toggleOnboardCat(id, btn) {
+  const i = _onboardSel.indexOf(id);
+  if (i >= 0) { _onboardSel.splice(i, 1); btn.classList.remove('on'); }
+  else { _onboardSel.push(id); btn.classList.add('on'); }
+  const go = document.getElementById('onb-go');
+  const label = document.getElementById('onb-go-label');
+  if (go) go.disabled = _onboardSel.length === 0;
+  if (label) label.textContent = _onboardSel.length === 0
+    ? 'カテゴリーを選択'
+    : `これで始める（${_onboardSel.length}件）`;
+}
+
+/** apply=true なら選択を catOrder/ダイブ興味に反映 */
+function _finishOnboarding(apply) {
+  if (apply && _onboardSel.length) {
+    // 選んだカテゴリーをランキング列の先頭へ
+    const rest = catOrder.filter(id => !_onboardSel.includes(id));
+    catOrder = [..._onboardSel.filter(id => catOrder.includes(id)), ...rest];
+    try { localStorage.setItem('trendy_cat_order_user', JSON.stringify(catOrder)); } catch(e) {}
+    // ダイブも同カテゴリーを優先（舵の重みを底上げ）
+    if (typeof _diveInterest !== 'undefined') {
+      _onboardSel.forEach(id => { _diveInterest[id] = 2; });
+      if (typeof _saveDiveInterest === 'function') _saveDiveInterest();
+    }
+  }
+  localStorage.setItem('trendy_onboarded', 'true');
+  document.getElementById('onboard-overlay')?.remove();
+  if (apply && _onboardSel.length) {
+    if (typeof showToast === 'function') showToast('あなた向けランキングを表示します', 'success');
+    goPage('ranking', null);
+    if (typeof renderCatGrid === 'function') renderCatGrid();
+  }
 }
 
 // ── ダークモード ──
@@ -2629,6 +2706,13 @@ let BOOST_AMOUNTS = { ..._BOOST_AMOUNTS_DEFAULT };
 try {
   const saved = JSON.parse(localStorage.getItem('trendy_boost_amounts') || 'null');
   if (saved) BOOST_AMOUNTS = { ..._BOOST_AMOUNTS_DEFAULT, ...saved };
+} catch(e) {}
+// 1投稿あたりに乗せられるブースト合計スコアの上限（公平性確保・チケット連打での順位買い対策）
+const BOOST_CAP_DEFAULT = 1000;
+let BOOST_CAP = BOOST_CAP_DEFAULT;
+try {
+  const _cap = parseInt(localStorage.getItem('trendy_boost_cap') || '', 10);
+  if (!isNaN(_cap) && _cap > 0) BOOST_CAP = _cap;
 } catch(e) {}
 const RARITY_COLORS = { LG: '#ef4444', UR: '#c026d3', SSR: '#f59e0b', SR: '#8b5cf6', R: '#3b82f6', N: '#6b7280' };
 
