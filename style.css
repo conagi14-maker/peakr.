@@ -5354,7 +5354,17 @@ body { background: var(--bg); color: var(--text); min-height: 100vh; }
 .onboard-panel {
   width: 100%; max-width: 520px;
   text-align: center;
+  position: relative;
 }
+.onb-close {
+  position: absolute; top: -8px; right: 0;
+  width: 36px; height: 36px; border-radius: 50%;
+  border: none; background: var(--surface2); color: var(--text2);
+  font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.onb-close:hover { background: var(--border); color: var(--text); }
 .onb-logo { margin-bottom: 16px; }
 .onb-logo .logo-mark {
   width: 48px; height: 48px; font-size: 26px;

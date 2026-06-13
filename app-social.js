@@ -1239,16 +1239,31 @@ function moveUserCat(id, dir) {
 // ══════════════════════════════════════════
 let _onboardSel = [];
 
+/** オンボーディング完了フラグのキー（アカウント別＋後方互換の旧グローバル） */
+function _onbDoneKey() {
+  return 'trendy_onboarded_' + (localStorage.getItem('trendy_account_id') || 'guest');
+}
+function _isOnboarded() {
+  return localStorage.getItem('trendy_onboarded') === 'true'
+      || localStorage.getItem(_onbDoneKey()) === 'true';
+}
+function _markOnboarded() {
+  // アカウント別フラグに記録（次回以降は二度と出さない）
+  try { localStorage.setItem(_onbDoneKey(), 'true'); } catch(e) {}
+}
+
 /** ログイン済みで未オンボーディングなら選択画面を表示 */
 function _maybeShowOnboarding() {
   if (!localStorage.getItem('trendy_logged_in')) return;
-  if (localStorage.getItem('trendy_onboarded') === 'true') return;
+  if (_isOnboarded()) return;
   if (typeof CATS_DATA === 'undefined' || !CATS_DATA.length) return;
   _showOnboarding();
 }
 
 function _showOnboarding() {
   if (document.getElementById('onboard-overlay')) return; // 二重表示防止
+  // 表示した時点で「提示済み」にする → 操作せず離脱/リロードしても二度と出さない
+  _markOnboarded();
   _onboardSel = [];
   const cats = CATS_DATA.filter(c => c.id !== 'all');
   const chips = cats.map(c => `
@@ -1257,8 +1272,9 @@ function _showOnboarding() {
       <span>${c.name}</span>
     </button>`).join('');
   const html = `
-    <div class="onboard-overlay" id="onboard-overlay">
+    <div class="onboard-overlay" id="onboard-overlay" onclick="if(event.target===this)_finishOnboarding(false)">
       <div class="onboard-panel">
+        <button class="onb-close" onclick="_finishOnboarding(false)" aria-label="閉じる"><i class="ti ti-x"></i></button>
         <div class="onb-logo"><span class="logo-mark">T</span></div>
         <h2 class="onb-title">興味のあるカテゴリーを選ぼう</h2>
         <p class="onb-sub">選んだカテゴリーがランキング・ダイブの先頭に来て、あなた向けの表示になります（後から設定で変更できます）</p>
@@ -1299,7 +1315,7 @@ function _finishOnboarding(apply) {
       if (typeof _saveDiveInterest === 'function') _saveDiveInterest();
     }
   }
-  localStorage.setItem('trendy_onboarded', 'true');
+  _markOnboarded();
   document.getElementById('onboard-overlay')?.remove();
   if (apply && _onboardSel.length) {
     if (typeof showToast === 'function') showToast('あなた向けランキングを表示します', 'success');

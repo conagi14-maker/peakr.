@@ -1946,9 +1946,11 @@ function _updateAnnounceBadgeTab() {
 }
 
 function updateNotifBadge() {
+  // メインのベルは「通知」だけを数える。告知は告知タブ専用バッジで表示し、
+  // ログインのたびにベルが点灯し続けないようにする（_unreadAnnounceCount は含めない）
   const mainCount = NOTIFS.filter(n => n.unread).length;
   const subCount  = NOTIFS_SUB.filter(n => n.unread).length;
-  const count = mainCount + subCount + _unreadAnnounceCount;
+  const count = mainCount + subCount;
   const badge = document.getElementById('notif-nav-badge') || document.querySelector('.nav-badge');
   if (badge) {
     badge.textContent = count > 99 ? '99+' : count;
@@ -1960,6 +1962,8 @@ function updateNotifBadge() {
     bBadge.textContent = count > 99 ? '99+' : count;
     bBadge.style.display = count ? '' : 'none';
   }
+  // 告知は専用タブバッジで表示
+  if (typeof _updateAnnounceBadgeTab === 'function') _updateAnnounceBadgeTab();
 }
 
 /** 告知の未読数をチェックしてバッジを更新（バックグラウンドで定期実行） */
