@@ -1337,6 +1337,336 @@ function _finishOnboarding(apply) {
   }
 }
 
+// ══════════════════════════════════════════
+// ステージ（リアルタイム活動アピール）
+// ══════════════════════════════════════════
+const STAGE_TYPES = {
+  stream : { label: '配信',    icon: 'ti-device-tv-old' },
+  live   : { label: 'ライブ',  icon: 'ti-microphone-2' },
+  tv     : { label: 'TV出演',  icon: 'ti-device-tv' },
+  event  : { label: 'イベント', icon: 'ti-calendar-event' },
+  signing: { label: 'サイン会', icon: 'ti-writing-sign' },
+  other  : { label: 'その他',  icon: 'ti-star' },
+};
+let _stageCatFilter   = null;   // null = 全て
+let _stageActivities  = [];
+let _stageProfMap     = {};
+let _stageFollowers   = {};
+let _actSelType       = 'stream';
+
+function _stageEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function _activityStatus(a, now) {
+  const start = new Date(a.starts_at).getTime();
+  const end = a.ends_at ? new Date(a.ends_at).getTime() : start + 3 * 3600 * 1000;
+  if (now >= start && now <= end) return 'live';
+  if (now < start) return 'upcoming';
+  return 'expired';
+}
+function _activityScore(a, now) {
+  const followers = _stageFollowers[a.account_id] || 0;
+  const start = new Date(a.starts_at).getTime();
+  const hoursSince = Math.max(0, (now - start) / 3600000);
+  const base = (a.boost_score || 0) + (a.click_count || 0) * 3 + followers * 0.5;
+  const recency = Math.max(0, 60 - hoursSince * 5);
+  return Math.round(base + recency);
+}
+function _stageTimeLabel(a, now) {
+  const start = new Date(a.starts_at);
+  const hh = String(start.getHours()).padStart(2,'0') + ':' + String(start.getMinutes()).padStart(2,'0');
+  const diffMin = Math.round((start.getTime() - now) / 60000);
+  if (diffMin > 0 && diffMin < 60) return `あと${diffMin}分`;
+  return hh;
+}
+
+async function renderStage() {
+  const body = document.getElementById('stage-body');
+  if (!body) return;
+  // 認証アカウントのみ「出演を登録」を表示
+  const regBtn = document.getElementById('stage-register-btn');
+  const hint   = document.getElementById('stage-verify-hint');
+  if (regBtn) regBtn.style.display = _myIsVerified ? '' : 'none';
+  if (hint)   hint.style.display   = (_myIsVerified || !localStorage.getItem('trendy_logged_in')) ? 'none' : '';
+
+  body.innerHTML = '<div class="stage-empty"><i class="ti ti-loader-2"></i> 読み込み中…</div>';
+  let acts = [];
+  try { acts = await dbFetchActivities(200); } catch(e) { console.warn('[stage]', e); }
+  const now = Date.now();
+  acts = (acts || []).filter(a => _activityStatus(a, now) !== 'expired');
+  _stageActivities = acts;
+
+  // プロフィール＋フォロワー数を一括取得
+  const ids = [...new Set(acts.map(a => a.account_id))];
+  _stageProfMap = {}; _stageFollowers = {};
+  if (ids.length) {
+    try {
+      const profs = await dbFetchProfilesByIds(ids);
+      (profs || []).forEach(p => { _stageProfMap[p.account_id] = p; });
+    } catch(e) {}
+    try {
+      const { data } = await db.from('follows').select('following_id').in('following_id', ids);
+      (data || []).forEach(r => { _stageFollowers[r.following_id] = (_stageFollowers[r.following_id] || 0) + 1; });
+    } catch(e) {}
+  }
+  _renderStageCats();
+  _renderStageBody();
+}
+
+function _renderStageCats() {
+  const bar = document.getElementById('stage-cat-bar');
+  if (!bar) return;
+  const used = new Set(_stageActivities.map(a => a.cat_id).filter(Boolean));
+  const cats = (typeof CATS_DATA !== 'undefined' ? CATS_DATA : []).filter(c => c.id !== 'all' && used.has(c.id));
+  let html = `<button class="stage-cat-chip${!_stageCatFilter?' active':''}" onclick="setStageCat(null)">全て</button>`;
+  html += cats.map(c => `<button class="stage-cat-chip${_stageCatFilter===c.id?' active':''}" onclick="setStageCat('${c.id}')"><i class="ti ${c.icon}"></i> ${_stageEsc(c.name)}</button>`).join('');
+  bar.innerHTML = html;
+}
+function setStageCat(catId) {
+  _stageCatFilter = catId;
+  _renderStageCats();
+  _renderStageBody();
+}
+
+function _stageAvatar(a) {
+  const p = _stageProfMap[a.account_id] || {};
+  if (p.avatar_data) return `<img src="${p.avatar_data}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  const ch = (p.nickname || a.account_id || '?')[0];
+  return `<span>${_stageEsc(ch)}</span>`;
+}
+function _stageName(a) {
+  const p = _stageProfMap[a.account_id] || {};
+  return _stageEsc(p.nickname || a.account_id);
+}
+function _stageVerifiedMark(a) {
+  const p = _stageProfMap[a.account_id] || {};
+  return p.is_verified ? '<i class="ti ti-rosette-discount-check stage-verify-ic"></i>' : '';
+}
+function _stageActionHTML(a) {
+  if (a.url) {
+    return `<a class="stage-watch" href="${encodeURI(a.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();_stageOpenLink('${a.id}')"><i class="ti ti-external-link"></i> 見る</a>`;
+  }
+  if (a.location) {
+    return `<span class="stage-loc"><i class="ti ti-map-pin"></i> ${_stageEsc(a.location)}</span>`;
+  }
+  return '';
+}
+function _stageBoostBtn(a) {
+  const isOwn = a.account_id === localStorage.getItem('trendy_account_id');
+  if (isOwn) return '';
+  return `<button class="stage-boost-btn" onclick="event.stopPropagation();openActivityBoostPicker('${a.id}')" title="ブースト"><i class="ti ti-rocket"></i></button>`;
+}
+
+function _renderStageBody() {
+  const body = document.getElementById('stage-body');
+  if (!body) return;
+  const now = Date.now();
+  let acts = _stageActivities;
+  if (_stageCatFilter) acts = acts.filter(a => a.cat_id === _stageCatFilter);
+
+  const live = acts.filter(a => _activityStatus(a, now) === 'live')
+                   .sort((x, y) => _activityScore(y, now) - _activityScore(x, now));
+  const upcoming = acts.filter(a => _activityStatus(a, now) === 'upcoming')
+                       .sort((x, y) => new Date(x.starts_at) - new Date(y.starts_at));
+
+  if (!live.length && !upcoming.length) {
+    body.innerHTML = `<div class="stage-empty"><i class="ti ti-broadcast-off"></i><div>今この${_stageCatFilter?'カテゴリーの':''}ステージに立っている人はいません</div></div>`;
+    return;
+  }
+
+  let html = '';
+  if (live.length) {
+    html += `<div class="stage-sec-head live"><span class="stage-live-dot"></span> ライブ中 <span class="stage-sec-sub">注目度順</span></div>`;
+    html += live.map((a, i) => _stageLiveCard(a, i + 1, now)).join('');
+  }
+  if (upcoming.length) {
+    html += `<div class="stage-sec-head"><i class="ti ti-calendar-event"></i> これから <span class="stage-sec-sub">時間順</span></div>`;
+    html += upcoming.map(a => _stageUpcomingCard(a, now)).join('');
+  }
+  body.innerHTML = html;
+}
+
+function _stageLiveCard(a, rank, now) {
+  const t = STAGE_TYPES[a.type] || STAGE_TYPES.other;
+  const score = _activityScore(a, now);
+  const boost = (a.boost_score || 0) > 0 ? `<span class="stage-boost-pill"><i class="ti ti-rocket"></i> +${(a.boost_score||0).toLocaleString()}</span>` : '';
+  const rankCls = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : '';
+  return `<div class="stage-card live${rank===1?' hero':''}">
+    <div class="stage-card-main">
+      <span class="stage-rank ${rankCls}">${rank}</span>
+      <div class="stage-av">${_stageAvatar(a)}</div>
+      <div class="stage-card-info">
+        <div class="stage-card-top">
+          <span class="stage-card-name">${_stageName(a)}</span>${_stageVerifiedMark(a)}
+          <span class="stage-type-chip"><i class="ti ${t.icon}"></i> ${t.label}</span>
+        </div>
+        <div class="stage-card-title">${_stageEsc(a.title)}</div>
+      </div>
+    </div>
+    <div class="stage-card-foot">
+      <span class="stage-attn"><i class="ti ti-flame"></i> 注目度 <b>${score.toLocaleString()}</b></span>
+      ${boost}
+      <span class="stage-foot-right">${_stageBoostBtn(a)}${_stageActionHTML(a)}</span>
+    </div>
+  </div>`;
+}
+
+function _stageUpcomingCard(a, now) {
+  const t = STAGE_TYPES[a.type] || STAGE_TYPES.other;
+  const meta = a.location
+    ? `<i class="ti ti-map-pin"></i> ${_stageEsc(a.location)}`
+    : (a.url ? `<i class="ti ti-link"></i> オンライン` : '');
+  return `<div class="stage-up-row">
+    <div class="stage-up-time">${_stageTimeLabel(a, now)}</div>
+    <div class="stage-card up">
+      <div class="stage-card-main">
+        <div class="stage-av sm">${_stageAvatar(a)}</div>
+        <div class="stage-card-info">
+          <div class="stage-card-top">
+            <span class="stage-card-name">${_stageName(a)}</span>${_stageVerifiedMark(a)}
+            <span class="stage-type-chip"><i class="ti ${t.icon}"></i> ${t.label}</span>
+          </div>
+          <div class="stage-card-title">${_stageEsc(a.title)}</div>
+          ${meta ? `<div class="stage-up-meta">${meta}</div>` : ''}
+        </div>
+        ${_stageBoostBtn(a)}
+      </div>
+    </div>
+  </div>`;
+}
+
+function _stageOpenLink(activityId) {
+  if (typeof dbIncrementActivityClick === 'function') dbIncrementActivityClick(activityId);
+}
+
+// ── 出演登録モーダル ──
+function openActivityModal() {
+  if (!_myIsVerified) { showToast('出演登録は認証アカウントのみ可能です', 'warn'); return; }
+  // カテゴリー候補を埋める
+  const sel = document.getElementById('act-cat');
+  if (sel && typeof CATS_DATA !== 'undefined') {
+    sel.innerHTML = '<option value="">カテゴリーを選択</option>' +
+      CATS_DATA.filter(c => c.id !== 'all').map(c => `<option value="${c.id}">${_stageEsc(c.name)}</option>`).join('');
+  }
+  // 既定の開始時刻＝今
+  const startEl = document.getElementById('act-start');
+  if (startEl) startEl.value = _localDatetimeValue(new Date());
+  const endEl = document.getElementById('act-end');
+  if (endEl) endEl.value = '';
+  ['act-title','act-url','act-location'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  _actSelType = 'stream';
+  document.querySelectorAll('#act-type-row .act-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'stream'));
+  document.getElementById('activity-overlay').style.display = 'block';
+  document.getElementById('activity-modal').style.display = 'block';
+}
+function closeActivityModal() {
+  const ov = document.getElementById('activity-overlay');
+  const mo = document.getElementById('activity-modal');
+  if (ov) ov.style.display = 'none';
+  if (mo) mo.style.display = 'none';
+}
+function selectActType(type, btn) {
+  _actSelType = type;
+  document.querySelectorAll('#act-type-row .act-type-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+function _localDatetimeValue(d) {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+async function submitActivity() {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid || !_myIsVerified) { showToast('認証アカウントのみ出演できます', 'warn'); return; }
+  const title = (document.getElementById('act-title').value || '').trim();
+  if (!title) { showToast('タイトルを入力してください', 'warn'); return; }
+  const startVal = document.getElementById('act-start').value;
+  const endVal   = document.getElementById('act-end').value;
+  if (!startVal) { showToast('開始時刻を入力してください', 'warn'); return; }
+  const btn = document.getElementById('act-submit');
+  if (btn) btn.disabled = true;
+  const res = await dbCreateActivity({
+    accountId: aid,
+    type     : _actSelType,
+    title    : title,
+    catId    : document.getElementById('act-cat').value || null,
+    url      : (document.getElementById('act-url').value || '').trim() || null,
+    location : (document.getElementById('act-location').value || '').trim() || null,
+    startsAt : new Date(startVal).toISOString(),
+    endsAt   : endVal ? new Date(endVal).toISOString() : null,
+  });
+  if (btn) btn.disabled = false;
+  if (!res) { showToast('登録に失敗しました', 'error'); return; }
+  closeActivityModal();
+  showToast('ステージに出演しました 🎤', 'success');
+  renderStage();
+}
+
+// ── 活動ブースト（既存チケット＋1出演あたり上限を流用） ──
+async function openActivityBoostPicker(activityId) {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) { showToast('ログインが必要です', 'warn'); return; }
+  let curBoost = 0;
+  try {
+    _gachaItems = await dbGetUserItems(aid);
+    curBoost = await dbGetActivityBoost(activityId);
+  } catch(e) {}
+  const cap = (typeof BOOST_CAP === 'number' && BOOST_CAP > 0) ? BOOST_CAP : 1000;
+  const remain = Math.max(0, cap - curBoost);
+  const inv = _gachaItems || {};
+  const items = [
+    { id:'boost_lg',  label:'LG ブースト',  add:'+1000', amt:1000, color:'#ef4444', qty: inv['boost_lg']  || 0 },
+    { id:'boost_ssr', label:'SSR ブースト', add:'+100',  amt:100,  color:'#f59e0b', qty: inv['boost_ssr'] || 0 },
+    { id:'boost_sr',  label:'SR ブースト',  add:'+30',   amt:30,   color:'#a855f7', qty: inv['boost_sr']  || 0 },
+    { id:'boost_r',   label:'R ブースト',   add:'+5',    amt:5,    color:'#3b82f6', qty: inv['boost_r']   || 0 },
+    { id:'boost_n',   label:'N ブースト',   add:'+1',    amt:1,    color:'#64748b', qty: inv['boost_n']   || 0 },
+  ];
+  document.getElementById('boost-picker-modal')?.remove();
+  const html = `
+    <div id="boost-picker-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)document.getElementById('boost-picker-modal').remove()">
+      <div style="background:var(--bg);border-radius:14px;padding:18px;max-width:380px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-weight:700;font-size:15px;color:var(--text1)"><i class="ti ti-rocket" style="color:#f59e0b"></i> 活動をブースト</div>
+          <button onclick="document.getElementById('boost-picker-modal').remove()" style="background:none;border:none;font-size:20px;color:var(--text3);cursor:pointer">×</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;margin-bottom:10px;border-radius:10px;background:var(--surface);border:1px solid var(--border)">
+          <span style="font-size:11px;color:var(--text3)"><i class="ti ti-shield-check" style="color:#10b981"></i> 公平性のため1活動の上限あり</span>
+          <span style="font-size:12px;font-weight:700;color:${remain>0?'var(--text1)':'#ef4444'}">残り +${remain.toLocaleString()} / +${cap.toLocaleString()}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${items.map(b => {
+            const over = b.amt > remain;
+            if (b.qty > 0 && !over) {
+              return `<button onclick="document.getElementById('boost-picker-modal').remove();applyBoostToActivity('${activityId}','${b.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px solid ${b.color};background:var(--bg2);color:var(--text1);font-size:13px;cursor:pointer;text-align:left">
+                <span style="font-weight:700;color:${b.color};min-width:60px">${b.add}</span><span style="flex:1">${b.label}</span><span style="color:var(--text3);font-size:12px">残${b.qty}</span></button>`;
+            }
+            return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px dashed var(--border);background:var(--surface);color:var(--text3);font-size:13px;text-align:left">
+                <span style="font-weight:700;min-width:60px">${b.add}</span><span style="flex:1">${b.label}</span><span style="font-size:12px">${b.qty<=0?'所持なし':'上限超過'}</span></div>`;
+          }).join('')}
+        </div>
+        <div style="margin-top:12px;font-size:11px;color:var(--text3);text-align:center">ブーストチケットはガチャで獲得できます</div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+async function applyBoostToActivity(activityId, itemId) {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid || !activityId || !itemId) return;
+  const boostAmt = BOOST_AMOUNTS[itemId];
+  if (!boostAmt) return;
+  const qty = _gachaItems[itemId] || 0;
+  if (qty <= 0) { showToast('アイテムがありません', 'error'); return; }
+  const cap = (typeof BOOST_CAP === 'number' && BOOST_CAP > 0) ? BOOST_CAP : 1000;
+  const curBoost = await dbGetActivityBoost(activityId);
+  if (curBoost >= cap) { showToast(`この活動はブースト上限（+${cap.toLocaleString()}）に達しています`, 'warn'); return; }
+  if (curBoost + boostAmt > cap) { showToast(`残り上限は +${(cap-curBoost).toLocaleString()} です`, 'warn'); return; }
+  const ok1 = await dbConsumeItem(aid, itemId, 1);
+  if (!ok1) { showToast('消費に失敗しました', 'error'); return; }
+  const ok2 = await dbApplyActivityBoost(activityId, boostAmt);
+  if (!ok2) { await dbAddItem(aid, itemId, 1); showToast('ブーストに失敗しました', 'error'); return; }
+  _gachaItems[itemId] = qty - 1;
+  showToast(`🚀 ブースト！ +${boostAmt} 注目度`, 'success');
+  renderStage();
+}
+
 // ── ダークモード ──
 function _applyDarkMode(enable) {
   if (enable) {

@@ -474,6 +474,7 @@ function goPage(id, btn) {
     setTimeout(() => selectAccount(myAccountType), 150);
   }
   if (id === 'ranking')   { _updateRankRegionChip(); _loadRankData().then(() => { renderCatGrid(); renderAdStrip(); }); syncExternalPosts(); syncPixivPosts(); }
+  if (id === 'stage')     { if (typeof renderStage === 'function') renderStage(); }
   if (id === 'recommend') _initRecommendPage();
   if (id === 'ads') renderAdsPage();
   if (id === 'ad-create') renderAdCreatePage();

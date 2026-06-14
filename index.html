@@ -38,6 +38,9 @@
       <button class="nav-item" data-page="ranking" onclick="goPage('ranking',this)">
         <i class="ti ti-trophy"></i><span>ランキング</span>
       </button>
+      <button class="nav-item" data-page="stage" onclick="goPage('stage',this)">
+        <i class="ti ti-broadcast"></i><span>ステージ</span>
+      </button>
       <button class="nav-item" data-page="latest" onclick="goPage('latest',this)">
         <i class="ti ti-clock"></i><span>新着</span>
       </button>
@@ -233,6 +236,24 @@
       <div class="load-more-btn" id="latest-end-msg" style="display:none;pointer-events:none;color:var(--text3)">
         <i class="ti ti-check"></i> すべて表示しました
       </div>
+    </div>
+
+    <!-- ══ ステージ（リアルタイム活動）══ -->
+    <div class="page" id="page-stage">
+      <div class="page-header">
+        <div class="home-header-row">
+          <h1><i class="ti ti-broadcast" style="color:var(--accent)"></i> ステージ</h1>
+          <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+            <button class="btn-sm" onclick="renderStage()" title="更新"><i class="ti ti-refresh"></i></button>
+            <button class="btn-sm" id="stage-register-btn" onclick="openActivityModal()" style="display:none"><i class="ti ti-plus"></i> 出演を登録</button>
+          </div>
+        </div>
+        <div class="stage-verify-hint" id="stage-verify-hint" style="display:none">
+          <i class="ti ti-rosette-discount-check"></i> 出演登録は認証アカウントのみ可能です
+        </div>
+      </div>
+      <div class="stage-cat-bar" id="stage-cat-bar"></div>
+      <div id="stage-body"></div>
     </div>
 
     <!-- ══════════════════════════════════════════════ -->
@@ -2698,6 +2719,45 @@
 <button class="fab-compose" id="fab-compose" onclick="fabCompose()" aria-label="投稿する">
   <i class="ti ti-pencil-plus"></i>
 </button>
+
+<!-- ステージ：出演登録モーダル -->
+<div class="modal-overlay" id="activity-overlay" onclick="closeActivityModal()"></div>
+<div class="modal" id="activity-modal">
+  <div class="modal-header">
+    <span class="modal-title"><i class="ti ti-broadcast" style="color:var(--accent)"></i> 出演を登録</span>
+    <button class="btn-icon" onclick="closeActivityModal()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body act-form">
+    <label class="act-label">種別</label>
+    <div class="act-type-row" id="act-type-row">
+      <button class="act-type-btn active" data-type="stream" onclick="selectActType('stream',this)"><i class="ti ti-device-tv-old"></i> 配信</button>
+      <button class="act-type-btn" data-type="live" onclick="selectActType('live',this)"><i class="ti ti-microphone-2"></i> ライブ</button>
+      <button class="act-type-btn" data-type="tv" onclick="selectActType('tv',this)"><i class="ti ti-device-tv"></i> TV出演</button>
+      <button class="act-type-btn" data-type="event" onclick="selectActType('event',this)"><i class="ti ti-calendar-event"></i> イベント</button>
+      <button class="act-type-btn" data-type="signing" onclick="selectActType('signing',this)"><i class="ti ti-writing-sign"></i> サイン会</button>
+      <button class="act-type-btn" data-type="other" onclick="selectActType('other',this)"><i class="ti ti-star"></i> その他</button>
+    </div>
+    <label class="act-label">タイトル</label>
+    <input type="text" id="act-title" class="act-input" maxlength="60" placeholder="例：新刊表紙のお絵描き配信">
+    <label class="act-label">カテゴリー</label>
+    <select id="act-cat" class="act-input"></select>
+    <div class="act-time-row">
+      <div style="flex:1">
+        <label class="act-label">開始</label>
+        <input type="datetime-local" id="act-start" class="act-input">
+      </div>
+      <div style="flex:1">
+        <label class="act-label">終了（任意）</label>
+        <input type="datetime-local" id="act-end" class="act-input">
+      </div>
+    </div>
+    <label class="act-label">視聴/詳細リンク（任意）</label>
+    <input type="url" id="act-url" class="act-input" placeholder="https://twitch.tv/...">
+    <label class="act-label">会場（オフラインの場合・任意）</label>
+    <input type="text" id="act-location" class="act-input" maxlength="80" placeholder="例：池袋・書店フロア">
+    <button class="post-btn act-submit" id="act-submit" onclick="submitActivity()">この内容で出演する</button>
+  </div>
+</div>
 
 <!-- 通知内容の設定ポップオーバー（プロフィールのベルから開く） -->
 <div class="notify-settings-pop" id="notify-settings-pop" style="display:none">

@@ -2081,6 +2081,79 @@ async function dbApplyBoost(postId, boostAmount) {
   return true;
 }
 
+// ══════════════════════════════════════════
+// ステージ（活動アピール）
+// ══════════════════════════════════════════
+
+/** 活動を登録 */
+async function dbCreateActivity({ accountId, type, title, catId, url, location, startsAt, endsAt }) {
+  if (!accountId || !title) return null;
+  const { data, error } = await db.from('activities').insert({
+    account_id : accountId,
+    type       : type || 'stream',
+    title      : title,
+    cat_id     : catId    || null,
+    url        : url      || null,
+    location   : location || null,
+    starts_at  : startsAt || new Date().toISOString(),
+    ends_at    : endsAt   || null,
+  }).select().single();
+  if (error) { console.error('[DB] 活動登録エラー:', error.message); return null; }
+  return data;
+}
+
+/** 失効していない活動を取得（過去12時間〜未来、開始順） */
+async function dbFetchActivities(limit = 200) {
+  const since = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await db.from('activities')
+    .select('*')
+    .gte('starts_at', since)
+    .order('starts_at', { ascending: true })
+    .limit(limit);
+  if (error) {
+    // テーブル未作成（sql/stage.sql 未実行）は想定内なので静かに空を返す
+    if (!/activities|schema cache|relation|does not exist/i.test(error.message || '')) {
+      console.warn('[DB] 活動取得エラー:', error.message);
+    }
+    return [];
+  }
+  return data || [];
+}
+
+/** 活動にブーストスコアを加算 */
+async function dbApplyActivityBoost(activityId, boostAmount) {
+  if (!activityId || boostAmount <= 0) return false;
+  const { data: cur } = await db.from('activities').select('boost_score').eq('id', activityId).maybeSingle();
+  const newScore = (cur?.boost_score || 0) + boostAmount;
+  const { error } = await db.from('activities').update({ boost_score: newScore }).eq('id', activityId);
+  if (error) { console.error('[DB] 活動ブーストエラー:', error.message); return false; }
+  return true;
+}
+
+/** 活動の現在ブースト値を取得（上限チェック用） */
+async function dbGetActivityBoost(activityId) {
+  if (!activityId) return 0;
+  const { data } = await db.from('activities').select('boost_score').eq('id', activityId).maybeSingle();
+  return data?.boost_score || 0;
+}
+
+/** 活動のクリック（流入）を+1 */
+async function dbIncrementActivityClick(activityId) {
+  if (!activityId) return;
+  try {
+    const { data } = await db.from('activities').select('click_count').eq('id', activityId).maybeSingle();
+    await db.from('activities').update({ click_count: (data?.click_count || 0) + 1 }).eq('id', activityId);
+  } catch(e) { /* silent */ }
+}
+
+/** 活動を削除（自分の出演の取り下げ） */
+async function dbDeleteActivity(activityId) {
+  if (!activityId) return false;
+  const { error } = await db.from('activities').delete().eq('id', activityId);
+  if (error) { console.error('[DB] 活動削除エラー:', error.message); return false; }
+  return true;
+}
+
 // ── ピークポイント ──────────────────────────────────────
 async function dbGetMyPoints(accountId) {
   if (!accountId) return { points: 0, total_earned: 0 };

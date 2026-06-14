@@ -10529,3 +10529,153 @@ mark.hs-mark {
   .mydash-src-label { width: 72px; font-size: 11px; }
   .mydash-src-val { width: 66px; font-size: 11px; }
 }
+
+/* ══════════════════════════════════════════
+   ステージ（リアルタイム活動）
+══════════════════════════════════════════ */
+.stage-verify-hint {
+  margin-top: 8px; font-size: 12px; color: var(--text2);
+  background: var(--accent-light); color: var(--accent-text);
+  padding: 7px 12px; border-radius: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.stage-cat-bar {
+  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+  padding: 12px 16px 4px;
+}
+.stage-cat-bar::-webkit-scrollbar { display: none; }
+.stage-cat-chip {
+  flex-shrink: 0;
+  padding: 6px 14px; border-radius: 99px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text2); font-size: 12px; font-weight: 600;
+  font-family: 'Noto Sans JP', sans-serif; cursor: pointer;
+  white-space: nowrap; transition: all 0.15s;
+}
+.stage-cat-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.stage-empty {
+  text-align: center; padding: 48px 20px; color: var(--text3); font-size: 13px;
+  line-height: 1.9;
+}
+.stage-empty i { font-size: 30px; display: block; margin-bottom: 8px; }
+
+.stage-sec-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 700; color: var(--text);
+  padding: 16px 16px 8px;
+}
+.stage-sec-head.live { color: #b91c1c; }
+[data-theme="dark"] .stage-sec-head.live { color: #f87171; }
+.stage-sec-head i { color: var(--accent); font-size: 15px; }
+.stage-sec-sub { font-size: 11px; font-weight: 500; color: var(--text3); }
+.stage-live-dot {
+  width: 9px; height: 9px; border-radius: 50%; background: #ef4444;
+  display: inline-block; box-shadow: 0 0 0 0 rgba(239,68,68,0.5);
+  animation: stageLivePulse 2s ease-out infinite;
+}
+@keyframes stageLivePulse {
+  0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.45); }
+  70%,100% { box-shadow: 0 0 0 7px rgba(239,68,68,0); }
+}
+
+.stage-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 12px 14px;
+  margin: 0 12px 8px;
+}
+.stage-card.hero { border-color: var(--accent); }
+.stage-card-main { display: flex; align-items: center; gap: 12px; }
+.stage-rank {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  background: var(--surface2); color: var(--text2);
+}
+.stage-rank.r1 { background: #fbbf24; color: #663c00; }
+.stage-rank.r2 { background: #cbd5e1; color: #334155; }
+.stage-rank.r3 { background: #f0997b; color: #4a1b0c; }
+.stage-av {
+  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+  background: var(--accent-light); color: var(--accent-text);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700;
+}
+.stage-av.sm { width: 38px; height: 38px; font-size: 14px; }
+.stage-card-info { flex: 1; min-width: 0; }
+.stage-card-top { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.stage-card-name { font-size: 14px; font-weight: 700; }
+.stage-verify-ic { font-size: 14px; color: #2563eb; }
+[data-theme="dark"] .stage-verify-ic { color: #60a5fa; }
+.stage-type-chip {
+  font-size: 11px; padding: 1px 8px; border-radius: 99px;
+  background: var(--accent-light); color: var(--accent-text);
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.stage-card-title {
+  font-size: 13px; color: var(--text2); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.stage-card-foot {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 10px; padding-left: 36px;
+}
+.stage-attn { font-size: 13px; color: var(--text2); }
+.stage-attn i { color: #f97316; font-size: 14px; vertical-align: -2px; }
+.stage-attn b { color: var(--text); }
+.stage-boost-pill {
+  font-size: 11px; padding: 2px 8px; border-radius: 99px;
+  background: var(--amber-bg); color: var(--amber);
+}
+.stage-foot-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.stage-boost-btn {
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  border: 1px solid #f59e0b; background: transparent; color: #d97706;
+  cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.stage-boost-btn:hover { background: var(--amber-bg); }
+.stage-watch {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 13px; font-weight: 700; text-decoration: none;
+  padding: 7px 16px; border-radius: 10px;
+  background: var(--accent); color: #fff;
+}
+.stage-loc { font-size: 12px; color: var(--text3); display: inline-flex; align-items: center; gap: 4px; }
+
+/* これから（タイムライン） */
+.stage-up-row { display: flex; gap: 10px; margin: 0 12px 8px; }
+.stage-up-time {
+  width: 52px; flex-shrink: 0; text-align: right;
+  font-size: 13px; font-weight: 700; color: var(--text2);
+  font-family: 'DM Mono', monospace; padding-top: 14px;
+}
+.stage-up-row .stage-card { flex: 1; margin: 0; }
+.stage-up-meta { font-size: 12px; color: var(--text3); margin-top: 3px; }
+.stage-up-meta i { font-size: 12px; vertical-align: -1px; }
+
+/* 出演登録モーダル */
+.act-form { display: flex; flex-direction: column; }
+.act-label { font-size: 12px; font-weight: 600; color: var(--text2); margin: 12px 0 5px; }
+.act-type-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.act-type-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 12px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text2); font-size: 12px; font-weight: 600;
+  font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: all 0.15s;
+}
+.act-type-btn.active { border-color: var(--accent); background: var(--accent-light); color: var(--accent-text); }
+.act-input {
+  width: 100%; box-sizing: border-box;
+  padding: 9px 12px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  font-size: 14px; font-family: 'Noto Sans JP', sans-serif;
+}
+.act-input:focus { outline: none; border-color: var(--accent); }
+.act-time-row { display: flex; gap: 10px; }
+.act-submit { margin-top: 18px; width: 100%; padding: 12px; border-radius: 12px; font-size: 14px; }
