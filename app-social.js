@@ -1356,9 +1356,12 @@ let _actSelType       = 'stream';
 
 function _stageEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// 終了時刻は廃止。手動「終了」(ends_at をセット) が無ければ、内部の安全フェード
+// 期間(ユーザーには締切として見せない)を過ぎたら自動で消す。
+const STAGE_LIVE_MAX_MS = 6 * 3600 * 1000;
 function _activityStatus(a, now) {
   const start = new Date(a.starts_at).getTime();
-  const end = a.ends_at ? new Date(a.ends_at).getTime() : start + 3 * 3600 * 1000;
+  const end = a.ends_at ? new Date(a.ends_at).getTime() : start + STAGE_LIVE_MAX_MS;
   if (now >= start && now <= end) return 'live';
   if (now < start) return 'upcoming';
   return 'expired';
@@ -1450,10 +1453,23 @@ function _stageActionHTML(a) {
   }
   return '';
 }
+function _stageIsOwn(a) {
+  return a.account_id === localStorage.getItem('trendy_account_id');
+}
 function _stageBoostBtn(a) {
-  const isOwn = a.account_id === localStorage.getItem('trendy_account_id');
-  if (isOwn) return '';
+  if (_stageIsOwn(a)) return '';
   return `<button class="stage-boost-btn" onclick="event.stopPropagation();openActivityBoostPicker('${a.id}')" title="ブースト"><i class="ti ti-rocket"></i></button>`;
+}
+function _stageEndBtn(a) {
+  if (!_stageIsOwn(a)) return '';
+  return `<button class="stage-end-btn" onclick="event.stopPropagation();endMyActivity('${a.id}')" title="この出演を終了"><i class="ti ti-square"></i> 終了</button>`;
+}
+async function endMyActivity(activityId) {
+  if (!confirm('この出演を終了しますか？')) return;
+  const ok = await dbEndActivity(activityId);
+  if (!ok) { showToast('終了に失敗しました', 'error'); return; }
+  showToast('出演を終了しました', '');
+  renderStage();
 }
 
 function _renderStageBody() {
@@ -1505,7 +1521,7 @@ function _stageLiveCard(a, rank, now) {
     <div class="stage-card-foot">
       <span class="stage-attn"><i class="ti ti-flame"></i> 注目度 <b>${score.toLocaleString()}</b></span>
       ${boost}
-      <span class="stage-foot-right">${_stageBoostBtn(a)}${_stageActionHTML(a)}</span>
+      <span class="stage-foot-right">${_stageEndBtn(a)}${_stageBoostBtn(a)}${_stageActionHTML(a)}</span>
     </div>
   </div>`;
 }
@@ -1528,10 +1544,23 @@ function _stageUpcomingCard(a, now) {
           <div class="stage-card-title">${_stageEsc(a.title)}</div>
           ${meta ? `<div class="stage-up-meta">${meta}</div>` : ''}
         </div>
-        ${_stageBoostBtn(a)}
+        ${_stageUpcomingActionBtn(a)}
       </div>
     </div>
   </div>`;
+}
+function _stageUpcomingActionBtn(a) {
+  if (_stageIsOwn(a)) {
+    return `<button class="stage-end-btn" onclick="event.stopPropagation();cancelMyActivity('${a.id}')" title="取り消し"><i class="ti ti-x"></i></button>`;
+  }
+  return _stageBoostBtn(a);
+}
+async function cancelMyActivity(activityId) {
+  if (!confirm('この出演予定を取り消しますか？')) return;
+  const ok = await dbDeleteActivity(activityId);
+  if (!ok) { showToast('取り消しに失敗しました', 'error'); return; }
+  showToast('出演予定を取り消しました', '');
+  renderStage();
 }
 
 function _stageOpenLink(activityId) {
@@ -1579,7 +1608,6 @@ async function submitActivity() {
   const title = (document.getElementById('act-title').value || '').trim();
   if (!title) { showToast('タイトルを入力してください', 'warn'); return; }
   const startVal = document.getElementById('act-start').value;
-  const endVal   = document.getElementById('act-end').value;
   if (!startVal) { showToast('開始時刻を入力してください', 'warn'); return; }
   const btn = document.getElementById('act-submit');
   if (btn) btn.disabled = true;
@@ -1591,7 +1619,7 @@ async function submitActivity() {
     url      : (document.getElementById('act-url').value || '').trim() || null,
     location : (document.getElementById('act-location').value || '').trim() || null,
     startsAt : new Date(startVal).toISOString(),
-    endsAt   : endVal ? new Date(endVal).toISOString() : null,
+    endsAt   : null,
   });
   if (btn) btn.disabled = false;
   if (!res) { showToast('登録に失敗しました', 'error'); return; }
@@ -1665,6 +1693,80 @@ async function applyBoostToActivity(activityId, itemId) {
   _gachaItems[itemId] = qty - 1;
   showToast(`🚀 ブースト！ +${boostAmt} 注目度`, 'success');
   renderStage();
+}
+
+// ── つぶやき → ステージ出演（コンポーズ連携） ──
+let _composeStageOn   = false;
+let _composeStageType = 'stream';
+
+/** コンポーズの「ステージにも出演」トグル（認証アカウントのみ） */
+function _updateComposeStageVisibility() {
+  const btn = document.getElementById('compose-stage-toggle-btn');
+  if (btn) btn.style.display = _myIsVerified ? '' : 'none';
+}
+function toggleComposeStage() {
+  if (!_myIsVerified) { showToast('ステージ出演は認証アカウントのみ利用できます', 'warn'); return; }
+  const panel = document.getElementById('compose-stage-body');
+  const btn   = document.getElementById('compose-stage-toggle-btn');
+  if (!panel) return;
+  _composeStageOn = panel.style.display === 'none';
+  panel.style.display = _composeStageOn ? 'block' : 'none';
+  if (btn) btn.classList.toggle('compose-url-btn-active', _composeStageOn);
+  if (_composeStageOn) {
+    const ta = document.getElementById('compose-input');
+    const parsed = _parseActivityTime(ta ? ta.value : '') || new Date();
+    const startEl = document.getElementById('compose-stage-start');
+    if (startEl) startEl.value = _localDatetimeValue(parsed);
+  }
+}
+function selectComposeStageType(type, btn) {
+  _composeStageType = type;
+  document.querySelectorAll('#compose-stage-types .cs-type-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+function _resetComposeStage() {
+  _composeStageOn = false; _composeStageType = 'stream';
+  const panel = document.getElementById('compose-stage-body');
+  if (panel) panel.style.display = 'none';
+  const btn = document.getElementById('compose-stage-toggle-btn');
+  if (btn) btn.classList.remove('compose-url-btn-active');
+  document.querySelectorAll('#compose-stage-types .cs-type-btn').forEach((b,i) => b.classList.toggle('active', i === 0));
+}
+
+/** 本文から開始時刻を推定（「20時から」「21:00」「今から」等） */
+function _parseActivityTime(text) {
+  if (!text) return null;
+  const now = new Date();
+  if (/今から|これから|いまから|今すぐ|まもなく/.test(text)) return now;
+  let m = text.match(/(\d{1,2})\s*[:：]\s*(\d{2})/);
+  if (m) return _todayAt(parseInt(m[1],10), parseInt(m[2],10), now);
+  m = text.match(/(\d{1,2})\s*時\s*(半)?/);
+  if (m) return _todayAt(parseInt(m[1],10), m[2] ? 30 : 0, now);
+  return null;
+}
+function _todayAt(h, min, now) {
+  if (h < 0 || h > 23 || min < 0 || min > 59) return null;
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, min, 0, 0);
+  if (d.getTime() < now.getTime() - 6 * 3600 * 1000) d.setDate(d.getDate() + 1); // 大幅に過去なら翌日
+  return d;
+}
+
+/** 投稿時に呼ばれる: トグルON & 認証なら活動を作成 */
+async function _createStageFromCompose({ text, catId, url } = {}) {
+  if (!_composeStageOn || !_myIsVerified) return;
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) return;
+  const startEl = document.getElementById('compose-stage-start');
+  let startsAt;
+  if (startEl && startEl.value) startsAt = new Date(startEl.value).toISOString();
+  else startsAt = (_parseActivityTime(text) || new Date()).toISOString();
+  const title = ((text || '').trim().split('\n')[0] || '').slice(0, 60) || 'ライブ';
+  const res = await dbCreateActivity({
+    accountId: aid, type: _composeStageType, title,
+    catId: catId || null, url: url || null, location: null,
+    startsAt, endsAt: null,
+  });
+  if (res && typeof showToast === 'function') showToast('ステージにも出演しました 🎤', 'success');
 }
 
 // ── ダークモード ──

@@ -2098,7 +2098,12 @@ async function dbCreateActivity({ accountId, type, title, catId, url, location, 
     starts_at  : startsAt || new Date().toISOString(),
     ends_at    : endsAt   || null,
   }).select().single();
-  if (error) { console.error('[DB] 活動登録エラー:', error.message); return null; }
+  if (error) {
+    if (!/activities|schema cache|relation|does not exist/i.test(error.message || '')) {
+      console.warn('[DB] 活動登録エラー:', error.message);
+    }
+    return null;
+  }
   return data;
 }
 
@@ -2151,6 +2156,14 @@ async function dbDeleteActivity(activityId) {
   if (!activityId) return false;
   const { error } = await db.from('activities').delete().eq('id', activityId);
   if (error) { console.error('[DB] 活動削除エラー:', error.message); return false; }
+  return true;
+}
+
+/** 活動を「今」終了する（ends_at = now → 失効扱い） */
+async function dbEndActivity(activityId) {
+  if (!activityId) return false;
+  const { error } = await db.from('activities').update({ ends_at: new Date().toISOString() }).eq('id', activityId);
+  if (error) { console.error('[DB] 活動終了エラー:', error.message); return false; }
   return true;
 }
 

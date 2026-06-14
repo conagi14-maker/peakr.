@@ -10679,3 +10679,35 @@ mark.hs-mark {
 .act-input:focus { outline: none; border-color: var(--accent); }
 .act-time-row { display: flex; gap: 10px; }
 .act-submit { margin-top: 18px; width: 100%; padding: 12px; border-radius: 12px; font-size: 14px; }
+
+/* コンポーズの「ステージにも出演」パネル */
+.compose-stage-body {
+  margin-top: 10px; padding: 12px;
+  border: 1px solid var(--accent); border-radius: var(--radius);
+  background: var(--accent-light);
+}
+.compose-stage-head {
+  font-size: 13px; font-weight: 700; color: var(--accent-text);
+  display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+}
+.compose-stage-types { display: flex; flex-wrap: wrap; gap: 6px; }
+.cs-type-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 11px; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text2); font-size: 12px; font-weight: 600;
+  font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: all 0.15s;
+}
+.cs-type-btn.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+.compose-stage-hint { font-size: 11px; color: var(--text2); margin-top: 8px; line-height: 1.6; }
+.compose-stage-hint i { color: var(--accent); }
+
+/* 出演カードの「終了/取り消し」ボタン */
+.stage-end-btn {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  padding: 6px 12px; border-radius: 10px;
+  border: 1px solid var(--border-strong); background: transparent; color: var(--text2);
+  font-size: 12px; font-weight: 600; font-family: 'Noto Sans JP', sans-serif; cursor: pointer;
+  transition: background 0.15s;
+}
+.stage-end-btn:hover { background: var(--surface2); }

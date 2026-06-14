@@ -460,7 +460,7 @@ function goPage(id, btn) {
   if (id === 'profile-links') openProfileLinks();
   if (id === 'profile-oshi')  openProfileOshi();
   if (id === 'profile-attrs') openProfileAttrs();
-  if (id === 'home')      { _refreshHomeFeedFromDB(); _checkAnnouncementBadge(); }
+  if (id === 'home')      { _refreshHomeFeedFromDB(); _checkAnnouncementBadge(); if (typeof _updateComposeStageVisibility === 'function') _updateComposeStageVisibility(); }
   if (id === 'mypage')    {
     _refreshMypageStats(); loadUserFavorites(); _loadMypageSocialLinks(); _updateMypageMeta(); _renderDisplayBadges();
     renderProfileEquipmentMini(localStorage.getItem('trendy_account_id'), 'mypage-equipment-mini');
@@ -1660,6 +1660,12 @@ function confirmPost() {
   const _tags          = [...pendingTags];
   const _linkUrl       = pendingUrl      || '';
   const _imageLinkUrl  = pendingImageUrl || '';
+
+  // ── つぶやき → ステージ出演（トグルON・認証・メイン投稿のみ） ──
+  if (!isSub && typeof _composeStageOn !== 'undefined' && _composeStageOn && typeof _createStageFromCompose === 'function') {
+    _createStageFromCompose({ text: v, catId: _catId || null, url: _linkUrl || null });
+    _resetComposeStage();
+  }
 
   // ランキング入り通知（カテゴリー設定済み・自分アカウントのみ）
   if (_catId && !testActiveUser && !isSub) {

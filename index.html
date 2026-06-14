@@ -176,6 +176,9 @@
               <button class="compose-media-btn compose-emoji-btn" id="compose-like-emoji-btn" onclick="openComposeLikeEmojiPicker()" title="いいねの絵文字を設定">
                 <span id="compose-like-emoji-current" style="font-size:18px;line-height:1">❤️</span>
               </button>
+              <button class="compose-media-btn" id="compose-stage-toggle-btn" onclick="toggleComposeStage()" title="ステージにも出演（認証アカウント）" style="display:none">
+                <i class="ti ti-broadcast"></i>
+              </button>
               <input type="file" id="compose-img-input" accept="image/*" multiple style="display:none" onchange="handleComposeMedia(this,'image')">
               <input type="file" id="compose-vid-input" accept="video/*" style="display:none" onchange="handleComposeMedia(this,'video')">
             </div>
@@ -209,6 +212,24 @@
             </div>
             <!-- 選択済みタグ一覧 -->
             <div class="compose-tags-list" id="compose-tags-list"></div>
+          </div>
+          <!-- ステージ出演パネル（認証アカウント・トグルで展開） -->
+          <div class="compose-stage-body" id="compose-stage-body" style="display:none">
+            <div class="compose-stage-head">
+              <i class="ti ti-broadcast"></i> このつぶやきをステージにも出演
+            </div>
+            <p class="compose-cat-step-label">種別</p>
+            <div class="compose-stage-types" id="compose-stage-types">
+              <button class="cs-type-btn active" data-type="stream" onclick="selectComposeStageType('stream',this)"><i class="ti ti-device-tv-old"></i> 配信</button>
+              <button class="cs-type-btn" data-type="live" onclick="selectComposeStageType('live',this)"><i class="ti ti-microphone-2"></i> ライブ</button>
+              <button class="cs-type-btn" data-type="tv" onclick="selectComposeStageType('tv',this)"><i class="ti ti-device-tv"></i> TV出演</button>
+              <button class="cs-type-btn" data-type="event" onclick="selectComposeStageType('event',this)"><i class="ti ti-calendar-event"></i> イベント</button>
+              <button class="cs-type-btn" data-type="signing" onclick="selectComposeStageType('signing',this)"><i class="ti ti-writing-sign"></i> サイン会</button>
+              <button class="cs-type-btn" data-type="other" onclick="selectComposeStageType('other',this)"><i class="ti ti-star"></i> その他</button>
+            </div>
+            <p class="compose-cat-step-label">開始</p>
+            <input type="datetime-local" id="compose-stage-start" class="act-input">
+            <p class="compose-stage-hint"><i class="ti ti-info-circle"></i> 本文の「20時から」等を自動で読み取ります。カテゴリーと添付URLは投稿と共有。終了時間はありません（自然にランキングから下がります）。</p>
           </div>
         </div>
       </div>
@@ -2741,16 +2762,9 @@
     <input type="text" id="act-title" class="act-input" maxlength="60" placeholder="例：新刊表紙のお絵描き配信">
     <label class="act-label">カテゴリー</label>
     <select id="act-cat" class="act-input"></select>
-    <div class="act-time-row">
-      <div style="flex:1">
-        <label class="act-label">開始</label>
-        <input type="datetime-local" id="act-start" class="act-input">
-      </div>
-      <div style="flex:1">
-        <label class="act-label">終了（任意）</label>
-        <input type="datetime-local" id="act-end" class="act-input">
-      </div>
-    </div>
+    <label class="act-label">開始</label>
+    <input type="datetime-local" id="act-start" class="act-input">
+    <p class="compose-stage-hint" style="margin:6px 0 0"><i class="ti ti-info-circle"></i> 終了時間はありません。終わったら出演カードの「終了」で締められます（自然にランキングから下がります）。</p>
     <label class="act-label">視聴/詳細リンク（任意）</label>
     <input type="url" id="act-url" class="act-input" placeholder="https://twitch.tv/...">
     <label class="act-label">会場（オフラインの場合・任意）</label>
