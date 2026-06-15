@@ -10711,3 +10711,41 @@ mark.hs-mark {
   transition: background 0.15s;
 }
 .stage-end-btn:hover { background: var(--surface2); }
+
+/* 実況コメント */
+.stage-comment-btn {
+  margin-top: 10px;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); font-size: 12px; font-weight: 600;
+  font-family: 'Noto Sans JP', sans-serif;
+  padding: 4px 0;
+  transition: color 0.15s;
+}
+.stage-comment-btn:hover { color: var(--accent); }
+.stage-comment-btn i { font-size: 15px; }
+.stage-comments {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.sc-loading { text-align: center; color: var(--text3); padding: 10px; }
+.sc-list { display: flex; flex-direction: column; gap: 7px; max-height: 220px; overflow-y: auto; margin-bottom: 10px; }
+.sc-item { font-size: 13px; line-height: 1.5; }
+.sc-name { font-weight: 700; color: var(--text); margin-right: 6px; }
+.sc-text { color: var(--text2); word-break: break-word; }
+.sc-empty { font-size: 12px; color: var(--text3); padding: 6px 0 10px; }
+.sc-input-row { display: flex; gap: 6px; }
+.sc-input {
+  flex: 1; min-width: 0;
+  padding: 8px 12px; border-radius: 99px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  font-size: 13px; font-family: 'Noto Sans JP', sans-serif;
+}
+.sc-input:focus { outline: none; border-color: var(--accent); }
+.sc-send {
+  flex-shrink: 0;
+  padding: 8px 16px; border-radius: 99px; border: none; cursor: pointer;
+  background: var(--accent); color: #fff;
+  font-size: 13px; font-weight: 700; font-family: 'Noto Sans JP', sans-serif;
+}

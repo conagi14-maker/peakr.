@@ -1351,7 +1351,7 @@ const STAGE_TYPES = {
 let _stageCatFilter   = null;   // null = 全て
 let _stageActivities  = [];
 let _stageProfMap     = {};
-let _stageFollowers   = {};
+let _stageCommenters  = {};     // { activityId: { total, set:Set(account_id) } }
 let _actSelType       = 'stream';
 
 function _stageEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -1367,10 +1367,12 @@ function _activityStatus(a, now) {
   return 'expired';
 }
 function _activityScore(a, now) {
-  const followers = _stageFollowers[a.account_id] || 0;
   const start = new Date(a.starts_at).getTime();
   const hoursSince = Math.max(0, (now - start) / 3600000);
-  const base = (a.boost_score || 0) + (a.click_count || 0) * 3 + followers * 0.5;
+  const cm = _stageCommenters[a.id];
+  const uniqueCommenters = cm ? cm.set.size : 0;
+  // フォロワーは評価から除外。クリックはアカウント単位で重複排除済み(click_count)。
+  const base = (a.boost_score || 0) + (a.click_count || 0) * 3 + uniqueCommenters * 5;
   const recency = Math.max(0, 60 - hoursSince * 5);
   return Math.round(base + recency);
 }
@@ -1398,18 +1400,18 @@ async function renderStage() {
   acts = (acts || []).filter(a => _activityStatus(a, now) !== 'expired');
   _stageActivities = acts;
 
-  // プロフィール＋フォロワー数を一括取得
-  const ids = [...new Set(acts.map(a => a.account_id))];
-  _stageProfMap = {}; _stageFollowers = {};
+  // プロフィール＋実況参加者(スコア用)を一括取得
+  const ids    = [...new Set(acts.map(a => a.account_id))];
+  const actIds = acts.map(a => a.id);
+  _stageProfMap = {}; _stageCommenters = {};
   if (ids.length) {
     try {
       const profs = await dbFetchProfilesByIds(ids);
       (profs || []).forEach(p => { _stageProfMap[p.account_id] = p; });
     } catch(e) {}
-    try {
-      const { data } = await db.from('follows').select('following_id').in('following_id', ids);
-      (data || []).forEach(r => { _stageFollowers[r.following_id] = (_stageFollowers[r.following_id] || 0) + 1; });
-    } catch(e) {}
+  }
+  if (actIds.length) {
+    try { _stageCommenters = await dbFetchActivityCommenters(actIds); } catch(e) {}
   }
   _renderStageCats();
   _renderStageBody();
@@ -1523,6 +1525,7 @@ function _stageLiveCard(a, rank, now) {
       ${boost}
       <span class="stage-foot-right">${_stageEndBtn(a)}${_stageBoostBtn(a)}${_stageActionHTML(a)}</span>
     </div>
+    ${_stageCommentSection(a)}
   </div>`;
 }
 
@@ -1546,6 +1549,7 @@ function _stageUpcomingCard(a, now) {
         </div>
         ${_stageUpcomingActionBtn(a)}
       </div>
+      ${_stageCommentSection(a)}
     </div>
   </div>`;
 }
@@ -1564,7 +1568,67 @@ async function cancelMyActivity(activityId) {
 }
 
 function _stageOpenLink(activityId) {
-  if (typeof dbIncrementActivityClick === 'function') dbIncrementActivityClick(activityId);
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) return;
+  const a = _stageActivities.find(x => x.id === activityId);
+  if (a && a.account_id === aid) return; // 自分のクリックは数えない
+  if (typeof dbIncrementActivityClick === 'function') dbIncrementActivityClick(activityId, aid);
+}
+
+// ── 実況コメント（スコアにも反映：ユニーク参加者数） ──
+function _stageCommentSection(a) {
+  const cm = _stageCommenters[a.id];
+  const n = cm ? cm.total : 0;
+  return `<button class="stage-comment-btn" data-act="${a.id}" onclick="event.stopPropagation();toggleStageComments('${a.id}',this)">
+      <i class="ti ti-message-circle"></i> 実況${n ? ' ' + n : ''}
+    </button>
+    <div class="stage-comments" id="sc-${a.id}" style="display:none"></div>`;
+}
+async function toggleStageComments(activityId, btn) {
+  const box = document.getElementById('sc-' + activityId);
+  if (!box) return;
+  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = '<div class="sc-loading"><i class="ti ti-loader-2"></i></div>';
+  const comments = await dbFetchActivityComments(activityId);
+  _renderStageComments(activityId, comments);
+}
+function _renderStageComments(activityId, comments) {
+  const box = document.getElementById('sc-' + activityId);
+  if (!box) return;
+  const loggedIn = !!localStorage.getItem('trendy_logged_in');
+  const list = (comments && comments.length)
+    ? comments.map(c => `<div class="sc-item"><span class="sc-name">${_stageEsc(c.user_name || c.account_id)}</span><span class="sc-text">${_stageEsc(c.content)}</span></div>`).join('')
+    : '<div class="sc-empty">まだ実況がありません。最初のひとことを！</div>';
+  const input = loggedIn
+    ? `<div class="sc-input-row">
+         <input type="text" class="sc-input" id="sc-in-${activityId}" maxlength="140" placeholder="実況コメント…" onkeydown="if(event.key==='Enter')submitStageComment('${activityId}')">
+         <button class="sc-send" onclick="submitStageComment('${activityId}')">送信</button>
+       </div>`
+    : '<div class="sc-empty">ログインすると実況できます</div>';
+  box.innerHTML = `<div class="sc-list">${list}</div>${input}`;
+  const inEl = document.getElementById('sc-in-' + activityId);
+  if (inEl) inEl.focus();
+}
+async function submitStageComment(activityId) {
+  const aid = localStorage.getItem('trendy_account_id');
+  if (!aid) { showToast('ログインが必要です', 'warn'); return; }
+  const inEl = document.getElementById('sc-in-' + activityId);
+  const content = (inEl ? inEl.value : '').trim();
+  if (!content) return;
+  if (inEl) inEl.value = '';
+  const res = await dbAddActivityComment({ activityId, accountId: aid, userName: (typeof myNickname !== 'undefined' ? myNickname : '') || aid, content });
+  if (!res) { showToast('送信に失敗しました', 'error'); return; }
+  // スコア用の参加者集計をローカル更新（新規参加者なら注目度+5相当）
+  if (!_stageCommenters[activityId]) _stageCommenters[activityId] = { total: 0, set: new Set() };
+  _stageCommenters[activityId].total++;
+  _stageCommenters[activityId].set.add(aid);
+  // 実況リストを更新（パネルは開いたまま）
+  const comments = await dbFetchActivityComments(activityId);
+  _renderStageComments(activityId, comments);
+  // ボタンの件数バッジを更新
+  const btn = document.querySelector(`.stage-comment-btn[data-act="${activityId}"]`);
+  if (btn) btn.innerHTML = `<i class="ti ti-message-circle"></i> 実況 ${_stageCommenters[activityId].total}`;
 }
 
 // ── 出演登録モーダル ──
@@ -2726,9 +2790,9 @@ function userPostCardHTML(t) {
     : '';
   const mediaBlock = t.mediaData
     ? (t.mediaType === 'image'
-        ? `<div class="tweet-media">${t.imageLinkUrl
-            ? `<a href="${encodeURI(t.imageLinkUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"><img src="${t.mediaData}" alt="添付画像" class="tweet-media-img" style="cursor:pointer"></a>`
-            : `<img src="${t.mediaData}" alt="添付画像" class="tweet-media-img" onclick="event.stopPropagation();openImageViewer(this.src)">`
+        ? `<div class="tweet-media">${t.imageLinkUrl && _parseMediaImages(t.mediaData).length === 1
+            ? `<img src="${t.mediaData}" alt="添付画像" class="tweet-media-img" style="cursor:pointer" onclick="event.stopPropagation();_confirmExternalLink('${encodeURI(t.imageLinkUrl)}')">`
+            : _renderMultiImageHtml(t.mediaData, { imgClass: 'tweet-media-img' })
           }</div>`
         : `<div class="tweet-media"><video src="${t.mediaData}" controls class="tweet-media-vid" preload="metadata"></video></div>`)
     : (mediaType === 'image'

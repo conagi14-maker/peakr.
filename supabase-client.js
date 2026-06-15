@@ -2142,13 +2142,69 @@ async function dbGetActivityBoost(activityId) {
   return data?.boost_score || 0;
 }
 
-/** 活動のクリック（流入）を+1 */
-async function dbIncrementActivityClick(activityId) {
-  if (!activityId) return;
+/** 活動のクリック（流入）をアカウント単位で1回だけ+1（連打対策） */
+let _activityClickRpcOk = true;
+async function dbIncrementActivityClick(activityId, accountId) {
+  if (!activityId || !accountId) return;
   try {
+    if (_activityClickRpcOk) {
+      const { error } = await db.rpc('increment_activity_click_once', {
+        p_activity_id: String(activityId), p_account_id: accountId,
+      });
+      if (!error) return;
+      if (/function|schema cache|does not exist|activity_clicks/i.test(error.message || '')) {
+        _activityClickRpcOk = false; // RPC/テーブル未作成 → 旧方式にフォールバック
+      } else { return; }
+    }
     const { data } = await db.from('activities').select('click_count').eq('id', activityId).maybeSingle();
     await db.from('activities').update({ click_count: (data?.click_count || 0) + 1 }).eq('id', activityId);
   } catch(e) { /* silent */ }
+}
+
+/** 実況コメント一覧を取得 */
+async function dbFetchActivityComments(activityId, limit = 100) {
+  if (!activityId) return [];
+  const { data, error } = await db.from('activity_comments')
+    .select('*').eq('activity_id', activityId)
+    .order('created_at', { ascending: true }).limit(limit);
+  if (error) {
+    if (!/activity_comments|schema cache|relation|does not exist/i.test(error.message || '')) {
+      console.warn('[DB] 実況取得エラー:', error.message);
+    }
+    return [];
+  }
+  return data || [];
+}
+
+/** 実況コメントを投稿 */
+async function dbAddActivityComment({ activityId, accountId, userName, content }) {
+  if (!activityId || !accountId || !content) return null;
+  const { data, error } = await db.from('activity_comments').insert({
+    activity_id: activityId, account_id: accountId,
+    user_name: userName || accountId, content,
+  }).select().single();
+  if (error) {
+    if (!/activity_comments|schema cache|relation|does not exist/i.test(error.message || '')) {
+      console.warn('[DB] 実況投稿エラー:', error.message);
+    }
+    return null;
+  }
+  return data;
+}
+
+/** 表示中の活動について (activity_id, account_id) を一括取得し、件数とユニーク参加者を返す */
+async function dbFetchActivityCommenters(activityIds) {
+  if (!activityIds || !activityIds.length) return {};
+  const { data, error } = await db.from('activity_comments')
+    .select('activity_id, account_id').in('activity_id', activityIds);
+  if (error) return {};
+  const map = {};
+  (data || []).forEach(r => {
+    if (!map[r.activity_id]) map[r.activity_id] = { total: 0, set: new Set() };
+    map[r.activity_id].total++;
+    map[r.activity_id].set.add(r.account_id);
+  });
+  return map;
 }
 
 /** 活動を削除（自分の出演の取り下げ） */
