@@ -1333,12 +1333,12 @@ body { background: var(--bg); color: var(--text); min-height: 100vh; }
 /* メディアあり: 本文非表示 / なし: そのまま */
 #home-feed .tweet-card:has(.tweet-media) .tweet-text { display: none; }
 #home-feed .tweet-card:not(:has(.tweet-media)) .tweet-text {
-  font-size: 13px; line-height: 1.5; padding: 12px 8px;
-  min-height: 140px;
-  display: flex; align-items: center; justify-content: center;
-  text-align: center;
-  background: linear-gradient(135deg, rgba(124,58,237,.06), rgba(59,130,246,.04));
-  border-radius: 6px;
+  font-size: 14.5px; line-height: 1.72; padding: 14px 14px;
+  min-height: 120px;
+  display: block; text-align: left;
+  color: var(--text);
+  background: var(--accent-light);
+  border-radius: 8px;
   white-space: pre-wrap; word-break: break-word;
 }
 @media (max-width: 480px) {
@@ -9801,12 +9801,12 @@ mark.hs-mark {
 #latest-feed .tweet-card .tweet-actions .action-btn i { font-size: 13px; }
 #latest-feed .tweet-card:has(.tweet-media) .tweet-text { display: none; }
 #latest-feed .tweet-card:not(:has(.tweet-media)) .tweet-text {
-  font-size: 13px; line-height: 1.5; padding: 12px 8px;
-  min-height: 140px;
-  display: flex; align-items: center; justify-content: center;
-  text-align: center;
-  background: linear-gradient(135deg, rgba(124,58,237,.06), rgba(59,130,246,.04));
-  border-radius: 6px;
+  font-size: 14.5px; line-height: 1.72; padding: 14px 14px;
+  min-height: 120px;
+  display: block; text-align: left;
+  color: var(--text);
+  background: var(--accent-light);
+  border-radius: 8px;
   white-space: pre-wrap; word-break: break-word;
 }
 @media (max-width: 480px) {

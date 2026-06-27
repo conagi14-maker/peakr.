@@ -38,7 +38,8 @@
       <button class="nav-item" data-page="ranking" onclick="goPage('ranking',this)">
         <i class="ti ti-trophy"></i><span>ランキング</span>
       </button>
-      <button class="nav-item" data-page="stage" onclick="goPage('stage',this)">
+      <!-- ステージは休止中（非表示）。再開する場合は style を外す -->
+      <button class="nav-item" data-page="stage" onclick="goPage('stage',this)" style="display:none">
         <i class="ti ti-broadcast"></i><span>ステージ</span>
       </button>
       <button class="nav-item" data-page="latest" onclick="goPage('latest',this)">
@@ -66,7 +67,8 @@
       <button class="nav-item" data-page="tracks" onclick="goPage('tracks',this)">
         <i class="ti ti-radar-2"></i><span>トラック</span>
       </button>
-      <button class="nav-item" data-page="gacha" onclick="goPage('gacha',this)">
+      <!-- ガチャは廃止（非表示）。コイン/ブースト経済も停止 -->
+      <button class="nav-item" data-page="gacha" onclick="goPage('gacha',this)" style="display:none">
         <i class="ti ti-dice"></i><span>ガチャ</span>
         <span class="nav-badge" id="gacha-nav-badge" style="display:none"></span>
       </button>

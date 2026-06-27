@@ -2695,7 +2695,7 @@ async function openTweetDetail(idx) {
       <span style="display:inline-flex;align-items:center;flex-shrink:0;transform:scale(.85);transform-origin:left center">${favStar(idx)}</span>
       ${hasRank ? `<span style="margin-left:auto;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;flex-shrink:0;transform:scale(.9);transform-origin:right center"><span class="rank-badge-card ${rc(t.rank)}">#${t.rank}位</span>${prevBadge(t.prev)}</span>` : ''}
     </div>
-    ${(t.db_id && !t.extSource) ? `<div style="padding:8px 14px;border-bottom:1px solid var(--border)">
+    ${(false && t.db_id && !t.extSource) ? `<div style="padding:8px 14px;border-bottom:1px solid var(--border)">
       <button onclick="openBoostPicker('${t.db_id}')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:18px;border:1px solid #f59e0b;background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;font-size:12px;font-weight:700;cursor:pointer">
         <i class="ti ti-rocket"></i> ブーストチケットを使う
       </button>

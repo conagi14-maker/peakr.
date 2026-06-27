@@ -1690,8 +1690,8 @@ function confirmPost() {
   if (urlBtn) urlBtn.classList.remove('compose-url-btn-active');
   resetComposeCat(); // カテゴリー・タグもリセット
   updateCompose();
-  // 投稿でピークコインガチャ（1日10回まで）
-  if (!testActiveUser && !isSub) {
+  // 投稿でピークコインガチャ（1日10回まで） — ガチャ廃止により停止（false で無効化）
+  if (false && !testActiveUser && !isSub) {
     const _postAid = localStorage.getItem('trendy_account_id');
     if (_postAid && typeof dbAddPoints === 'function') {
       // 1日のガチャ回数を確認（アカウント毎、ローカル日付）
