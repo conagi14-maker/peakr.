@@ -1057,6 +1057,9 @@ async function completeRegister() {
 
   if (regBtn) { regBtn.disabled = false; regBtn.innerHTML = '<i class="ti ti-user-check"></i> 登録する'; }
 
+  // ── 認証情報をサーバーに作成（scrypt・匿名キーから読めない auth_credentials へ） ──
+  if (typeof dbRegisterCredential === 'function') dbRegisterCredential(accountId, pw);
+
   // ── 新規登録ボーナス：1000ピークコインをプレゼント ──
   if (typeof dbAddPoints === 'function') {
     dbAddPoints(accountId, 1000, 'admin').catch(e => {

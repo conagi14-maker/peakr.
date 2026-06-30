@@ -1955,7 +1955,9 @@ async function completeLogin() {
         _showErr('このIDは登録されていません'); return;
       }
 
-      if (profile.password_hash !== encoded) { _showErr('IDまたはパスワードが正しくありません'); return; }
+      // パスワード照合はサーバー(Netlify Function)で行う。未デプロイ環境は従来方式へフォールバック
+      const _pwOk = await dbVerifyLogin(inputId, inputPw, profile);
+      if (!_pwOk) { _showErr('IDまたはパスワードが正しくありません'); return; }
 
       // Supabase のプロフィールをローカルに適用
       myNickname = profile.nickname || inputId;

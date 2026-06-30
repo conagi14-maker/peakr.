@@ -131,6 +131,43 @@ async function dbFetchProfile(accountId) {
   return data; // 存在すればオブジェクト、しなければ null
 }
 
+// ══════════════════════════════════════════
+// 認証（サーバーサイド照合）
+// ══════════════════════════════════════════
+// パスワード照合は Netlify Function(auth) に寄せる。関数が使えない環境
+// （ローカル / 未デプロイ / 環境変数未設定 = 503）では、移行期間中だけ
+// 従来のクライアント照合(profiles.password_hash)へフォールバックする。
+
+/** ログイン照合。true=一致 / false=不一致。profile は dbFetchProfile の結果（フォールバック用） */
+async function dbVerifyLogin(accountId, rawPassword, profile) {
+  try {
+    const res = await fetch('/.netlify/functions/auth', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', accountId, password: rawPassword }),
+    });
+    if (res.status !== 503 && res.status !== 404) {
+      const j = await res.json().catch(() => null);
+      if (j && typeof j.ok === 'boolean') return j.ok; // サーバーで確定
+    }
+  } catch (e) { /* ネットワーク等 → フォールバック */ }
+  // フォールバック（移行期間のみ・ロックダウン後は password_hash が無く false になる）
+  if (profile && profile.password_hash) {
+    const encoded = btoa(unescape(encodeURIComponent(rawPassword)));
+    return profile.password_hash === encoded;
+  }
+  return false;
+}
+
+/** 登録時に認証情報(scrypt)をサーバーに作成。失敗は致命的ではない（移行期はprofiles側で照合可能） */
+async function dbRegisterCredential(accountId, rawPassword) {
+  try {
+    await fetch('/.netlify/functions/auth', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'register', accountId, password: rawPassword }),
+    });
+  } catch (e) { /* silent: ロックダウン前は profiles.password_hash で照合可能 */ }
+}
+
 /** ソーシャルリンクをSupabaseへ保存 */
 async function dbUpdateSocialLinks(accountId, links) {
   if (!accountId) return;
