@@ -269,12 +269,20 @@ function _initViewObserver() {
 const retweetedTweets = new Set();
 const followingSet = new Set(FOLLOWS.map(u => u.h));
 let myFollowingHandles = []; // Supabase から読み込んだフォロー中ハンドル（'@id' 形式）
-/** テキスト内の URL をクリッカブルリンクに変換 */
+/** HTMLエスケープ（XSS対策の共通ヘルパー）。innerHTML に入るユーザー入力は必ずこれを通す */
+function _escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+/** テキスト内の URL をクリッカブルリンクに変換（先にHTMLエスケープしてから処理） */
 function _linkify(text) {
   if (!text) return '';
-  return text.replace(/(https?:\/\/[^\s<>"]+)/g, url =>
-    `<a href="${encodeURI(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="tweet-link">${url}</a>`
-  );
+  const esc = _escHtml(text);
+  return esc.replace(/(https?:\/\/[^\s<>"]+)/g, m => {
+    const raw = m.replace(/&amp;/g, '&'); // href 用に & だけ戻す
+    return `<a href="${encodeURI(raw)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="tweet-link">${m}</a>`;
+  });
 }
 /** 投稿に添付された URL ボタンの HTML を返す */
 function _urlBtnHTML(url) {
@@ -543,8 +551,8 @@ function homeTweetHTML(t) {
     ${_tweetAvHtml('tweet-av clickable', `background:${u.bg};color:${u.tc};overflow:hidden`, u.av, u, `openUserPage('${u.h}')`)}
     <div class="tweet-body">
       <div class="tweet-top">
-        <span class="tweet-name clickable" onclick="openUserPage('${u.h}')">${u.n}</span>
-        ${u.nameTag ? `<span class="tweet-name-tag">＠${u.nameTag}</span>` : ''}
+        <span class="tweet-name clickable" onclick="openUserPage('${u.h}')">${_escHtml(u.n)}</span>
+        ${u.nameTag ? `<span class="tweet-name-tag">＠${_escHtml(u.nameTag)}</span>` : ''}
         <span class="tweet-handle">${u.h}</span>
         ${u.sub ? subBadge() : ''}
         ${aiBadge(t.ai)}
@@ -1400,7 +1408,7 @@ function _reelCardHTML(group) {
     return `<div class="reel-card reel-card--youtube${isShorts ? ' reel-card--shorts' : ''}" data-idx="${idx}" data-db-id="${t.db_id||''}" data-embed="${embedSrc}">
       <!-- サムネイル部 -->
       <div class="reel-yt-thumb" onclick="_reelYtPlay(this)">
-        <img src="${t.mediaData}" class="reel-yt-thumb-img" alt="${t.text}">
+        <img src="${t.mediaData}" class="reel-yt-thumb-img" alt="${_escHtml(t.text)}">
         <div class="reel-yt-play-btn"><i class="ti ti-player-play-filled"></i></div>
         <span class="reel-yt-src-badge ctm-ext-badge ctm-ext-${t.extSource}">${_extSourceLabel(t.extSource)}</span>
       </div>
@@ -1409,7 +1417,7 @@ function _reelCardHTML(group) {
       <!-- 情報バー -->
       <div class="reel-yt-info">
         <div class="reel-yt-channel" onclick="event.stopPropagation();window.open('${t.extUrl}','_blank','noopener,noreferrer')">${t.user?.n || ''}</div>
-        <div class="reel-yt-title" onclick="event.stopPropagation();window.open('${t.extUrl}','_blank','noopener,noreferrer')">${t.text || ''}</div>
+        <div class="reel-yt-title" onclick="event.stopPropagation();window.open('${t.extUrl}','_blank','noopener,noreferrer')">${_escHtml(t.text || '')}</div>
         <div class="reel-yt-actions">
           <button class="reel-action-btn" onclick="event.stopPropagation();openTweetDetail(${idx})">
             <i class="ti ti-message-circle"></i><span>${(tweetReplies[idx]||[]).length||0}</span>

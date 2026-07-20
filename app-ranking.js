@@ -57,9 +57,9 @@ function _catMiniTweets(tweets, bar, maxScore) {
           ${avHtml}
           <span class="ctm-author-name">${authorName}${extIconHtml}</span>
         </span>
-        ${u.nameTag ? `<span class="ctm-author-tag">＠${u.nameTag}</span>` : ''}
+        ${u.nameTag ? `<span class="ctm-author-tag">＠${_escHtml(u.nameTag)}</span>` : ''}
       </div>
-      ${t.text ? `<div class="ctm-text">${t.text}</div>` : ''}
+      ${t.text ? `<div class="ctm-text">${_escHtml(t.text)}</div>` : ''}
       ${mediaThumb}
       <div class="ctm-stats">
         <button class="ctm-comment-btn" onclick="event.stopPropagation();openTweetDetail(${idx})" title="コメント">
@@ -901,10 +901,10 @@ function renderFsChunk(from) {
       <div class="fs-tweet-userrow">
         ${fsAvHtml}
         <span class="fs-tweet-user">${u.n ? (u.sub ? '匿名' : u.n) : u.h || ''}</span>
-        ${u.nameTag ? `<span class="fs-tweet-handle">＠${u.nameTag}</span>` : ''}
+        ${u.nameTag ? `<span class="fs-tweet-handle">＠${_escHtml(u.nameTag)}</span>` : ''}
         ${u.sub ? subBadge() : ''}
       </div>
-      ${t.text ? `<div class="fs-tweet-text">${t.text}</div>` : ''}
+      ${t.text ? `<div class="fs-tweet-text">${_escHtml(t.text)}</div>` : ''}
       ${fsMediaThumb}
       <div class="fs-tweet-stats" onclick="event.stopPropagation()">
         <span class="fs-stat"><i class="ti ti-heart"></i>${fmt(t.likes)}</span>
@@ -1442,7 +1442,7 @@ function _favCardHTML(s) {
     <div class="tweet-body">
       <div class="tweet-top">
         <span class="tweet-name">${u.sub?'匿名ユーザー':(u.n||'')}</span>
-        ${u.nameTag?`<span class="tweet-name-tag">＠${u.nameTag}</span>`:''}
+        ${u.nameTag?`<span class="tweet-name-tag">＠${_escHtml(u.nameTag)}</span>`:''}
         <span class="tweet-handle">${u.h||''}</span>
         <span class="tweet-time">${s.time||''}</span>
       </div>
@@ -2289,12 +2289,12 @@ function renderMyRank() {
       <div class="tweet-body">
         <div class="tweet-top">
           <span class="rank-badge-card ${rc(i+1)}">#${i+1}</span>
-          <span class="tweet-name">${u.n}</span>
-          ${u.nameTag ? `<span class="tweet-name-tag">＠${u.nameTag}</span>` : ''}
+          <span class="tweet-name">${_escHtml(u.n)}</span>
+          ${u.nameTag ? `<span class="tweet-name-tag">＠${_escHtml(u.nameTag)}</span>` : ''}
           <span class="tweet-handle">${u.h}</span>
           <span class="tweet-time">${t.time}</span>
         </div>
-        ${t.text ? `<div class="tweet-text">${t.text}</div>` : ''}
+        ${t.text ? `<div class="tweet-text">${_escHtml(t.text)}</div>` : ''}
         ${t.mediaData ? (t.mediaType === 'image'
           ? `<div class="tweet-media">${_renderMultiImageHtml(t.mediaData, { imgClass: 'tweet-media-img' })}</div>`
           : `<div class="tweet-media"><video src="${t.mediaData}" controls class="tweet-media-vid" preload="metadata"></video></div>`)
@@ -2668,9 +2668,9 @@ async function openTweetDetail(idx) {
       ${_tweetAvHtml('tweet-av', `background:${u.bg};color:${u.tc};overflow:hidden;flex-shrink:0`, u.av, u)}
       <div style="flex:1;min-width:0">
         <div class="tweet-name" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-          ${u.n}
+          ${_escHtml(u.n)}
           ${u.sub ? subBadge() : `<span class="badge-main">メイン</span>`}
-          ${u.nameTag ? `<span class="tweet-name-tag">＠${u.nameTag}</span>` : ''}
+          ${u.nameTag ? `<span class="tweet-name-tag">＠${_escHtml(u.nameTag)}</span>` : ''}
         </div>
         <div class="tweet-handle">${u.h} <span style="color:var(--text3);font-size:11px;margin-left:4px">${t.time}</span></div>
       </div>
@@ -2866,13 +2866,13 @@ function renderRepliesHTML(idx) {
 
         <div class="reply-body">
           <div class="reply-meta">
-            <span class="tweet-name">${ru.sub ? '匿名ユーザー' : ru.n}</span>
+            <span class="tweet-name">${ru.sub ? '匿名ユーザー' : _escHtml(ru.n)}</span>
             ${ru.sub ? subBadge() : ''}
-            ${ru.nameTag ? `<span class="tweet-name-tag">＠${ru.nameTag}</span>` : ''}
+            ${ru.nameTag ? `<span class="tweet-name-tag">＠${_escHtml(ru.nameTag)}</span>` : ''}
             <span class="tweet-handle">${ru.h}</span>
             <span class="tweet-time">${r.time}</span>
           </div>
-          <div class="tweet-text">${r.text}</div>
+          <div class="tweet-text">${_escHtml(r.text)}</div>
         </div>
       </div>`;
     }).join('');
@@ -2891,7 +2891,7 @@ function openReplyModal(idx) {
           <span class="tweet-name">${u.sub ? '匿名ユーザー' : u.n}</span>
           <span class="tweet-handle">${u.h}</span>
         </div>
-        <div class="reply-target-text">${t.text}</div>
+        <div class="reply-target-text">${_escHtml(t.text)}</div>
       </div>
     </div>`;
   document.getElementById('reply-input').value = '';

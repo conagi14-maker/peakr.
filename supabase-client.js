@@ -621,7 +621,9 @@ async function dbSaveFollowNotif(targetAccountId, followerAccountId) {
       .eq('account_id', followerAccountId)
       .maybeSingle();
 
-    const followerName = followerProfile?.nickname || followerAccountId;
+    const rawName = followerProfile?.nickname || followerAccountId;
+    // 通知テキストは innerHTML で描画されるため、名前はここでエスケープして保存
+    const followerName = (typeof _escHtml === 'function') ? _escHtml(rawName) : rawName;
 
     await db.from('notifications').insert({
       account_id   : targetAccountId,

@@ -2283,7 +2283,7 @@ function openUserPage(handle) {
   if (upBadgesRow) { upBadgesRow.innerHTML = ''; upBadgesRow.style.display = 'none'; }
 
   document.getElementById('user-page-name').innerHTML =
-    `${u.sub ? '匿名ユーザー' : u.n} ${u.sub ? subBadge() : '<span class="badge-main">メイン</span>'}`;
+    `${u.sub ? '匿名ユーザー' : _escHtml(u.n)} ${u.sub ? subBadge() : '<span class="badge-main">メイン</span>'}`;
   document.getElementById('user-page-handle').textContent = handle;
 
   const meta = document.getElementById('user-page-meta');
@@ -2807,8 +2807,8 @@ function userPostCardHTML(t) {
     ${_tweetAvHtml('tweet-av clickable', `background:${u.bg};color:${u.tc};overflow:hidden`, u.av, u, `openUserPage('${u.h}')`)}
     <div class="tweet-body">
       <div class="tweet-header">
-        <span class="tweet-name clickable" onclick="openUserPage('${u.h}')">${u.sub ? '匿名ユーザー' : u.n}</span>
-        ${u.nameTag ? `<span class="tweet-name-tag">＠${u.nameTag}</span>` : ''}
+        <span class="tweet-name clickable" onclick="openUserPage('${u.h}')">${u.sub ? '匿名ユーザー' : _escHtml(u.n)}</span>
+        ${u.nameTag ? `<span class="tweet-name-tag">＠${_escHtml(u.nameTag)}</span>` : ''}
         ${u.sub ? subBadge() : ''}
         <span class="tweet-handle">${u.h}</span>
         <span class="tweet-time">${t.time}</span>

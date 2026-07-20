@@ -765,7 +765,7 @@ async function renderDmChat() {
     };
     el.innerHTML = msgs.map(m => {
       const isMine = m.from_id === myId;
-      const body = m.body.replace(/</g,'&lt;').replace(/\n/g,'<br>');
+      const body = _escHtml(m.body).replace(/\n/g,'<br>');
       return `<div class="dm-msg-wrap ${isMine ? 'dm-mine' : 'dm-theirs'}">
         <div class="dm-bubble">${body}</div>
         <div class="dm-ts">${fmtTs(m.created_at)}</div>
