@@ -38,8 +38,7 @@
       <button class="nav-item" data-page="ranking" onclick="goPage('ranking',this)">
         <i class="ti ti-trophy"></i><span>ランキング</span>
       </button>
-      <!-- ステージは休止中（非表示）。再開する場合は style を外す -->
-      <button class="nav-item" data-page="stage" onclick="goPage('stage',this)" style="display:none">
+      <button class="nav-item" data-page="stage" onclick="goPage('stage',this)">
         <i class="ti ti-broadcast"></i><span>ステージ</span>
       </button>
       <button class="nav-item" data-page="latest" onclick="goPage('latest',this)">
@@ -223,10 +222,15 @@
             <p class="compose-cat-step-label">種別</p>
             <div class="compose-stage-types" id="compose-stage-types">
               <button class="cs-type-btn active" data-type="stream" onclick="selectComposeStageType('stream',this)"><i class="ti ti-device-tv-old"></i> 配信</button>
-              <button class="cs-type-btn" data-type="live" onclick="selectComposeStageType('live',this)"><i class="ti ti-microphone-2"></i> ライブ</button>
-              <button class="cs-type-btn" data-type="tv" onclick="selectComposeStageType('tv',this)"><i class="ti ti-device-tv"></i> TV出演</button>
+              <button class="cs-type-btn" data-type="live" onclick="selectComposeStageType('live',this)"><i class="ti ti-microphone-2"></i> 音楽ライブ</button>
+              <button class="cs-type-btn" data-type="tv" onclick="selectComposeStageType('tv',this)"><i class="ti ti-device-tv"></i> テレビ</button>
               <button class="cs-type-btn" data-type="event" onclick="selectComposeStageType('event',this)"><i class="ti ti-calendar-event"></i> イベント</button>
+              <button class="cs-type-btn" data-type="talk" onclick="selectComposeStageType('talk',this)"><i class="ti ti-microphone"></i> トークショー</button>
+              <button class="cs-type-btn" data-type="stageplay" onclick="selectComposeStageType('stageplay',this)"><i class="ti ti-masks-theater"></i> 舞台・演劇</button>
+              <button class="cs-type-btn" data-type="exhibition" onclick="selectComposeStageType('exhibition',this)"><i class="ti ti-building-store"></i> 展示会</button>
+              <button class="cs-type-btn" data-type="screening" onclick="selectComposeStageType('screening',this)"><i class="ti ti-movie"></i> 上映会</button>
               <button class="cs-type-btn" data-type="signing" onclick="selectComposeStageType('signing',this)"><i class="ti ti-writing-sign"></i> サイン会</button>
+              <button class="cs-type-btn" data-type="release" onclick="selectComposeStageType('release',this)"><i class="ti ti-disc"></i> 発売・記念</button>
               <button class="cs-type-btn" data-type="other" onclick="selectComposeStageType('other',this)"><i class="ti ti-star"></i> その他</button>
             </div>
             <p class="compose-cat-step-label">開始</p>
@@ -2061,32 +2065,17 @@
         <button class="back-btn" id="ads-back-btn"><i class="ti ti-arrow-left"></i></button>
         <h1><i class="ti ti-speakerphone" style="color:var(--accent)"></i> 広告管理</h1>
       </div>
-      <!-- ポイント残高バナー -->
-      <div class="ad-hub-points-banner" id="ad-hub-points-banner">
-        <div class="ad-hub-points-label"><i class="ti ti-diamond"></i> ピークコイン残高</div>
-        <div class="ad-hub-points-val" id="ad-hub-points-val">— コイン</div>
-      </div>
-      <!-- メニューカード -->
+      <!-- メニューカード（課金のみ） -->
       <div class="ad-hub-grid">
         <button class="ad-hub-card" onclick="goPage('ad-create',null)">
           <i class="ti ti-edit ad-hub-icon" style="color:#3b82f6"></i>
           <div class="ad-hub-card-title">新しい広告を作成</div>
-          <div class="ad-hub-card-desc">テキスト・画像で広告を出稿</div>
-        </button>
-        <button class="ad-hub-card" onclick="goPage('ad-boost',null)">
-          <i class="ti ti-rocket ad-hub-icon" style="color:#8b5cf6"></i>
-          <div class="ad-hub-card-title">投稿をブースト</div>
-          <div class="ad-hub-card-desc">既存の投稿を広告として出稿</div>
+          <div class="ad-hub-card-desc">テキスト・画像で広告を出稿（課金）</div>
         </button>
         <button class="ad-hub-card" onclick="goPage('ad-list',null)">
           <i class="ti ti-list ad-hub-icon" style="color:#10b981"></i>
           <div class="ad-hub-card-title">レポート一覧</div>
           <div class="ad-hub-card-desc">出稿中・過去の広告を管理</div>
-        </button>
-        <button class="ad-hub-card" onclick="goPage('peak-points',null)">
-          <i class="ti ti-diamond ad-hub-icon" style="color:#f59e0b"></i>
-          <div class="ad-hub-card-title">ピークコイン</div>
-          <div class="ad-hub-card-desc">友達を招待してポイントを獲得</div>
         </button>
       </div>
     </div>
@@ -2167,13 +2156,12 @@
           </div>
 
           <div class="ad-field">
-            <label class="ad-label">支払い方法 <span class="ad-required">必須</span></label>
+            <label class="ad-label">支払い方法</label>
             <div class="ad-pay-row">
-              <button class="ad-pay-btn active" onclick="setAdPayMethod('money',this)">💳 現金払い</button>
-              <button class="ad-pay-btn" onclick="setAdPayMethod('points',this)" id="ad-pay-points-btn">💎 ポイントで支払う（残高：<span id="ad-pay-points-bal">0</span>pt）</button>
+              <button class="ad-pay-btn active" type="button">💳 現金払い</button>
             </div>
             <div style="font-size:11px;color:#059669;background:#d1fae5;border-radius:6px;padding:6px 10px;margin-top:6px;line-height:1.5">
-              <i class="ti ti-info-circle"></i> 現金払いを選択した場合、出稿後に運営から振込先をお知らせします。入金確認後、広告が掲載されます。
+              <i class="ti ti-info-circle"></i> 出稿後に運営から振込先をお知らせします。入金確認後、広告が掲載されます。
             </div>
             <div style="font-size:12px;color:var(--text3);margin-top:6px" id="ad-points-warn"></div>
           </div>
@@ -2754,14 +2742,28 @@
     <label class="act-label">種別</label>
     <div class="act-type-row" id="act-type-row">
       <button class="act-type-btn active" data-type="stream" onclick="selectActType('stream',this)"><i class="ti ti-device-tv-old"></i> 配信</button>
-      <button class="act-type-btn" data-type="live" onclick="selectActType('live',this)"><i class="ti ti-microphone-2"></i> ライブ</button>
-      <button class="act-type-btn" data-type="tv" onclick="selectActType('tv',this)"><i class="ti ti-device-tv"></i> TV出演</button>
+      <button class="act-type-btn" data-type="live" onclick="selectActType('live',this)"><i class="ti ti-microphone-2"></i> 音楽ライブ</button>
+      <button class="act-type-btn" data-type="tv" onclick="selectActType('tv',this)"><i class="ti ti-device-tv"></i> テレビ</button>
       <button class="act-type-btn" data-type="event" onclick="selectActType('event',this)"><i class="ti ti-calendar-event"></i> イベント</button>
+      <button class="act-type-btn" data-type="talk" onclick="selectActType('talk',this)"><i class="ti ti-microphone"></i> トークショー</button>
+      <button class="act-type-btn" data-type="stageplay" onclick="selectActType('stageplay',this)"><i class="ti ti-masks-theater"></i> 舞台・演劇</button>
+      <button class="act-type-btn" data-type="exhibition" onclick="selectActType('exhibition',this)"><i class="ti ti-building-store"></i> 展示会</button>
+      <button class="act-type-btn" data-type="screening" onclick="selectActType('screening',this)"><i class="ti ti-movie"></i> 上映会</button>
       <button class="act-type-btn" data-type="signing" onclick="selectActType('signing',this)"><i class="ti ti-writing-sign"></i> サイン会</button>
+      <button class="act-type-btn" data-type="release" onclick="selectActType('release',this)"><i class="ti ti-disc"></i> 発売・記念</button>
       <button class="act-type-btn" data-type="other" onclick="selectActType('other',this)"><i class="ti ti-star"></i> その他</button>
     </div>
     <label class="act-label">タイトル</label>
     <input type="text" id="act-title" class="act-input" maxlength="60" placeholder="例：新刊表紙のお絵描き配信">
+    <label class="act-label">サムネイル画像（任意）</label>
+    <input type="file" id="act-thumb-input" accept="image/*" style="display:none" onchange="handleActThumb(this)">
+    <div class="act-thumb-drop" id="act-thumb-drop" onclick="document.getElementById('act-thumb-input').click()">
+      <div class="act-thumb-empty" id="act-thumb-empty"><i class="ti ti-photo-plus"></i><span>タップして画像を選択</span></div>
+      <div class="act-thumb-preview" id="act-thumb-preview" style="display:none">
+        <img id="act-thumb-img" alt="">
+        <button type="button" class="act-thumb-remove" onclick="event.stopPropagation();removeActThumb()"><i class="ti ti-x"></i></button>
+      </div>
+    </div>
     <label class="act-label">カテゴリー</label>
     <select id="act-cat" class="act-input"></select>
     <label class="act-label">開始</label>
@@ -3181,6 +3183,7 @@
 <script src="app-social.js"></script>
 <script src="app-gacha.js"></script>
 <script src="app-dev-ads.js"></script>
+<script src="app-level.js"></script>
 </body>
 </html>
 

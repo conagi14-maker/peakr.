@@ -1060,16 +1060,11 @@ async function completeRegister() {
   // ── 認証情報をサーバーに作成（scrypt・匿名キーから読めない auth_credentials へ） ──
   if (typeof dbRegisterCredential === 'function') dbRegisterCredential(accountId, pw);
 
-  // ── 新規登録ボーナス：1000ピークコインをプレゼント ──
-  if (typeof dbAddPoints === 'function') {
-    dbAddPoints(accountId, 1000, 'admin').catch(e => {
-      console.warn('[REG] 登録ボーナス付与エラー:', e?.message);
-    });
-  }
+  // ── ピークコイン廃止：登録ボーナスは付与しない ──
 
   // ── 保存成功 → 完了ステップへ ──
   const desc = document.getElementById('reg-done-desc');
-  if (desc) desc.innerHTML = `<b>@${accountId}</b> さん、ようこそ！<br>アカウントの設定が完了しました。<br><span style="color:#7c3aed;font-weight:700"><i class="ti ti-gift"></i> 登録ボーナスとして 1,000 ピークコイン をプレゼントしました！</span>`;
+  if (desc) desc.innerHTML = `<b>@${accountId}</b> さん、ようこそ！<br>アカウントの設定が完了しました。`;
   registerStep(2);
 
   // ── 前アカウントのプロフィールデータをクリア ──
@@ -1344,12 +1339,17 @@ function _finishOnboarding(apply) {
 // ステージ（リアルタイム活動アピール）
 // ══════════════════════════════════════════
 const STAGE_TYPES = {
-  stream : { label: '配信',    icon: 'ti-device-tv-old' },
-  live   : { label: 'ライブ',  icon: 'ti-microphone-2' },
-  tv     : { label: 'TV出演',  icon: 'ti-device-tv' },
-  event  : { label: 'イベント', icon: 'ti-calendar-event' },
-  signing: { label: 'サイン会', icon: 'ti-writing-sign' },
-  other  : { label: 'その他',  icon: 'ti-star' },
+  stream    : { label: '配信',      icon: 'ti-device-tv-old' },
+  live      : { label: '音楽ライブ', icon: 'ti-microphone-2' },
+  tv        : { label: 'テレビ',     icon: 'ti-device-tv' },
+  event     : { label: 'イベント',   icon: 'ti-calendar-event' },
+  talk      : { label: 'トークショー', icon: 'ti-microphone' },
+  stageplay : { label: '舞台・演劇', icon: 'ti-masks-theater' },
+  exhibition: { label: '展示会',     icon: 'ti-building-store' },
+  screening : { label: '上映会',     icon: 'ti-movie' },
+  signing   : { label: 'サイン会',   icon: 'ti-writing-sign' },
+  release   : { label: '発売・記念', icon: 'ti-disc' },
+  other     : { label: 'その他',     icon: 'ti-star' },
 };
 let _stageCatFilter   = null;   // null = 全て
 let _stageActivities  = [];
@@ -1374,8 +1374,10 @@ function _activityScore(a, now) {
   const hoursSince = Math.max(0, (now - start) / 3600000);
   const cm = _stageCommenters[a.id];
   const uniqueCommenters = cm ? cm.set.size : 0;
+  const totalComments    = cm ? cm.total : 0;
   // フォロワーは評価から除外。クリックはアカウント単位で重複排除済み(click_count)。
-  const base = (a.boost_score || 0) + (a.click_count || 0) * 3 + uniqueCommenters * 5;
+  // ユニーク参加者×5(盛り上がりの広さ) + 実況コメント総数×1(盛り上がりの量)。
+  const base = (a.click_count || 0) * 3 + uniqueCommenters * 5 + totalComments * 1;
   const recency = Math.max(0, 60 - hoursSince * 5);
   return Math.round(base + recency);
 }
@@ -1461,9 +1463,9 @@ function _stageActionHTML(a) {
 function _stageIsOwn(a) {
   return a.account_id === localStorage.getItem('trendy_account_id');
 }
-function _stageBoostBtn(a) {
-  if (_stageIsOwn(a)) return '';
-  return `<button class="stage-boost-btn" onclick="event.stopPropagation();openActivityBoostPicker('${a.id}')" title="ブースト"><i class="ti ti-rocket"></i></button>`;
+function _stageThumb(a, cls) {
+  if (!a.thumb_data) return '';
+  return `<div class="stage-thumb ${cls || ''}"><img src="${a.thumb_data}" alt=""></div>`;
 }
 function _stageEndBtn(a) {
   if (!_stageIsOwn(a)) return '';
@@ -1509,26 +1511,28 @@ function _renderStageBody() {
 function _stageLiveCard(a, rank, now) {
   const t = STAGE_TYPES[a.type] || STAGE_TYPES.other;
   const score = _activityScore(a, now);
-  const boost = (a.boost_score || 0) > 0 ? `<span class="stage-boost-pill"><i class="ti ti-rocket"></i> +${(a.boost_score||0).toLocaleString()}</span>` : '';
   const rankCls = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : '';
-  return `<div class="stage-card live${rank===1?' hero':''}">
-    <div class="stage-card-main">
-      <span class="stage-rank ${rankCls}">${rank}</span>
-      <div class="stage-av">${_stageAvatar(a)}</div>
-      <div class="stage-card-info">
-        <div class="stage-card-top">
-          <span class="stage-card-name">${_stageName(a)}</span>${_stageVerifiedMark(a)}
-          <span class="stage-type-chip"><i class="ti ${t.icon}"></i> ${t.label}</span>
+  const hasThumb = !!a.thumb_data;
+  return `<div class="stage-card live${rank===1?' hero':''}${hasThumb?' has-thumb':''}">
+    <div class="stage-card-body">
+      <div class="stage-card-main">
+        <span class="stage-rank ${rankCls}">${rank}</span>
+        <div class="stage-av">${_stageAvatar(a)}</div>
+        <div class="stage-card-info">
+          <div class="stage-card-top">
+            <span class="stage-card-name">${_stageName(a)}</span>${_stageVerifiedMark(a)}
+            <span class="stage-type-chip"><i class="ti ${t.icon}"></i> ${t.label}</span>
+          </div>
+          <div class="stage-card-title">${_stageEsc(a.title)}</div>
         </div>
-        <div class="stage-card-title">${_stageEsc(a.title)}</div>
       </div>
+      <div class="stage-card-foot">
+        <span class="stage-attn"><i class="ti ti-flame"></i> 注目度 <b>${score.toLocaleString()}</b></span>
+        <span class="stage-foot-right">${_stageEndBtn(a)}${_stageActionHTML(a)}</span>
+      </div>
+      ${_stageCommentSection(a)}
     </div>
-    <div class="stage-card-foot">
-      <span class="stage-attn"><i class="ti ti-flame"></i> 注目度 <b>${score.toLocaleString()}</b></span>
-      ${boost}
-      <span class="stage-foot-right">${_stageEndBtn(a)}${_stageBoostBtn(a)}${_stageActionHTML(a)}</span>
-    </div>
-    ${_stageCommentSection(a)}
+    ${_stageThumb(a)}
   </div>`;
 }
 
@@ -1537,22 +1541,26 @@ function _stageUpcomingCard(a, now) {
   const meta = a.location
     ? `<i class="ti ti-map-pin"></i> ${_stageEsc(a.location)}`
     : (a.url ? `<i class="ti ti-link"></i> オンライン` : '');
+  const hasThumb = !!a.thumb_data;
   return `<div class="stage-up-row">
     <div class="stage-up-time">${_stageTimeLabel(a, now)}</div>
-    <div class="stage-card up">
-      <div class="stage-card-main">
-        <div class="stage-av sm">${_stageAvatar(a)}</div>
-        <div class="stage-card-info">
-          <div class="stage-card-top">
-            <span class="stage-card-name">${_stageName(a)}</span>${_stageVerifiedMark(a)}
-            <span class="stage-type-chip"><i class="ti ${t.icon}"></i> ${t.label}</span>
+    <div class="stage-card up${hasThumb?' has-thumb':''}">
+      <div class="stage-card-body">
+        <div class="stage-card-main">
+          <div class="stage-av sm">${_stageAvatar(a)}</div>
+          <div class="stage-card-info">
+            <div class="stage-card-top">
+              <span class="stage-card-name">${_stageName(a)}</span>${_stageVerifiedMark(a)}
+              <span class="stage-type-chip"><i class="ti ${t.icon}"></i> ${t.label}</span>
+            </div>
+            <div class="stage-card-title">${_stageEsc(a.title)}</div>
+            ${meta ? `<div class="stage-up-meta">${meta}</div>` : ''}
           </div>
-          <div class="stage-card-title">${_stageEsc(a.title)}</div>
-          ${meta ? `<div class="stage-up-meta">${meta}</div>` : ''}
+          ${_stageUpcomingActionBtn(a)}
         </div>
-        ${_stageUpcomingActionBtn(a)}
+        ${_stageCommentSection(a)}
       </div>
-      ${_stageCommentSection(a)}
+      ${_stageThumb(a, 'sm')}
     </div>
   </div>`;
 }
@@ -1560,7 +1568,7 @@ function _stageUpcomingActionBtn(a) {
   if (_stageIsOwn(a)) {
     return `<button class="stage-end-btn" onclick="event.stopPropagation();cancelMyActivity('${a.id}')" title="取り消し"><i class="ti ti-x"></i></button>`;
   }
-  return _stageBoostBtn(a);
+  return '';
 }
 async function cancelMyActivity(activityId) {
   if (!confirm('この出演予定を取り消しますか？')) return;
@@ -1579,59 +1587,164 @@ function _stageOpenLink(activityId) {
 }
 
 // ── 実況コメント（スコアにも反映：ユニーク参加者数） ──
+// 「実況」を押すと没入ビュー(1ステージに集中する大画面)を開く。
 function _stageCommentSection(a) {
   const cm = _stageCommenters[a.id];
   const n = cm ? cm.total : 0;
-  return `<button class="stage-comment-btn" data-act="${a.id}" onclick="event.stopPropagation();toggleStageComments('${a.id}',this)">
+  return `<button class="stage-comment-btn" data-act="${a.id}" onclick="event.stopPropagation();openStageImmersive('${a.id}')">
       <i class="ti ti-message-circle"></i> 実況${n ? ' ' + n : ''}
-    </button>
-    <div class="stage-comments" id="sc-${a.id}" style="display:none"></div>`;
+    </button>`;
 }
-async function toggleStageComments(activityId, btn) {
-  const box = document.getElementById('sc-' + activityId);
-  if (!box) return;
-  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
-  box.style.display = 'block';
-  box.innerHTML = '<div class="sc-loading"><i class="ti ti-loader-2"></i></div>';
-  const comments = await dbFetchActivityComments(activityId);
-  _renderStageComments(activityId, comments);
-}
-function _renderStageComments(activityId, comments) {
-  const box = document.getElementById('sc-' + activityId);
-  if (!box) return;
+
+// ── 実況 没入ビュー（1ステージに集中・自動スクロール・自動更新） ──
+let _immersiveActId       = null;
+let _immersiveBackstopTimer = null;
+let _immersiveSeen        = null;   // 表示済みコメントID(realtime と fetch の重複排除)
+
+function openStageImmersive(activityId) {
+  const a = _stageActivities.find(x => x.id === activityId);
+  if (!a) return;
+  _immersiveActId = activityId;
+  const t = STAGE_TYPES[a.type] || STAGE_TYPES.other;
+  const now = Date.now();
+  const isLive = _activityStatus(a, now) === 'live';
+  const score = _activityScore(a, now);
   const loggedIn = !!localStorage.getItem('trendy_logged_in');
-  const list = (comments && comments.length)
-    ? comments.map(c => `<div class="sc-item"><span class="sc-name">${_stageEsc(c.user_name || c.account_id)}</span><span class="sc-text">${_stageEsc(c.content)}</span></div>`).join('')
-    : '<div class="sc-empty">まだ実況がありません。最初のひとことを！</div>';
-  const input = loggedIn
-    ? `<div class="sc-input-row">
-         <input type="text" class="sc-input" id="sc-in-${activityId}" maxlength="140" placeholder="実況コメント…" onkeydown="if(event.key==='Enter')submitStageComment('${activityId}')">
-         <button class="sc-send" onclick="submitStageComment('${activityId}')">送信</button>
+  const hero = a.thumb_data
+    ? `<img class="si-thumb" src="${a.thumb_data}" alt="">`
+    : `<div class="si-thumb si-thumb-ph"><i class="ti ${t.icon}"></i></div>`;
+  const meta = a.url
+    ? `<a class="si-watch" href="${encodeURI(a.url)}" target="_blank" rel="noopener noreferrer" onclick="_stageOpenLink('${a.id}')"><i class="ti ti-external-link"></i> 見る</a>`
+    : (a.location ? `<span class="si-loc"><i class="ti ti-map-pin"></i> ${_stageEsc(a.location)}</span>` : '');
+  const statusChip = isLive
+    ? `<span class="si-live"><span class="stage-live-dot"></span> LIVE</span>`
+    : `<span class="si-soon"><i class="ti ti-clock"></i> ${_stageTimeLabel(a, now)}</span>`;
+  const inputRow = loggedIn
+    ? `<div class="si-input-row">
+         <input type="text" class="si-input" id="si-input" maxlength="140" placeholder="実況コメントを送る…" onkeydown="if(event.key==='Enter')submitImmersiveComment()">
+         <button class="si-send" onclick="submitImmersiveComment()" title="送信"><i class="ti ti-send"></i></button>
        </div>`
-    : '<div class="sc-empty">ログインすると実況できます</div>';
-  box.innerHTML = `<div class="sc-list">${list}</div>${input}`;
-  const inEl = document.getElementById('sc-in-' + activityId);
-  if (inEl) inEl.focus();
+    : `<div class="si-login-hint">ログインすると実況に参加できます</div>`;
+  document.getElementById('stage-immersive')?.remove();
+  const html = `
+    <div id="stage-immersive" class="stage-immersive" onclick="if(event.target===this)closeStageImmersive()">
+      <div class="si-sheet">
+        <div class="si-topbar">
+          <button class="si-close" onclick="closeStageImmersive()" title="閉じる"><i class="ti ti-chevron-down"></i></button>
+          <div class="si-topbar-mid">${statusChip}</div>
+          <div class="si-attn"><i class="ti ti-flame"></i> ${score.toLocaleString()}</div>
+        </div>
+        <div class="si-hero">
+          ${hero}
+          <div class="si-hero-info">
+            <div class="si-hero-top">
+              <div class="stage-av sm">${_stageAvatar(a)}</div>
+              <span class="si-name">${_stageName(a)}</span>${_stageVerifiedMark(a)}
+              <span class="stage-type-chip"><i class="ti ${t.icon}"></i> ${t.label}</span>
+            </div>
+            <div class="si-title">${_stageEsc(a.title)}</div>
+            ${meta ? `<div class="si-meta">${meta}</div>` : ''}
+          </div>
+        </div>
+        <div class="si-list" id="si-list"><div class="sc-loading"><i class="ti ti-loader-2"></i></div></div>
+        ${inputRow}
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.body.classList.add('si-open');
+  _immersiveSeen = new Set();
+  _stageOpenLink(activityId);          // 視聴＝注目度シグナル(自分/未ログインは除外)
+  _loadImmersiveComments(true);
+  _startImmersiveLive(activityId);
+  const inp = document.getElementById('si-input');
+  if (inp) setTimeout(() => inp.focus(), 60);
 }
-async function submitStageComment(activityId) {
+
+function closeStageImmersive() {
+  _stopImmersiveLive();
+  document.getElementById('stage-immersive')?.remove();
+  document.body.classList.remove('si-open');
+  const wasId = _immersiveActId;
+  _immersiveActId = null;
+  if (wasId && typeof _renderStageBody === 'function') _renderStageBody(); // 件数バッジを反映
+}
+
+async function _loadImmersiveComments(forceScroll) {
+  const activityId = _immersiveActId;
+  const list = document.getElementById('si-list');
+  if (!activityId || !list) return;
+  const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+  const comments = await dbFetchActivityComments(activityId);
+  if (_immersiveActId !== activityId) return; // await 中に閉じられた
+  const el = document.getElementById('si-list');
+  if (!el) return;
+  if (!comments || !comments.length) {
+    el.innerHTML = `<div class="si-empty"><i class="ti ti-message-circle-off"></i><div>まだ実況がありません。<br>最初のひとことを！</div></div>`;
+    return;
+  }
+  const myAid = localStorage.getItem('trendy_account_id');
+  if (_immersiveSeen) _immersiveSeen = new Set(comments.map(c => c.id));
+  el.innerHTML = comments.map(c => {
+    const own = c.account_id === myAid ? ' own' : '';
+    return `<div class="si-msg${own}"><span class="si-msg-name">${_stageEsc(c.user_name || c.account_id)}</span><span class="si-msg-text">${_stageEsc(c.content)}</span></div>`;
+  }).join('');
+  if (forceScroll || nearBottom) el.scrollTop = el.scrollHeight;
+}
+
+// Realtime 購読（負荷減）。publication 未適用の環境向けに低頻度バックストップも併走。
+function _startImmersiveLive(activityId) {
+  _stopImmersiveLive();
+  if (typeof dbSubscribeActivityComments === 'function') {
+    dbSubscribeActivityComments(activityId, row => _onImmersiveInsert(row));
+  }
+  // realtime が効かない場合の保険（従来の4秒→20秒に緩和）
+  _immersiveBackstopTimer = setInterval(() => _loadImmersiveComments(false), 20000);
+}
+function _stopImmersiveLive() {
+  if (typeof dbUnsubscribeActivityComments === 'function') dbUnsubscribeActivityComments();
+  if (_immersiveBackstopTimer) { clearInterval(_immersiveBackstopTimer); _immersiveBackstopTimer = null; }
+}
+
+// realtime / 送信 の1件を末尾に追記（重複排除・near-bottom自動スクロール）
+function _appendImmersiveComment(row, forceScroll) {
+  if (!row || !_immersiveActId || row.activity_id !== _immersiveActId) return;
+  if (_immersiveSeen && row.id != null) {
+    if (_immersiveSeen.has(row.id)) return;
+    _immersiveSeen.add(row.id);
+  }
+  const el = document.getElementById('si-list');
+  if (!el) return;
+  const empty = el.querySelector('.si-empty');
+  if (empty) el.innerHTML = '';
+  const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  const myAid = localStorage.getItem('trendy_account_id');
+  const own = row.account_id === myAid ? ' own' : '';
+  el.insertAdjacentHTML('beforeend',
+    `<div class="si-msg${own}"><span class="si-msg-name">${_stageEsc(row.user_name || row.account_id)}</span><span class="si-msg-text">${_stageEsc(row.content)}</span></div>`);
+  if (forceScroll || nearBottom) el.scrollTop = el.scrollHeight;
+  // スコア用の参加者集計
+  const activityId = _immersiveActId;
+  if (!_stageCommenters[activityId]) _stageCommenters[activityId] = { total: 0, set: new Set() };
+  _stageCommenters[activityId].total++;
+  _stageCommenters[activityId].set.add(row.account_id);
+}
+function _onImmersiveInsert(row) {
+  _appendImmersiveComment(row, false);
+}
+
+async function submitImmersiveComment() {
+  const activityId = _immersiveActId;
+  if (!activityId) return;
   const aid = localStorage.getItem('trendy_account_id');
   if (!aid) { showToast('ログインが必要です', 'warn'); return; }
-  const inEl = document.getElementById('sc-in-' + activityId);
+  const inEl = document.getElementById('si-input');
   const content = (inEl ? inEl.value : '').trim();
   if (!content) return;
   if (inEl) inEl.value = '';
   const res = await dbAddActivityComment({ activityId, accountId: aid, userName: (typeof myNickname !== 'undefined' ? myNickname : '') || aid, content });
   if (!res) { showToast('送信に失敗しました', 'error'); return; }
-  // スコア用の参加者集計をローカル更新（新規参加者なら注目度+5相当）
-  if (!_stageCommenters[activityId]) _stageCommenters[activityId] = { total: 0, set: new Set() };
-  _stageCommenters[activityId].total++;
-  _stageCommenters[activityId].set.add(aid);
-  // 実況リストを更新（パネルは開いたまま）
-  const comments = await dbFetchActivityComments(activityId);
-  _renderStageComments(activityId, comments);
-  // ボタンの件数バッジを更新
-  const btn = document.querySelector(`.stage-comment-btn[data-act="${activityId}"]`);
-  if (btn) btn.innerHTML = `<i class="ti ti-message-circle"></i> 実況 ${_stageCommenters[activityId].total}`;
+  // 自分の投稿は即時反映（realtime のエコーは id 重複で無視される）
+  _appendImmersiveComment(res, true);
 }
 
 // ── 出演登録モーダル ──
@@ -1649,6 +1762,7 @@ function openActivityModal() {
   const endEl = document.getElementById('act-end');
   if (endEl) endEl.value = '';
   ['act-title','act-url','act-location'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  removeActThumb();
   _actSelType = 'stream';
   document.querySelectorAll('#act-type-row .act-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'stream'));
   document.getElementById('activity-overlay').style.display = 'block';
@@ -1664,6 +1778,35 @@ function selectActType(type, btn) {
   _actSelType = type;
   document.querySelectorAll('#act-type-row .act-type-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+}
+// ── 出演サムネイル ──
+let _actThumbData = null;
+function handleActThumb(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (file.size > 12 * 1024 * 1024) { showToast('画像は12MB以下にしてください', 'warn'); input.value = ''; return; }
+  const r = new FileReader();
+  r.onload = async e => {
+    let data = e.target.result;
+    try { if (typeof _resizeImageDataUrl === 'function') data = await _resizeImageDataUrl(data, 720, 0.8); } catch(_) {}
+    _actThumbData = data;
+    const img = document.getElementById('act-thumb-img');
+    if (img) img.src = data;
+    const emp = document.getElementById('act-thumb-empty');
+    const prv = document.getElementById('act-thumb-preview');
+    if (emp) emp.style.display = 'none';
+    if (prv) prv.style.display = '';
+  };
+  r.readAsDataURL(file);
+}
+function removeActThumb() {
+  _actThumbData = null;
+  const inp = document.getElementById('act-thumb-input');
+  if (inp) inp.value = '';
+  const emp = document.getElementById('act-thumb-empty');
+  const prv = document.getElementById('act-thumb-preview');
+  if (emp) emp.style.display = '';
+  if (prv) prv.style.display = 'none';
 }
 function _localDatetimeValue(d) {
   const p = n => String(n).padStart(2, '0');
@@ -1687,6 +1830,7 @@ async function submitActivity() {
     location : (document.getElementById('act-location').value || '').trim() || null,
     startsAt : new Date(startVal).toISOString(),
     endsAt   : null,
+    thumbData: _actThumbData || null,
   });
   if (btn) btn.disabled = false;
   if (!res) { showToast('登録に失敗しました', 'error'); return; }
@@ -1695,72 +1839,9 @@ async function submitActivity() {
   renderStage();
 }
 
-// ── 活動ブースト（既存チケット＋1出演あたり上限を流用） ──
-async function openActivityBoostPicker(activityId) {
-  const aid = localStorage.getItem('trendy_account_id');
-  if (!aid) { showToast('ログインが必要です', 'warn'); return; }
-  let curBoost = 0;
-  try {
-    _gachaItems = await dbGetUserItems(aid);
-    curBoost = await dbGetActivityBoost(activityId);
-  } catch(e) {}
-  const cap = (typeof BOOST_CAP === 'number' && BOOST_CAP > 0) ? BOOST_CAP : 1000;
-  const remain = Math.max(0, cap - curBoost);
-  const inv = _gachaItems || {};
-  const items = [
-    { id:'boost_lg',  label:'LG ブースト',  add:'+1000', amt:1000, color:'#ef4444', qty: inv['boost_lg']  || 0 },
-    { id:'boost_ssr', label:'SSR ブースト', add:'+100',  amt:100,  color:'#f59e0b', qty: inv['boost_ssr'] || 0 },
-    { id:'boost_sr',  label:'SR ブースト',  add:'+30',   amt:30,   color:'#a855f7', qty: inv['boost_sr']  || 0 },
-    { id:'boost_r',   label:'R ブースト',   add:'+5',    amt:5,    color:'#3b82f6', qty: inv['boost_r']   || 0 },
-    { id:'boost_n',   label:'N ブースト',   add:'+1',    amt:1,    color:'#64748b', qty: inv['boost_n']   || 0 },
-  ];
-  document.getElementById('boost-picker-modal')?.remove();
-  const html = `
-    <div id="boost-picker-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)document.getElementById('boost-picker-modal').remove()">
-      <div style="background:var(--bg);border-radius:14px;padding:18px;max-width:380px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div style="font-weight:700;font-size:15px;color:var(--text1)"><i class="ti ti-rocket" style="color:#f59e0b"></i> 活動をブースト</div>
-          <button onclick="document.getElementById('boost-picker-modal').remove()" style="background:none;border:none;font-size:20px;color:var(--text3);cursor:pointer">×</button>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;margin-bottom:10px;border-radius:10px;background:var(--surface);border:1px solid var(--border)">
-          <span style="font-size:11px;color:var(--text3)"><i class="ti ti-shield-check" style="color:#10b981"></i> 公平性のため1活動の上限あり</span>
-          <span style="font-size:12px;font-weight:700;color:${remain>0?'var(--text1)':'#ef4444'}">残り +${remain.toLocaleString()} / +${cap.toLocaleString()}</span>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          ${items.map(b => {
-            const over = b.amt > remain;
-            if (b.qty > 0 && !over) {
-              return `<button onclick="document.getElementById('boost-picker-modal').remove();applyBoostToActivity('${activityId}','${b.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px solid ${b.color};background:var(--bg2);color:var(--text1);font-size:13px;cursor:pointer;text-align:left">
-                <span style="font-weight:700;color:${b.color};min-width:60px">${b.add}</span><span style="flex:1">${b.label}</span><span style="color:var(--text3);font-size:12px">残${b.qty}</span></button>`;
-            }
-            return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px dashed var(--border);background:var(--surface);color:var(--text3);font-size:13px;text-align:left">
-                <span style="font-weight:700;min-width:60px">${b.add}</span><span style="flex:1">${b.label}</span><span style="font-size:12px">${b.qty<=0?'所持なし':'上限超過'}</span></div>`;
-          }).join('')}
-        </div>
-        <div style="margin-top:12px;font-size:11px;color:var(--text3);text-align:center">ブーストチケットはガチャで獲得できます</div>
-      </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-async function applyBoostToActivity(activityId, itemId) {
-  const aid = localStorage.getItem('trendy_account_id');
-  if (!aid || !activityId || !itemId) return;
-  const boostAmt = BOOST_AMOUNTS[itemId];
-  if (!boostAmt) return;
-  const qty = _gachaItems[itemId] || 0;
-  if (qty <= 0) { showToast('アイテムがありません', 'error'); return; }
-  const cap = (typeof BOOST_CAP === 'number' && BOOST_CAP > 0) ? BOOST_CAP : 1000;
-  const curBoost = await dbGetActivityBoost(activityId);
-  if (curBoost >= cap) { showToast(`この活動はブースト上限（+${cap.toLocaleString()}）に達しています`, 'warn'); return; }
-  if (curBoost + boostAmt > cap) { showToast(`残り上限は +${(cap-curBoost).toLocaleString()} です`, 'warn'); return; }
-  const ok1 = await dbConsumeItem(aid, itemId, 1);
-  if (!ok1) { showToast('消費に失敗しました', 'error'); return; }
-  const ok2 = await dbApplyActivityBoost(activityId, boostAmt);
-  if (!ok2) { await dbAddItem(aid, itemId, 1); showToast('ブーストに失敗しました', 'error'); return; }
-  _gachaItems[itemId] = qty - 1;
-  showToast(`🚀 ブースト！ +${boostAmt} 注目度`, 'success');
-  renderStage();
-}
+// ── 活動ブースト機能は廃止（ブーストチケットごと撤去） ──
+// 以前はガチャのブーストチケットを消費して注目度を加算していたが、
+// 公平性のため機能ごと削除。注目度はクリック数・実況参加者・新着補正のみで決まる。
 
 // ── つぶやき → ステージ出演（コンポーズ連携） ──
 let _composeStageOn   = false;
@@ -2272,6 +2353,10 @@ function openUserPage(handle) {
   avEl.innerHTML = (u.av && u.av.includes?.('<img')) ? u.av : (u.av || '?');
   avEl.style.background = u.bg;
   avEl.style.color = u.tc;
+  // レベルバッジ（プロフィールは大きめ）
+  if (typeof attachLevelBadge === 'function' && !u.sub) {
+    attachLevelBadge(document.getElementById('user-page-av-wrap') || avEl, _upAcc, 72);
+  }
 
   // カバー画像・自己紹介もリセット
   const coverEl = document.getElementById('user-page-cover');
@@ -3395,21 +3480,13 @@ function _rollOne() {
       const idx = Math.floor(Math.random() * pool.length);
       const id = `title_${rarity}_${String(idx+1).padStart(3,'0')}`;
       return { id, label: pool[idx], rarity, type: 'title', title: pool[idx] };
-    } else if (r2 < 0.90) {
-      return makeOrb();
     }
-    // ブースト
-    return GACHA_ITEMS.find(i => i.rarity === rarity) || GACHA_ITEMS[GACHA_ITEMS.length - 1];
+    // ブーストチケットは廃止。旧ブースト枠はオーブに置換。
+    return makeOrb();
   }
 
-  // R: オーブ 50% / R ブースト 50%（R 色のチケットがしっかり出る）
-  if (rarity === 'R') {
-    if (Math.random() < 0.50) return makeOrb();
-    return GACHA_ITEMS.find(i => i.rarity === 'R') || GACHA_ITEMS[GACHA_ITEMS.length - 1];
-  }
-  // N: オーブ 70% / N ブースト 30%
-  if (Math.random() < 0.70) return makeOrb();
-  return GACHA_ITEMS.find(i => i.rarity === 'N') || GACHA_ITEMS[GACHA_ITEMS.length - 1];
+  // ブーストチケット廃止に伴い、R/N もオーブに一本化
+  return makeOrb();
 }
 
 async function renderGachaPage() {

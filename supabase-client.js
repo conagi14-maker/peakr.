@@ -321,6 +321,11 @@ async function dbSavePost({ handle, name, isSub, content, aiType, mediaData, med
   }).select().single();
   if (error) { console.error('[DB] 投稿保存エラー:', error.message); return null; }
   console.log('[DB] 投稿を保存しました:', data.id);
+  // アカウントレベル：投稿でXP +5
+  if (typeof dbGrantXp === 'function') {
+    const aid = (handle || '').replace('@', '');
+    if (aid && aid !== 'you' && !isSub) dbGrantXp(aid, 'post');
+  }
   return data;
 }
 
@@ -538,6 +543,11 @@ async function dbSaveComment({ postId, userHandle, userName, isSub, content, nam
     name_tag    : nameTag    || '',
   }).select().single();
   if (error) { console.error('[DB] コメント保存エラー:', error.message); return null; }
+  // アカウントレベル：コメントでXP +2
+  if (typeof dbGrantXp === 'function') {
+    const aid = (userHandle || '').replace('@', '');
+    if (aid && aid !== 'you' && !isSub) dbGrantXp(aid, 'comment');
+  }
   return data;
 }
 
@@ -932,11 +942,32 @@ async function dbToggleLike(postDbId, accountId, nowLiked, postAuthorHandle, isF
       await db.rpc('decrement_likes', { p_post_id: pid });
     }
     // 推しレベル更新（推しユーザーのみ）
-    if (postAuthorHandle && isFavorite) {
-      const authorId = postAuthorHandle.startsWith('@') ? postAuthorHandle.slice(1) : postAuthorHandle;
+    const authorId = postAuthorHandle ? (postAuthorHandle.startsWith('@') ? postAuthorHandle.slice(1) : postAuthorHandle) : null;
+    if (authorId && isFavorite) {
       dbUpdateFanLevel(accountId, authorId, 'like', nowLiked ? 1 : -1);
     }
+    // ── アカウントレベル：XP付与＋信頼度加重（ランキング用） ──
+    if (nowLiked && typeof dbGrantXp === 'function') {
+      dbGrantXp(accountId, 'like');                                   // いいねした人 +1
+      if (authorId && authorId !== accountId) dbGrantXp(authorId, 'liked'); // された人 +2
+    }
+    if (typeof actorTrustWeight === 'function' && typeof dbAddWeighted === 'function') {
+      const w = await actorTrustWeight(accountId);
+      if (w > 0) dbAddWeighted(pid, 'like', nowLiked ? w : -w);       // 信頼度加重の和
+    }
   } catch(e) { console.warn('[DB] いいねエラー:', e); }
+}
+
+/** 投稿の「お気に入りされた数」(saved_count)を増減。ランキングスコアに反映される。
+ *  read-modify-write（低頻度なので許容）。列が無い環境(sql/post-saved-count.sql 未実行)は静かに無視。 */
+async function dbAdjustSavedCount(postDbId, delta) {
+  if (!postDbId || !delta) return;
+  try {
+    const { data, error } = await db.from('posts').select('saved_count').eq('id', postDbId).maybeSingle();
+    if (error) return; // 列なし等は静かに無視
+    const next = Math.max(0, (data?.saved_count || 0) + delta);
+    await db.from('posts').update({ saved_count: next }).eq('id', postDbId);
+  } catch(e) { /* silent */ }
 }
 
 /** アカウントが閲覧済みの投稿IDリストを取得 */
@@ -2125,9 +2156,9 @@ async function dbApplyBoost(postId, boostAmount) {
 // ══════════════════════════════════════════
 
 /** 活動を登録 */
-async function dbCreateActivity({ accountId, type, title, catId, url, location, startsAt, endsAt }) {
+async function dbCreateActivity({ accountId, type, title, catId, url, location, startsAt, endsAt, thumbData }) {
   if (!accountId || !title) return null;
-  const { data, error } = await db.from('activities').insert({
+  const row = {
     account_id : accountId,
     type       : type || 'stream',
     title      : title,
@@ -2136,7 +2167,14 @@ async function dbCreateActivity({ accountId, type, title, catId, url, location, 
     location   : location || null,
     starts_at  : startsAt || new Date().toISOString(),
     ends_at    : endsAt   || null,
-  }).select().single();
+  };
+  if (thumbData) row.thumb_data = thumbData;
+  let { data, error } = await db.from('activities').insert(row).select().single();
+  // thumb_data 列が未追加(sql/stage-thumb.sql 未実行)の環境ではサムネ抜きで再試行
+  if (error && thumbData && /thumb_data|column|schema cache/i.test(error.message || '')) {
+    delete row.thumb_data;
+    ({ data, error } = await db.from('activities').insert(row).select().single());
+  }
   if (error) {
     if (!/activities|schema cache|relation|does not exist/i.test(error.message || '')) {
       console.warn('[DB] 活動登録エラー:', error.message);
@@ -2228,7 +2266,35 @@ async function dbAddActivityComment({ activityId, accountId, userName, content }
     }
     return null;
   }
+  // アカウントレベル：実況コメントでXP +2
+  if (typeof dbGrantXp === 'function') dbGrantXp(accountId, 'comment');
   return data;
+}
+
+/** 実況コメントのリアルタイム購読（activity 単位・INSERT のみ・サーバー側フィルタ）
+ *  ※ Realtime を効かせるには sql/stage-realtime.sql の publication 追加が必要。
+ *    未適用でも初回ロード＋没入ビューのバックストップ更新で表示は成立する。*/
+let _activityCommentsChannel = null;
+function dbSubscribeActivityComments(activityId, onInsert) {
+  dbUnsubscribeActivityComments();
+  if (!activityId) return null;
+  _activityCommentsChannel = db.channel('activity-comments-rt-' + activityId)
+    .on('postgres_changes', {
+      event : 'INSERT',
+      schema: 'public',
+      table : 'activity_comments',
+      filter: 'activity_id=eq.' + activityId,
+    }, payload => {
+      if (typeof onInsert === 'function') onInsert(payload.new);
+    })
+    .subscribe();
+  return _activityCommentsChannel;
+}
+function dbUnsubscribeActivityComments() {
+  if (_activityCommentsChannel) {
+    try { db.removeChannel(_activityCommentsChannel); } catch(e) {}
+    _activityCommentsChannel = null;
+  }
 }
 
 /** 表示中の活動について (activity_id, account_id) を一括取得し、件数とユニーク参加者を返す */
@@ -2336,11 +2402,10 @@ async function dbProcessReferral(referrerId, newUserId) {
   if (dup) return;
   const { data: refProf } = await db.from('profiles').select('referrer_id').eq('account_id', referrerId).maybeSingle();
   const grandRef = refProf?.referrer_id;
-  await db.from('referral_records').insert({ referrer_id: referrerId, referred_id: newUserId, level: 1, points_awarded: 100 });
-  await dbAddPoints(referrerId, 100);
+  // ピークコイン廃止：招待関係は記録するがコイン付与は行わない（points_awarded=0）。
+  await db.from('referral_records').insert({ referrer_id: referrerId, referred_id: newUserId, level: 1, points_awarded: 0 });
   if (grandRef && grandRef !== newUserId && grandRef !== referrerId) {
-    await db.from('referral_records').insert({ referrer_id: grandRef, referred_id: newUserId, level: 2, points_awarded: 100 });
-    await dbAddPoints(grandRef, 100);
+    await db.from('referral_records').insert({ referrer_id: grandRef, referred_id: newUserId, level: 2, points_awarded: 0 });
   }
   await db.from('profiles').update({ referrer_id: referrerId }).eq('account_id', newUserId);
 }

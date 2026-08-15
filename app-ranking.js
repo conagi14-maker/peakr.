@@ -113,7 +113,7 @@ function renderCatGrid() {
 
       // ランキングキャッシュ or HOME_TWEETS からサブカテゴリー別に抽出
       const allPosts = _rankCache.data.length > 0 ? _rankCache.data
-        : HOME_TWEETS.filter(t => !t.isDummy).map(t => ({ ...t, score: (t.likes||0)*10 + (t.rt||0)*5 + (t.views||0) }));
+        : HOME_TWEETS.filter(t => !t.isDummy).map(t => ({ ...t, score: (t.likes||0)*10 + (t.views||0) }));
 
       const subFiltered = allPosts.filter(t =>
         t.catId === catGridParent.id &&
@@ -159,7 +159,7 @@ function renderCatGrid() {
 
         // ランキングキャッシュ or HOME_TWEETS からカテゴリー別に抽出
       const allPosts = _rankCache.data.length > 0 ? _rankCache.data
-        : HOME_TWEETS.filter(t => !t.isDummy).map(t => ({ ...t, score: (t.likes||0)*10 + (t.rt||0)*5 + (t.views||0) }));
+        : HOME_TWEETS.filter(t => !t.isDummy).map(t => ({ ...t, score: (t.likes||0)*10 + (t.views||0) }));
 
       const filtered = allPosts.filter(t => isAll ? true : t.catId === cat.id);
       const mainSorted = [...filtered].sort((a, b) => (b.score - a.score) || (b.db_id > a.db_id ? -1 : 1));
@@ -1293,6 +1293,13 @@ function toggleFavByIdx(idx, btn) {
     favDbIds.delete(dbId);
     showToast('お気に入りを解除しました', 'info');
   }
+  // 投稿ごとのお気に入り数（社会的表示）を増減
+  if (typeof dbAdjustSavedCount === 'function') dbAdjustSavedCount(dbId, nowSaved ? 1 : -1);
+  // 信頼度加重（ランキング採点用）
+  if (typeof actorTrustWeight === 'function' && typeof dbAddWeighted === 'function') {
+    const myAid = localStorage.getItem('trendy_account_id');
+    if (myAid) actorTrustWeight(myAid).then(w => { if (w > 0) dbAddWeighted(dbId, 'save', nowSaved ? w : -w); });
+  }
   _saveFavData();
   // ボタン表示を更新（同じ投稿の全ボタン）
   _updateAllFavButtons(dbId, nowSaved);
@@ -1553,6 +1560,7 @@ function removeSavedTweet(saveId) {
   if (!entry) return;
   savedTweets = savedTweets.filter(s => s.saveId !== saveId);
   favDbIds.delete(String(entry.db_id));
+  if (typeof dbAdjustSavedCount === 'function') dbAdjustSavedCount(String(entry.db_id), -1);
   _saveFavData();
   _updateAllFavButtons(String(entry.db_id), false);
   renderFavsPage();

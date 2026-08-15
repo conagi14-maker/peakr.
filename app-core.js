@@ -472,6 +472,7 @@ function goPage(id, btn) {
   if (id === 'mypage')    {
     _refreshMypageStats(); loadUserFavorites(); _loadMypageSocialLinks(); _updateMypageMeta(); _renderDisplayBadges();
     renderProfileEquipmentMini(localStorage.getItem('trendy_account_id'), 'mypage-equipment-mini');
+    if (typeof renderMyLevelUI === 'function') renderMyLevelUI();
     _renderMyTrackerStats();
     if (typeof renderMyDashboard === 'function') renderMyDashboard();
     const _le = document.getElementById('mypage-like-emoji-current');
@@ -803,20 +804,9 @@ function _flushReelCoins() {
   }
 }
 
-/** カードが画面に表示された瞬間に+1（カードごとに1回だけ） */
+/** ピークコイン廃止：ダイブ閲覧でのコイン付与は行わない（no-op） */
 function _awardReelScrollCoin(card) {
-  if (card.dataset.coined) return;
-  card.dataset.coined = '1';
-  if (recommendSearchQuery.trim()) return; // 検索中は対象外（同じ投稿を再表示できるため）
-  const aid = localStorage.getItem('trendy_account_id');
-  if (!aid) return;
-  _myPoints += 1;
-  _reelCoinBuffer += 1;
-  _updateDiveCoinDisplay(1);
-  const coinEl = document.getElementById('gacha-ticket-count');
-  if (coinEl) coinEl.textContent = _myPoints.toLocaleString();
-  clearTimeout(_reelCoinFlushTimer);
-  _reelCoinFlushTimer = setTimeout(_flushReelCoins, 1500);
+  if (card && card.dataset) card.dataset.coined = '1';
 }
 
 function _initReelCoinObserver() {
@@ -1508,13 +1498,7 @@ function _reelToggleLike(idx) {
     const aid = localStorage.getItem('trendy_account_id');
     const _likeAuthorId = t.user?.h ? (t.user.h.startsWith('@') ? t.user.h.slice(1) : t.user.h) : null;
     dbToggleLike(t.db_id, aid, nowLiked, t.user && t.user.h, _isFanTrigger(_likeAuthorId));
-    // いいねでピークコイン +10（バッジ効果でブースト可）
-    if (nowLiked && aid && typeof dbAddPoints === 'function') {
-      const baseCoin = 10;
-      const boost = getBadgeEffect('coin_boost'); // %
-      const coin = Math.round(baseCoin * (1 + boost / 100));
-      dbAddPoints(aid, coin, 'like').then(() => { _loadMyPoints?.(); }).catch(() => {});
-    }
+    // ピークコイン廃止：いいねでのコイン付与は行わない
   }
 }
 
@@ -2152,11 +2136,17 @@ function _dbPostToTweet(p, avatarMap = {}, nameTagMap = {}, regionMap = {}, rook
   const avImg   = avatarMap[p.user_handle];
   const nameTag = p.name_tag || nameTagMap[p.user_handle] || null;
   const isExt = !!p.ext_source;
+  // 内部投稿は「信頼度補正済みの加重和」で採点（BOT対策）。
+  //   weighted_* は各いいね/保存を"した人の信頼度(0〜1.5)"の合計。移行期に
+  //   weighted が未蓄積(0)の投稿は素のcountにフォールバックして急落を防ぐ。
+  const wLikes = Math.max(p.weighted_likes || 0, ((p.weighted_likes || 0) === 0 ? (p.likes_count || 0) : 0));
+  const wSaves = Math.max(p.weighted_saves || 0, ((p.weighted_saves || 0) === 0 ? (p.saved_count || 0) : 0));
   const score = isExt
     // 外部投稿: 閲覧数・BM数ベースのスコア
     ? (p.ext_pop_score || 0)
-    // 内部投稿: エンゲージメント倍率2倍 + ブーストスコア + ベースボーナス250点
-    : (p.likes_count || 0) * 20 + (p.rt_count || 0) * 10 + ((p.views_count || 0) + (p.boost_score || 0)) * 2 + 250;
+    // 内部投稿: いいね×20 + お気に入り×30 + 閲覧×2 + ベースボーナス250点
+    //   （リポスト・投稿ブーストは廃止。いいね/保存は信頼度加重）
+    : wLikes * 20 + wSaves * 30 + (p.views_count || 0) * 2 + 250;
   return {
     db_id    : p.id,
     catId    : p.cat_id   || null,
@@ -2173,6 +2163,7 @@ function _dbPostToTweet(p, avatarMap = {}, nameTagMap = {}, regionMap = {}, rook
     tags     : Array.isArray(p.tags) ? p.tags : [],
     extSource : p.ext_source   || null,
     extUrl    : p.ext_url      || null,
+    saved     : p.saved_count  || 0,
     boostScore: p.boost_score  || 0,
     likeEmoji : p.like_emoji   || '❤️',
     score,
@@ -2252,6 +2243,9 @@ async function _loadRankData(force = false) {
 
 // ── ランキング報酬の付与（_rankCache から自動算出） ──
 async function _processRankRewards() {
+  // ピークコイン廃止：ランキング報酬（コイン付与）は行わない。
+  return;
+  /* eslint-disable no-unreachable */
   const data = _rankCache.data;
   if (!data || !data.length) return;
 

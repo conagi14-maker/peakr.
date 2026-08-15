@@ -509,7 +509,12 @@ function _tweetAvHtml(avClass, avStyle, avInner, uOrHandle, onclick) {
   }
   const overlay = _buildAvBadgeOverlay(isV, isC);
   const onclickAttr = onclick ? ` onclick="${onclick}"` : '';
-  return `<div class="tweet-av-wrap"><div class="${avClass}" style="${avStyle}"${onclickAttr}>${avInner}</div>${overlay}</div>`;
+  // レベルバッジ用: アカウントIDを data 属性で付けておく(描画後に自動で宝石を差し込む)
+  let _lvlH = (uOrHandle && typeof uOrHandle === 'object') ? (uOrHandle.h || '') : (typeof uOrHandle === 'string' ? uOrHandle : '');
+  const _lvlAcct = _lvlH.replace('@', '');
+  const _isSub = (uOrHandle && typeof uOrHandle === 'object') ? !!uOrHandle.sub : false;
+  const lvlAttr = (_lvlAcct && _lvlAcct !== 'you' && _lvlAcct !== 'anon_you' && !_isSub) ? ` data-lvl-acct="${_lvlAcct}"` : '';
+  return `<div class="tweet-av-wrap"${lvlAttr}><div class="${avClass}" style="${avStyle}"${onclickAttr}>${avInner}</div>${overlay}</div>`;
 }
 
 /** マイページのバッジ表示を更新（名前行 + アバターボタン） */
@@ -2764,13 +2769,7 @@ async function submitNewAdCampaign() {
   if (!text) { showToast('広告テキストを入力してください', 'error'); return; }
   if (!budget || budget < 1) { showToast('課金額を入力してください', 'error'); return; }
 
-  // ポイント払いの場合は残高チェック
-  if (_adPayMethod === 'points') {
-    const needed = budget * _adDays;
-    const ok = await dbUsePoints(aid, needed);
-    if (!ok) { showToast('ポイントが不足しています', 'error'); return; }
-    await _loadMyPoints();
-  }
+  // ピークコイン廃止：広告は課金（¥）のみ。ポイント払いは行わない。
 
   // 広告主名（選択中のアカウント）
   const advertiserName = adAccountType === 'sub'
@@ -2790,8 +2789,8 @@ async function submitNewAdCampaign() {
     days: _adDays,
     start_date: startDate,
     end_date: endDate,
-    paid_with: _adPayMethod,
-    points_used: _adPayMethod === 'points' ? budget * _adDays : 0,
+    paid_with: 'billing',
+    points_used: 0,
     status: 'active',
     impressions: 0,
     clicks: 0,
@@ -2799,11 +2798,6 @@ async function submitNewAdCampaign() {
 
   const result = await dbCreateAdCampaign(campaign);
   if (result?._error) {
-    // ポイント払いで失敗した場合は返金
-    if (_adPayMethod === 'points') {
-      await dbAddPoints(aid, budget * _adDays, 'refund').catch(() => {});
-      await _loadMyPoints();
-    }
     showToast(`広告の出稿に失敗しました：${result._error}`, 'error');
     return;
   }
