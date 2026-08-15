@@ -2133,8 +2133,13 @@ const RANK_CACHE_TTL = 60000; // 1分キャッシュ
 
 /** DB投稿をランキング用ツイートオブジェクトに変換 */
 function _dbPostToTweet(p, avatarMap = {}, nameTagMap = {}, regionMap = {}, rookieMap = {}) {
-  const avImg   = avatarMap[p.user_handle];
-  const nameTag = p.name_tag || nameTagMap[p.user_handle] || null;
+  // avatarMap の値は「アバターHTML文字列」または「{av, nameTag} オブジェクト」の両方を許容
+  //   （新着フィードは後者を渡す。オブジェクトのまま使うと [object Object] になり
+  //     bg/tc も transparent になってアイコンが消えるため、ここで正規化する）
+  const _avEntry = avatarMap[p.user_handle];
+  const avImg    = (_avEntry && typeof _avEntry === 'object') ? (_avEntry.av || null) : (_avEntry || null);
+  const _avTag   = (_avEntry && typeof _avEntry === 'object') ? (_avEntry.nameTag || null) : null;
+  const nameTag = p.name_tag || _avTag || nameTagMap[p.user_handle] || null;
   const isExt = !!p.ext_source;
   // 内部投稿は「信頼度補正済みの加重和」で採点（BOT対策）。
   //   weighted_* は各いいね/保存を"した人の信頼度(0〜1.5)"の合計。移行期に
