@@ -471,7 +471,6 @@ function goPage(id, btn) {
   if (id === 'home')      { _refreshHomeFeedFromDB(); _checkAnnouncementBadge(); if (typeof _updateComposeStageVisibility === 'function') _updateComposeStageVisibility(); }
   if (id === 'mypage')    {
     _refreshMypageStats(); loadUserFavorites(); _loadMypageSocialLinks(); _updateMypageMeta(); _renderDisplayBadges();
-    renderProfileEquipmentMini(localStorage.getItem('trendy_account_id'), 'mypage-equipment-mini');
     if (typeof renderMyLevelUI === 'function') renderMyLevelUI();
     _renderMyTrackerStats();
     if (typeof renderMyDashboard === 'function') renderMyDashboard();
@@ -492,7 +491,6 @@ function goPage(id, btn) {
   if (id === 'ad-report') renderAdReportPage();
   if (id === 'peak-points') renderPeakPointsPage();
   if (id === 'feedback') openFeedbackPage();
-  if (id === 'gacha')    renderGachaPage();
   // 装備ページは廃止
   if (id === 'equipment') { goPage('home', null); return; }
   if (id === 'highlow')  _hlInitPage();
@@ -575,7 +573,7 @@ function homeTweetHTML(t) {
       ${t.linkUrl ? `<div style="padding:0 0 6px">${_urlBtnHTML(t.linkUrl)}</div>` : ''}
       <div class="tweet-actions">
         <button class="action-btn reply-btn" onclick="openTweetDetail(${idx})"><i class="ti ti-message-circle"></i><span id="reply-count-${idx}">${replyCount || ''}</span></button>
-        <button class="action-btn like-btn${likedTweets.has(idx)?' liked':''}" id="like-btn-${idx}" onclick="toggleLike(${idx},this)">${t.likeEmoji ? `<span class="like-emoji-display">${t.likeEmoji}</span>` : (likedTweets.has(idx) ? `<i class="ti ti-heart-filled" style="color:#e11d48" id="like-icon-${idx}"></i>` : `<i class="ti ti-heart" id="like-icon-${idx}"></i>`)}<span class="like-count" id="like-count-${idx}">${fmt(t.likes)}</span></button>
+        <button class="action-btn like-btn${likedTweets.has(idx)?' liked':''}" id="like-btn-${idx}" onclick="toggleLike(${idx},this)">${likedTweets.has(idx) ? `<i class="ti ti-heart-filled" style="color:#e11d48" id="like-icon-${idx}"></i>` : `<i class="ti ti-heart" id="like-icon-${idx}"></i>`}<span class="like-count" id="like-count-${idx}">${fmt(t.likes)}</span></button>
         <button class="action-btn"><i class="ti ti-eye"></i>${fmt(t.views)}</button>
         ${favStar(idx)}
       </div>
@@ -1008,7 +1006,7 @@ async function _diveFullTextSearch(query) {
       tags     : Array.isArray(p.tags) ? p.tags : [],
       extSource: p.ext_source || null,
       extUrl   : p.ext_url    || null,
-      likeEmoji: p.like_emoji || '❤️',
+      likeEmoji: null, // いいね絵文字は廃止
       rank: 0, isDummy: false,
       user: {
         h      : p.user_handle,
@@ -1330,7 +1328,7 @@ function _reelMediaOverlay(t, idx) {
           <span id="reel-rc-${idx}">${(tweetReplies[idx]||[]).length||0}</span>
         </button>
         <button class="reel-action-btn${liked?' reel-liked':''}" id="reel-like-${idx}" onclick="event.stopPropagation();_reelToggleLike(${idx})">
-          ${t.likeEmoji ? `<span class="like-emoji-display">${t.likeEmoji}</span>` : `<i class="ti ti-heart${liked?'-filled':''}" ${liked?'style="color:#ef4444"':''}></i>`} <span id="reel-lc-${idx}">${fmt(t.likes)}</span>
+          <i class="ti ti-heart${liked?'-filled':''}" ${liked?'style="color:#ef4444"':''}></i> <span id="reel-lc-${idx}">${fmt(t.likes)}</span>
         </button>
         <span class="reel-action-btn reel-stat">
           <i class="ti ti-eye"></i> ${fmt(t.views)}
@@ -1414,7 +1412,7 @@ function _reelCardHTML(group) {
             <i class="ti ti-message-circle"></i><span>${(tweetReplies[idx]||[]).length||0}</span>
           </button>
           <button class="reel-action-btn${liked?' reel-liked':''}" id="reel-like-${idx}" onclick="event.stopPropagation();_reelToggleLike(${idx})">
-            ${t.likeEmoji ? `<span class="like-emoji-display">${t.likeEmoji}</span>` : `<i class="ti ti-heart${liked?'-filled':''}" ${liked?'style="color:#ef4444"':''}></i>`}<span id="reel-lc-${idx}">${fmt(t.likes)}</span>
+            <i class="ti ti-heart${liked?'-filled':''}" ${liked?'style="color:#ef4444"':''}></i><span id="reel-lc-${idx}">${fmt(t.likes)}</span>
           </button>
           <span class="reel-action-btn reel-stat"><i class="ti ti-eye"></i>${fmt(t.views)}</span>
           ${(() => {
@@ -1683,59 +1681,9 @@ function confirmPost() {
   if (urlBtn) urlBtn.classList.remove('compose-url-btn-active');
   resetComposeCat(); // カテゴリー・タグもリセット
   updateCompose();
-  // 投稿でピークコインガチャ（1日10回まで） — ガチャ廃止により停止（false で無効化）
-  if (false && !testActiveUser && !isSub) {
-    const _postAid = localStorage.getItem('trendy_account_id');
-    if (_postAid && typeof dbAddPoints === 'function') {
-      // 1日のガチャ回数を確認（アカウント毎、ローカル日付）
-      const _today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const _key = `trendy_postgacha_${_postAid}`;
-      let _rec = { date: _today, count: 0 };
-      try {
-        const _raw = localStorage.getItem(_key);
-        if (_raw) _rec = JSON.parse(_raw);
-        if (_rec.date !== _today) _rec = { date: _today, count: 0 };
-      } catch(e) { _rec = { date: _today, count: 0 }; }
-
-      if (_rec.count >= 10) {
-        // 上限到達 → ガチャ無効
-        showToast('本日のコインガチャ回数上限（10回/日）に達しました', 'info');
-      } else {
-        const _coinChoices = [1, 10, 50, 100, 200, 300, 500, 1000];
-        const _wonBase = _coinChoices[Math.floor(Math.random() * _coinChoices.length)];
-        const _coinBoost = getBadgeEffect('coin_boost');
-        const _wonCoin = Math.round(_wonBase * (1 + _coinBoost / 100));
-        const _remaining = 10 - (_rec.count + 1);
-        _showPostCoinGacha(_coinChoices, _wonCoin, _remaining);
-        dbAddPoints(_postAid, _wonCoin, 'post_gacha').then(() => {
-          _loadMyPoints?.();
-        }).catch(() => {});
-        // 回数を記録
-        _rec.count += 1;
-        try { localStorage.setItem(_key, JSON.stringify(_rec)); } catch(e) {}
-      }
-    }
-  }
 
   // Supabase に保存 → db_id が確定したら DOM と配列に反映
-  // 投稿には常に絵文字を紐づける（未選択時はデフォルト❤️）
-  const _likeEmoji = pendingLikeEmoji || '❤️';
-  t.likeEmoji = _likeEmoji;
-  // ホームフィードに表示済みのlikeEmojiも更新
-  const _localDom = document.querySelector(`[data-local-id="${t._localId}"]`);
-  if (_localDom) {
-    const likeBtn = _localDom.querySelector('.like-btn i, .like-btn .like-emoji-display');
-    if (likeBtn) {
-      const span = document.createElement('span');
-      span.className = 'like-emoji-display';
-      span.textContent = _likeEmoji;
-      likeBtn.replaceWith(span);
-    }
-  }
-  // 投稿フォームの絵文字ボタンをデフォルトに戻す
-  pendingLikeEmoji = '❤️';
-  const _ceEl = document.getElementById('compose-like-emoji-current');
-  if (_ceEl) _ceEl.textContent = '❤️';
+  // いいね絵文字は廃止（常にハートアイコン）
   dbSavePost({
     handle       : isSub ? subAccountHandle : myHandle,
     name         : isSub ? subAccountName : (myNickname || 'あなた'),
@@ -1749,7 +1697,6 @@ function confirmPost() {
     tags         : _tags,
     linkUrl      : _linkUrl,
     imageLinkUrl : _imageLinkUrl,
-    likeEmoji    : _likeEmoji,
   }).then(savedPost => {
     if (savedPost?.id) {
       t.db_id = savedPost.id;
@@ -2171,7 +2118,7 @@ function _dbPostToTweet(p, avatarMap = {}, nameTagMap = {}, regionMap = {}, rook
     extUrl    : p.ext_url      || null,
     saved     : p.saved_count  || 0,
     boostScore: p.boost_score  || 0,
-    likeEmoji : p.like_emoji   || '❤️',
+    likeEmoji : null, // いいね絵文字は廃止
     score,
     rank     : 0,
     prev     : '初登場',
@@ -2647,17 +2594,6 @@ function toggleBadgeSelect(badgeId) {
 }
 
 /** マイページのバッジスロット描画 */
-function _titleBadgeCardHTML(title, compact = true) {
-  const rar = (typeof _getBadgeRarity === 'function')
-    ? _getBadgeRarity(title)
-    : (Object.values(TITLE_INFO).find(t => t.title === title)?.rarity || 'SR');
-  const lv = (typeof _getBadgeLevel === 'function') ? _getBadgeLevel(title) : 0;
-  return `<div class="title-badge-display-card title-badge-${rar.toLowerCase()}">
-    <span class="title-badge-display-text">${title}</span>
-    ${lv > 0 ? `<span class="title-badge-level-overlay">+${lv}</span>` : ''}
-  </div>`;
-}
-
 function _renderDisplayBadges() {
   const ids    = _loadDisplayBadgeIds();
   const earned = _loadEarnedBadges();
@@ -2665,11 +2601,6 @@ function _renderDisplayBadges() {
     const el = document.getElementById(`dbadge-${i}`);
     if (!el) continue;
     const bid = ids[i];
-    if (typeof bid === 'string' && bid.startsWith('title:')) {
-      el.innerHTML = _titleBadgeCardHTML(bid.slice(6));
-      el.classList.add('has-badge');
-      continue;
-    }
     const badge = bid ? earned.find(b => b.id === bid) : null;
     if (badge) {
       el.innerHTML = _renderBadgeCard(badge, false, true);
@@ -2682,621 +2613,17 @@ function _renderDisplayBadges() {
   // プロフィール編集プレビュー
   const preview = document.getElementById('pe-badge-preview');
   if (preview) {
-    const items = ids.map(bid => {
-      if (typeof bid === 'string' && bid.startsWith('title:')) return { type: 'title', title: bid.slice(6) };
-      const b = bid ? earned.find(b => b.id === bid) : null;
-      return b ? { type: 'badge', badge: b } : null;
-    }).filter(Boolean);
+    const items = ids.map(bid => (bid ? earned.find(b => b.id === bid) : null)).filter(Boolean);
     preview.innerHTML = items.length
-      ? items.map(it => it.type === 'title' ? _titleBadgeCardHTML(it.title) : _renderBadgeCard(it.badge, false, true)).join('')
+      ? items.map(b => _renderBadgeCard(b, false, true)).join('')
       : `<span style="font-size:12px;color:var(--text3)">バッジが選択されていません</span>`;
   }
 }
 
-/** バッジ管理ページ描画 */
+/** バッジ管理ページ描画（ランキング入賞バッジのみ・称号は廃止） */
 function renderBadgesPage() {
   _renderBadgesDisplaySlots();
   _renderBadgesGrid();
-  _renderGachaTitleBadgesSection();
-}
-
-async function _renderGachaTitleBadgesSection() {
-  const aid = localStorage.getItem('trendy_account_id');
-  if (!aid) return;
-  _gachaItems = await dbGetUserItems(aid);
-
-  const owned = Object.entries(TITLE_INFO)
-    .filter(([id]) => (_gachaItems[id] || 0) > 0)
-    .map(([id, info]) => ({ id, ...info }));
-
-  // 現在表示中のバッジスロットを確認
-  const ids = _loadDisplayBadgeIds();
-  const slottedTitles = ids.filter(i => typeof i === 'string' && i.startsWith('title:')).map(i => i.slice(6));
-
-  // 現在のスロット状況表示
-  const cur = document.getElementById('gacha-title-current-display');
-  if (cur) {
-    if (slottedTitles.length === 0) {
-      cur.innerHTML = `<div style="padding:8px 14px;background:var(--bg2);border-radius:10px;border:1px dashed var(--border);font-size:12px;color:var(--text3)">バッジ枠に追加された称号: なし</div>`;
-    } else {
-      cur.innerHTML = `<div style="padding:10px 14px;background:var(--bg2);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span style="font-size:11px;color:var(--text3);font-weight:700">バッジ枠に追加中:</span>
-        ${slottedTitles.map(t => `<span class="profile-title-badge"><i class="ti ti-medal"></i>${t}</span>`).join('')}
-      </div>`;
-    }
-  }
-
-  // 所持称号一覧
-  const grid = document.getElementById('gacha-title-badges-grid');
-  if (!grid) return;
-  if (!owned.length) {
-    grid.innerHTML = `
-      <div style="text-align:center;padding:20px;color:var(--text3);font-size:13px">
-        <i class="ti ti-medal-off" style="font-size:32px;display:block;margin-bottom:8px"></i>
-        ガチャでまだ称号バッジを入手していません
-        <div style="margin-top:10px"><button class="btn-primary" onclick="goPage('gacha',null)">ガチャを引く</button></div>
-      </div>`;
-    return;
-  }
-
-  // レアリティ別にグルーピング
-  const grouped = { LG: [], UR: [], SSR: [], SR: [] };
-  owned.forEach(t => { if (grouped[t.rarity]) grouped[t.rarity].push(t); });
-
-  // 検索バー
-  let html = `
-    <div style="position:sticky;top:0;background:var(--bg);padding:6px 0 8px;margin-bottom:6px;z-index:5">
-      <input type="text" id="title-badge-search" placeholder="🔍 称号を検索…"
-        oninput="_filterTitleBadges(this.value)"
-        style="width:100%;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px;box-sizing:border-box">
-    </div>`;
-  for (const rar of ['LG','UR','SSR','SR']) {
-    if (!grouped[rar].length) continue;
-    // SR は所持数が多いので初期は折りたたむ
-    const initialCollapsed = rar === 'SR' && grouped[rar].length > 20;
-    html += `
-      <div class="title-picker-section${initialCollapsed ? ' collapsed' : ''}" data-rar="${rar}">
-        <div class="title-picker-section-head" onclick="this.parentElement.classList.toggle('collapsed')">
-          <span class="rarity-${rar.toLowerCase()}">${rar}</span>
-          <span style="color:var(--text3);font-size:11px">${grouped[rar].length}種</span>
-          <i class="ti ti-chevron-down"></i>
-        </div>
-        <div class="title-picker-grid">
-          ${grouped[rar].map(t => {
-            const isInSlot = slottedTitles.includes(t.title);
-            const safeTitle = t.title.replace(/'/g, "\\'");
-            const lv = _getBadgeLevel(t.title);
-            const eff = _badgeEffectValue(t.title);
-            const def = BADGE_EFFECT_DEFS[eff.type];
-            const effIcon = def && eff.value ? `<i class="ti ${def.icon}" style="font-size:11px;color:${def.color};margin-left:auto" title="${def.label} +${eff.value}${def.unit}"></i>` : '';
-            return `<button class="title-picker-btn ${isInSlot ? 'selected' : ''}" data-title="${t.title.toLowerCase()}" onclick="openBadgeActionModal('${safeTitle}')" title="${t.title}${lv>0?' +'+lv:''}${def?' ('+def.label+' +'+eff.value+def.unit+')':''}">
-              <span class="rarity-${rar.toLowerCase()}">${rar}</span>
-              <span class="title-picker-text">${t.title}</span>
-              ${lv > 0 ? `<span style="font-size:10px;color:#fbbf24;font-weight:900">+${lv}</span>` : ''}
-              ${effIcon}
-              ${isInSlot ? '<i class="ti ti-check" style="color:var(--accent)"></i>' : ''}
-            </button>`;
-          }).join('')}
-        </div>
-      </div>`;
-  }
-  grid.innerHTML = html;
-}
-
-// 称号バッジ検索フィルタ
-function _filterTitleBadges(query) {
-  const q = (query || '').toLowerCase().trim();
-  const grid = document.getElementById('gacha-title-badges-grid');
-  if (!grid) return;
-  const sections = grid.querySelectorAll('.title-picker-section');
-  sections.forEach(sec => {
-    let visibleCount = 0;
-    sec.querySelectorAll('.title-picker-btn').forEach(btn => {
-      const t = btn.dataset.title || '';
-      const match = !q || t.includes(q);
-      btn.style.display = match ? '' : 'none';
-      if (match) visibleCount++;
-    });
-    sec.style.display = visibleCount > 0 ? '' : 'none';
-    // 検索中はマッチしたセクションを自動展開
-    if (q && visibleCount > 0) sec.classList.remove('collapsed');
-  });
-}
-
-// 称号バッジクリック時のアクションメニュー（設定 or 強化）
-function openBadgeActionModal(title) {
-  document.getElementById('badge-action-modal')?.remove();
-  const ids = _loadDisplayBadgeIds();
-  const slotId = 'title:' + title;
-  const isSet = ids.includes(slotId);
-  const level = _getBadgeLevel(title);
-  const html = `
-    <div id="badge-action-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px"
-      onclick="if(event.target===this)document.getElementById('badge-action-modal').remove()">
-      <div style="background:var(--bg);border-radius:14px;padding:20px 22px;max-width:340px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.4)">
-        <div style="text-align:center;margin-bottom:14px">
-          ${_titleBadgeCardHTML(title)}
-          ${level > 0 ? `<div style="margin-top:6px;color:#fbbf24;font-weight:900;font-size:13px">+${level}</div>` : ''}
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button onclick="document.getElementById('badge-action-modal').remove();toggleTitleBadgeSlot('${title.replace(/'/g, "\\'")}')"
-            style="padding:11px;border-radius:10px;border:none;background:${isSet?'linear-gradient(135deg,#94a3b8,#64748b)':'linear-gradient(135deg,#7c3aed,#5b21b6)'};color:#fff;font-weight:900;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-            <i class="ti ti-${isSet?'circle-minus':'circle-check'}"></i> ${isSet?'バッジから外す':'バッジ設定'}
-          </button>
-          <button onclick="document.getElementById('badge-action-modal').remove();openBadgeEnhanceModal('${title.replace(/'/g, "\\'")}')"
-            style="padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#b45309);color:#fff;font-weight:900;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-            <i class="ti ti-arrow-up-circle"></i> 強化
-          </button>
-          <button onclick="document.getElementById('badge-action-modal').remove()"
-            style="padding:9px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:12px;cursor:pointer">
-            キャンセル
-          </button>
-        </div>
-      </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-
-// ═══ 称号バッジ効果システム ═══
-const BADGE_EFFECT_DEFS = {
-  coin_boost:   { label:'コイン獲得',       unit:'%',  icon:'ti-coin',         color:'#fbbf24' },
-  rank_boost:   { label:'ランキングブースト', unit:'pt', icon:'ti-trending-up',  color:'#3b82f6' },
-  gacha_up:     { label:'ガチャ確率UP',     unit:'%',  icon:'ti-sparkles',     color:'#a855f7' },
-  follow_max:   { label:'フォロー上限UP',    unit:'人', icon:'ti-user-plus',    color:'#10b981' },
-  stats_unlock: { label:'統計機能解放',     unit:'',   icon:'ti-chart-bar',    color:'#06b6d4' },
-  fav_slot:     { label:'推しユーザー枠+1', unit:'',   icon:'ti-heart',        color:'#ec4899' },
-  badge_slot:   { label:'称号バッジ枠+1',   unit:'',   icon:'ti-medal',        color:'#f59e0b' },
-};
-const BADGE_EFFECT_KEYS = Object.keys(BADGE_EFFECT_DEFS);
-
-// レアリティ毎の基礎効果値（+0 時の値）
-const BADGE_EFFECT_BASE = {
-  LG:  { coin_boost: 30, rank_boost: 50, gacha_up: 5, follow_max: 50, stats_unlock: 1, fav_slot: 1, badge_slot: 1 },
-  UR:  { coin_boost: 20, rank_boost: 30, gacha_up: 3, follow_max: 30, stats_unlock: 1, fav_slot: 1, badge_slot: 1 },
-  SSR: { coin_boost: 15, rank_boost: 20, gacha_up: 2, follow_max: 20, stats_unlock: 1, fav_slot: 0, badge_slot: 0 },
-  SR:  { coin_boost: 10, rank_boost: 10, gacha_up: 1, follow_max: 10, stats_unlock: 0, fav_slot: 0, badge_slot: 0 },
-  R:   { coin_boost:  5, rank_boost:  5, gacha_up: 0, follow_max:  5, stats_unlock: 0, fav_slot: 0, badge_slot: 0 },
-  N:   { coin_boost:  2, rank_boost:  2, gacha_up: 0, follow_max:  2, stats_unlock: 0, fav_slot: 0, badge_slot: 0 },
-};
-
-// バッジ名から効果タイプを決定（タイトル文字のハッシュ）
-// レアリティで効果値が 0 の場合は次のキーへフォールバック → 必ず非ゼロの効果になる
-function _badgeEffectType(title) {
-  if (!title) return 'coin_boost';
-  let h = 0;
-  for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) >>> 0;
-  const info = Object.values(TITLE_INFO).find(t => t.title === title);
-  const rar = info?.rarity || 'SR';
-  const baseMap = BADGE_EFFECT_BASE[rar] || {};
-  // 7つの効果からハッシュで開始位置を決定、レアリティで値が 0 の効果はスキップ
-  for (let i = 0; i < BADGE_EFFECT_KEYS.length; i++) {
-    const key = BADGE_EFFECT_KEYS[(h + i) % BADGE_EFFECT_KEYS.length];
-    if ((baseMap[key] || 0) > 0) return key;
-  }
-  // 全てゼロ（理論上ないが念のため）
-  return 'coin_boost';
-}
-
-// バッジの実効効果値（基礎 × (1 + lv × 0.1)）
-// 現在の（昇格後の）レアリティを参照
-function _badgeEffectValue(title) {
-  const rar = _getBadgeRarity(title);
-  const effectType = _badgeEffectType(title);
-  const base = BADGE_EFFECT_BASE[rar]?.[effectType] || 0;
-  if (base === 0) return { type: effectType, value: 0, rarity: rar };
-  const lv = _getBadgeLevel(title);
-  const value = effectType === 'stats_unlock' || effectType === 'fav_slot' || effectType === 'badge_slot'
-    ? base
-    : Math.round(base * (1 + lv * 0.1));
-  return { type: effectType, value, rarity: rar };
-}
-
-// 現在装備中のバッジ全効果を集計
-function _aggregateBadgeEffects() {
-  const ids = (typeof _loadDisplayBadgeIds === 'function') ? _loadDisplayBadgeIds() : [];
-  const titles = ids.filter(i => typeof i === 'string' && i.startsWith('title:')).map(i => i.slice(6));
-  const totals = {};
-  titles.forEach(t => {
-    const eff = _badgeEffectValue(t);
-    if (!eff.value) return;
-    totals[eff.type] = (totals[eff.type] || 0) + eff.value;
-  });
-  return totals;
-}
-// グローバルアクセス用
-function getBadgeEffect(effectType) {
-  return _aggregateBadgeEffects()[effectType] || 0;
-}
-
-// ── 称号バッジ強化システム ──
-const BADGE_ENHANCE_ORBS = {
-  // 成功率はオーブ名の % 通り。失敗時のペナルティは 30/60 が -1、90 はなし
-  enhance_orb_30: { label:'強化のオーブ30%', rate:0.30, failPenalty:1, maxLvAllowed:999, color:'#ef4444', orbClass:'orb-red'   },
-  enhance_orb_60: { label:'強化のオーブ60%', rate:0.60, failPenalty:1, maxLvAllowed:10,  color:'#fbbf24', orbClass:'orb-gold'  },
-  enhance_orb_90: { label:'強化のオーブ90%', rate:0.90, failPenalty:0, maxLvAllowed:3,   color:'#1f2937', orbClass:'orb-black' },
-};
-const BADGE_MAX_LEVEL = Infinity; // 上限なし
-
-function _loadBadgeLevels() {
-  try { return JSON.parse(localStorage.getItem('trendy_badge_levels') || '{}'); } catch(e) { return {}; }
-}
-function _saveBadgeLevels(map) {
-  try { localStorage.setItem('trendy_badge_levels', JSON.stringify(map)); } catch(e) {}
-  _syncBadgeDataToDb();
-}
-
-// バッジ強化データを profiles に同期（2秒デバウンス・端末間で消えないように）
-let _badgeSyncTimer = null;
-function _syncBadgeDataToDb() {
-  clearTimeout(_badgeSyncTimer);
-  _badgeSyncTimer = setTimeout(async () => {
-    const aid = localStorage.getItem('trendy_account_id');
-    if (!aid || typeof db === 'undefined') return;
-    try {
-      const { error } = await db.from('profiles').update({
-        badge_levels  : _loadBadgeLevels(),
-        badge_rarities: _loadBadgeRarities(),
-      }).eq('account_id', aid);
-      if (error) console.warn('[BADGE] DB同期エラー（カラム未作成の可能性）:', error.message);
-    } catch(e) { console.warn('[BADGE] DB同期失敗:', e); }
-  }, 2000);
-}
-function _getBadgeLevel(title) {
-  return _loadBadgeLevels()[title] || 0;
-}
-function _setBadgeLevel(title, lv) {
-  const m = _loadBadgeLevels();
-  m[title] = lv;
-  _saveBadgeLevels(m);
-}
-
-// バッジのレアリティ・オーバーライド（大成功で昇格した結果）
-const BADGE_RARITY_ORDER = ['N','R','SR','SSR','UR','LG'];
-function _loadBadgeRarities() {
-  try { return JSON.parse(localStorage.getItem('trendy_badge_rarities') || '{}'); } catch(e) { return {}; }
-}
-function _saveBadgeRarities(m) {
-  try { localStorage.setItem('trendy_badge_rarities', JSON.stringify(m)); } catch(e) {}
-  _syncBadgeDataToDb();
-}
-function _getBadgeRarity(title) {
-  const overrides = _loadBadgeRarities();
-  if (overrides[title]) return overrides[title];
-  const info = Object.values(TITLE_INFO).find(t => t.title === title);
-  return info?.rarity || 'SR';
-}
-function _setBadgeRarity(title, rar) {
-  const m = _loadBadgeRarities();
-  m[title] = rar;
-  _saveBadgeRarities(m);
-}
-function _ascendRarity(rar) {
-  const i = BADGE_RARITY_ORDER.indexOf(rar);
-  if (i < 0 || i >= BADGE_RARITY_ORDER.length - 1) return rar;
-  return BADGE_RARITY_ORDER[i + 1];
-}
-function _isMaxRarity(rar) {
-  return rar === BADGE_RARITY_ORDER[BADGE_RARITY_ORDER.length - 1];
-}
-
-let _badgeEnhanceState = { title: null, selectedOrb: null };
-
-async function openBadgeEnhanceModal(title) {
-  // 最新の所持アイテムを取得
-  const aid = localStorage.getItem('trendy_account_id');
-  if (aid) {
-    try { _gachaItems = await dbGetUserItems(aid); } catch(e) {}
-  }
-  _badgeEnhanceState = { title, selectedOrb: null };
-  _renderBadgeEnhanceModal();
-}
-
-function _renderBadgeEnhanceModal() {
-  document.getElementById('badge-enhance-modal')?.remove();
-  const { title, selectedOrb } = _badgeEnhanceState;
-  const level = _getBadgeLevel(title);
-  const inv = _gachaItems || {};
-  const orbs = Object.entries(BADGE_ENHANCE_ORBS).map(([id, info]) => ({
-    id, ...info, qty: inv[id] || 0,
-  }));
-  const canStart = !!selectedOrb && level < BADGE_MAX_LEVEL && (BADGE_ENHANCE_ORBS[selectedOrb]?.maxLvAllowed > level);
-  const lvMaxNotice = level >= BADGE_MAX_LEVEL
-    ? '<div style="color:#ef4444;font-weight:700;font-size:11px;text-align:center;margin-top:4px">最大レベルに達しています</div>'
-    : '';
-
-  const html = `
-    <div id="badge-enhance-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10001;display:flex;align-items:center;justify-content:center;padding:14px"
-      onclick="if(event.target===this)document.getElementById('badge-enhance-modal').remove()">
-      <div style="background:linear-gradient(160deg,#1a1330,#2a1a4a);border:2px solid #f59e0b;border-radius:16px;padding:20px 22px;max-width:400px;width:100%;box-shadow:0 0 30px rgba(245,158,11,.4)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div style="color:#fbbf24;font-weight:900;font-size:15px;letter-spacing:1px"><i class="ti ti-arrow-up-circle"></i> 強化</div>
-          <button onclick="document.getElementById('badge-enhance-modal').remove()" style="background:none;border:none;font-size:20px;color:#fde68a;cursor:pointer">×</button>
-        </div>
-
-        <!-- 効果プレビュー -->
-        ${(() => {
-          const eff = _badgeEffectValue(title);
-          const def = BADGE_EFFECT_DEFS[eff.type];
-          if (!def || !eff.value) return '';
-          // 次レベル時の値
-          const info = Object.values(TITLE_INFO).find(t => t.title === title);
-          const rar = info?.rarity || 'SR';
-          const base = BADGE_EFFECT_BASE[rar]?.[eff.type] || 0;
-          const nextVal = (eff.type === 'stats_unlock' || eff.type === 'fav_slot' || eff.type === 'badge_slot')
-            ? base : Math.round(base * (1 + (level+1) * 0.1));
-          return `<div style="background:rgba(0,0,0,.25);border:1px solid ${def.color}55;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
-            <i class="ti ${def.icon}" style="font-size:22px;color:${def.color}"></i>
-            <div style="flex:1">
-              <div style="color:${def.color};font-size:11px;font-weight:700">${def.label}</div>
-              <div style="color:#fde68a;font-size:13px;font-weight:900">
-                ${eff.value > 0 ? '+' : ''}${eff.value}${def.unit}
-                ${level < BADGE_MAX_LEVEL && nextVal !== eff.value ? `<span style="color:#10b981;font-size:11px;margin-left:6px">→ +${nextVal}${def.unit}</span>` : ''}
-              </div>
-            </div>
-          </div>`;
-        })()}
-
-        <!-- 対象バッジ + 強化素材スロット -->
-        <div class="enhance-stage" style="position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:14px;padding:14px 8px;background:rgba(0,0,0,.3);border-radius:10px;margin-bottom:10px">
-          <div style="text-align:center">
-            <div style="min-width:70px">${_titleBadgeCardHTML(title)}</div>
-            <div style="margin-top:6px;color:#fbbf24;font-weight:900;font-size:13px">
-              <span class="rarity-${_getBadgeRarity(title).toLowerCase()}" style="font-size:10px;padding:1px 5px;margin-right:4px">${_getBadgeRarity(title)}</span>${level > 0 ? `+${level}` : '+0'}
-            </div>
-            <div style="margin-top:2px;color:#fde68a;font-size:10px">現在</div>
-          </div>
-          <div style="font-size:24px;color:#fbbf24;font-weight:900">+</div>
-          <div id="badge-enhance-orb-slot" style="width:70px;height:90px;border:2px dashed ${selectedOrb?BADGE_ENHANCE_ORBS[selectedOrb].color:'#fbbf24'};border-radius:10px;display:flex;align-items:center;justify-content:center;text-align:center;background:rgba(0,0,0,.2);cursor:pointer"
-            onclick="${selectedOrb?'_clearEnhanceOrb()':''}">
-            ${selectedOrb ? `
-              <div style="font-size:11px;font-weight:900;color:${BADGE_ENHANCE_ORBS[selectedOrb].color};padding:6px 4px;line-height:1.3;text-align:center">
-                <div class="enhance-orb ${BADGE_ENHANCE_ORBS[selectedOrb].orbClass}" style="margin:0 auto 4px"></div>
-                ${(BADGE_ENHANCE_ORBS[selectedOrb].rate*100)|0}%
-              </div>
-            ` : '<div style="color:#fde68a;opacity:.5;font-size:11px">素材を<br>選択</div>'}
-          </div>
-        </div>
-        ${selectedOrb ? `
-          <div style="text-align:center;color:#fde68a;font-size:11px;margin-bottom:6px">
-            ${BADGE_ENHANCE_ORBS[selectedOrb].label}（成功時 +1）
-          </div>
-        ` : ''}
-        ${lvMaxNotice}
-
-        <!-- 強化開始ボタン -->
-        <button onclick="doBadgeEnhance()" ${canStart ? '' : 'disabled'}
-          style="width:100%;padding:14px;border-radius:10px;border:none;font-size:15px;font-weight:900;cursor:${canStart?'pointer':'not-allowed'};
-            background:${canStart?'linear-gradient(135deg,#fbbf24,#b45309)':'rgba(100,100,100,.3)'};
-            color:${canStart?'#1f1206':'#888'};
-            box-shadow:${canStart?'0 4px 14px rgba(251,191,36,.4)':'none'};
-            margin-bottom:14px">
-          ${canStart ? '⚡ 強化開始' : (level >= BADGE_MAX_LEVEL ? '最大レベル' : '素材を選択してください')}
-        </button>
-
-        <!-- 所持オーブ一覧 -->
-        <div style="color:#fde68a;font-size:11px;font-weight:700;margin-bottom:6px">所持オーブ</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-          ${orbs.map(orb => {
-            const lvOK = orb.maxLvAllowed > level;
-            const usable = orb.qty > 0 && lvOK && level < BADGE_MAX_LEVEL;
-            const selected = selectedOrb === orb.id;
-            return `<button onclick="_selectEnhanceOrb('${orb.id}')" ${usable ? '' : 'disabled'}
-              style="padding:10px 6px;border-radius:10px;border:2px solid ${selected ? orb.color : (usable ? 'var(--border)' : 'rgba(255,255,255,.1)')};
-                background:${selected ? `linear-gradient(135deg,${orb.color}33,${orb.color}11)` : (usable ? 'var(--bg2)' : 'rgba(0,0,0,.2)')};
-                color:${usable ? '#fde68a' : '#666'};
-                cursor:${usable ? 'pointer' : 'not-allowed'};
-                opacity:${usable ? 1 : 0.5};
-                text-align:center;font-size:11px;font-weight:700">
-              <div class="enhance-orb ${orb.orbClass}" style="margin:0 auto 3px"></div>
-              <div>${(orb.rate*100)|0}%</div>
-              <div style="font-size:9px;opacity:.7">残${orb.qty}</div>
-              ${!lvOK && orb.qty > 0 ? `<div style="font-size:8px;color:#ef4444;margin-top:2px">+${orb.maxLvAllowed}まで</div>` : ''}
-            </button>`;
-          }).join('')}
-        </div>
-        <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:10px">
-          オーブはガチャで獲得できます<br>
-          <span style="color:#3b82f6">30%</span>=どんなレベルでも / <span style="color:#a855f7">60%</span>=+10まで / <span style="color:#f59e0b">90%</span>=+3まで
-        </div>
-      </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-
-function _selectEnhanceOrb(orbId) {
-  _badgeEnhanceState.selectedOrb = orbId;
-  _renderBadgeEnhanceModal();
-}
-function _clearEnhanceOrb() {
-  _badgeEnhanceState.selectedOrb = null;
-  _renderBadgeEnhanceModal();
-}
-
-// 強化演出（モーダルの「ステージ」枠内に限定 / 豪華演出）
-async function _playEnhanceAnimation(result, failPenalty = 1) {
-  const modal = document.getElementById('badge-enhance-modal');
-  if (!modal) return;
-  // バッジ + オーブの「ステージ」要素を取得
-  const stage = modal.querySelector('.enhance-stage');
-  if (!stage) return;
-  const slot  = document.getElementById('badge-enhance-orb-slot');
-  const badgeWrap = stage.querySelector('.title-badge-display-card')?.parentElement;
-
-  // ① オーブが光って吸い込まれる
-  if (slot) {
-    slot.style.transition = 'transform .55s cubic-bezier(.4,0,.6,1), opacity .55s, filter .55s';
-    slot.style.transform = 'translateX(-70px) scale(.35) rotate(-30deg)';
-    slot.style.opacity   = '.1';
-    slot.style.filter    = 'brightness(2.5) drop-shadow(0 0 16px #fbbf24)';
-  }
-  if (badgeWrap) {
-    badgeWrap.style.transition = 'transform .35s ease-out, filter .35s';
-    badgeWrap.style.transform = 'scale(1.12)';
-    badgeWrap.style.filter = 'brightness(1.5) drop-shadow(0 0 18px #fbbf24)';
-  }
-  await new Promise(r => setTimeout(r, 420));
-
-  // ② 期待ため
-  if (badgeWrap) {
-    badgeWrap.style.animation = 'enhanceShake .35s linear 2';
-  }
-  await new Promise(r => setTimeout(r, 700));
-
-  // ③ ステージ内に結果オーバーレイを挿入（枠内限定）
-  stage.insertAdjacentHTML('beforeend', `
-    <div id="enhance-result-overlay" class="enhance-fx enhance-fx-${result}">
-      <div class="enhance-fx-rays"></div>
-      <div class="enhance-fx-flash"></div>
-      <div class="enhance-fx-frame"></div>
-      <div class="enhance-fx-text">
-        ${result === 'great'
-          ? '<div class="enhance-text-crown">👑</div><div class="enhance-text-big">大成功</div><div class="enhance-text-sub">★ RARITY UP ★</div>'
-          : result === 'success'
-          ? '<div class="enhance-text-big">成功</div><div class="enhance-text-sub">+1</div>'
-          : `<div class="enhance-text-big">失敗</div><div class="enhance-text-sub">${failPenalty > 0 ? '−' + failPenalty : '±0'}</div>`}
-      </div>
-      ${result !== 'fail' ? _enhanceSparkles(result) : ''}
-    </div>
-  `);
-  await new Promise(r => setTimeout(r, 1100));
-
-  // クリーンアップ
-  document.getElementById('enhance-result-overlay')?.remove();
-  if (badgeWrap) {
-    badgeWrap.style.animation = '';
-    badgeWrap.style.transition = '';
-    badgeWrap.style.transform = '';
-    badgeWrap.style.filter = '';
-  }
-}
-function _enhanceSparkles(result) {
-  const palette = result === 'great'
-    ? ['#fbbf24', '#fde68a', '#ef4444', '#c026d3', '#ffffff']
-    : ['#10b981', '#34d399', '#fbbf24', '#ffffff'];
-  const count = result === 'great' ? 30 : 18;
-  let html = '';
-  for (let i = 0; i < count; i++) {
-    const col = palette[i % palette.length];
-    // 中央から放射状に飛び散る（ステージ枠内に収まる範囲）
-    const angle = (i / count) * Math.PI * 2 + (Math.random() - .5) * .6;
-    const dist  = 50 + Math.random() * 80;
-    const tx = Math.cos(angle) * dist;
-    const ty = Math.sin(angle) * dist;
-    const rot = (Math.random() * 720 - 360);
-    const del = Math.random() * 200 | 0;
-    html += `<i class="enhance-sparkle" style="background:${col};--tx:${tx}px;--ty:${ty}px;--ang:${rot}deg;animation-delay:${del}ms"></i>`;
-  }
-  return html;
-}
-
-async function doBadgeEnhance() {
-  const { title, selectedOrb } = _badgeEnhanceState;
-  if (!title || !selectedOrb) return;
-  const orb = BADGE_ENHANCE_ORBS[selectedOrb];
-  if (!orb) return;
-  const level = _getBadgeLevel(title);
-  if (level >= BADGE_MAX_LEVEL) { showToast('最大レベルです', 'info'); return; }
-  if (orb.maxLvAllowed <= level) { showToast('このオーブは現在のレベルで使用できません', 'warn'); return; }
-
-  // オーブ消費
-  const aid = localStorage.getItem('trendy_account_id');
-  if (aid) {
-    try { await dbConsumeItem(aid, selectedOrb, 1); } catch(e) {}
-    try { _gachaItems = await dbGetUserItems(aid); } catch(e) {}
-  }
-
-  // 確率判定（オーブ名通り：大成功 = rate × 5% / 成功 = rate × 95% / それ以外 = 失敗）
-  const roll = Math.random();
-  let result;
-  if (roll < orb.rate * 0.05) result = 'great';
-  else if (roll < orb.rate)   result = 'success';
-  else                        result = 'fail';
-
-  // 演出：オーブが吸い込まれてバッジに飛ぶ → 期待ためダブり振動 → 結果フラッシュ
-  await _playEnhanceAnimation(result, orb.failPenalty ?? 1);
-
-  let newLevel = level;
-  let msg = '';
-  let toastType = 'success';
-  const curRarity = _getBadgeRarity(title);
-  if (result === 'great') {
-    if (!_isMaxRarity(curRarity)) {
-      // レアリティ昇格、レベルは据え置き
-      const newRar = _ascendRarity(curRarity);
-      _setBadgeRarity(title, newRar);
-      msg = `🌟 大成功！レアリティ ${curRarity} → ${newRar} に昇格！（+${level} 据え置き）`;
-    } else {
-      // LG（カンスト）なら +2 レベル
-      newLevel = Math.min(BADGE_MAX_LEVEL, level + 2);
-      _setBadgeLevel(title, newLevel);
-      msg = `🌟 大成功！LG +${level} → +${newLevel}（+2）`;
-    }
-  } else if (result === 'success') {
-    newLevel = Math.min(BADGE_MAX_LEVEL, level + 1);
-    _setBadgeLevel(title, newLevel);
-    msg = `✨ 成功！「${title}」が +${level} → +${newLevel}`;
-  } else {
-    const penalty = orb.failPenalty ?? 2;
-    newLevel = Math.max(0, level - penalty);
-    _setBadgeLevel(title, newLevel);
-    msg = penalty === 0
-      ? `💔 失敗… レベル維持（+${level}）`
-      : `💔 失敗… +${level} → +${newLevel}（-${penalty}）`;
-    toastType = 'error';
-  }
-  showToast(msg, toastType);
-  // オーブ選択は維持（連続強化可能）。ただし在庫切れ・レベル制限超過時は解除
-  const inv = _gachaItems || {};
-  const stillUsable = _badgeEnhanceState.selectedOrb
-    && (inv[_badgeEnhanceState.selectedOrb] || 0) > 0
-    && BADGE_ENHANCE_ORBS[_badgeEnhanceState.selectedOrb].maxLvAllowed > newLevel;
-  if (!stillUsable) _badgeEnhanceState.selectedOrb = null;
-  _renderBadgeEnhanceModal();
-  // 一覧側の表示を更新
-  if (typeof _renderGachaTitleBadgesSection === 'function') {
-    _renderGachaTitleBadgesSection();
-  }
-  // 表示スロットも再描画
-  if (typeof _renderBadgesDisplaySlots === 'function') {
-    _renderBadgesDisplaySlots();
-  }
-}
-
-/** ガチャ称号バッジを表示スロットに追加/削除（toggle） */
-async function toggleTitleBadgeSlot(title) {
-  const slotId = 'title:' + title;
-  const ids = _loadDisplayBadgeIds();
-
-  if (ids.includes(slotId)) {
-    // 既に入っている → 外す
-    const newIds = ids.map(i => i === slotId ? null : i);
-    _saveDisplayBadgeIds(newIds);
-    showToast(`称号「${title}」を外しました`, 'info');
-  } else {
-    // 空きスロットに追加
-    const emptyIdx = ids.findIndex(i => !i);
-    if (emptyIdx === -1) {
-      showToast('バッジ枠が満杯です。先に他のバッジを外してください', 'error');
-      return;
-    }
-    ids[emptyIdx] = slotId;
-    _saveDisplayBadgeIds(ids);
-    showToast(`称号「${title}」をバッジ枠に追加しました`, 'success');
-  }
-
-  // myTitleBadge との同期（後方互換）
-  const remainingTitles = _loadDisplayBadgeIds().filter(i => typeof i === 'string' && i.startsWith('title:'));
-  myTitleBadge = remainingTitles.length ? remainingTitles[0].slice(6) : '';
-  localStorage.setItem('trendy_title_badge', myTitleBadge);
-  const aid = localStorage.getItem('trendy_account_id');
-  if (aid) {
-    try { await db.from('profiles').update({ title_badge: myTitleBadge || null, display_badges: _loadDisplayBadgeIds() }).eq('account_id', aid); } catch(e) {}
-  }
-
-  // 再描画
-  _renderGachaTitleBadgesSection();
-  _renderBadgesDisplaySlots();
-  _renderDisplayBadges();
 }
 
 function _renderBadgesDisplaySlots() {
@@ -3306,15 +2633,7 @@ function _renderBadgesDisplaySlots() {
   const earned = _loadEarnedBadges();
   el.innerHTML = [0,1,2].map(i => {
     const bid = ids[i];
-    // ガチャ称号バッジ
-    if (typeof bid === 'string' && bid.startsWith('title:')) {
-      const title = bid.slice(6);
-      return `<div class="badge-dslot badge-dslot--filled" onclick="toggleTitleBadgeSlot('${title.replace(/'/g, "\\'")}')">
-        ${_titleBadgeCardHTML(title)}
-        <div class="badge-dslot-remove">タップで外す</div>
-      </div>`;
-    }
-    // ランキング入賞バッジ
+    // ランキング入賞バッジ（称号バッジは廃止）
     const badge = bid ? earned.find(b => b.id === bid) : null;
     if (badge) {
       return `<div class="badge-dslot badge-dslot--filled" onclick="toggleBadgeSelect('${badge.id}')">

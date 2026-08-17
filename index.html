@@ -66,11 +66,6 @@
       <button class="nav-item" data-page="tracks" onclick="goPage('tracks',this)">
         <i class="ti ti-radar-2"></i><span>トラック</span>
       </button>
-      <!-- ガチャは廃止（非表示）。コイン/ブースト経済も停止 -->
-      <button class="nav-item" data-page="gacha" onclick="goPage('gacha',this)" style="display:none">
-        <i class="ti ti-dice"></i><span>ガチャ</span>
-        <span class="nav-badge" id="gacha-nav-badge" style="display:none"></span>
-      </button>
       <div class="nav-section-label">その他</div>
       <button class="nav-item" data-page="feedback" onclick="goPage('feedback',this)">
         <i class="ti ti-bulb"></i><span>意見箱</span>
@@ -173,9 +168,6 @@
               -->
               <button class="compose-media-btn" id="compose-url-toggle-btn" onclick="toggleComposeUrl()" title="URLボタンを添付">
                 <i class="ti ti-link"></i>
-              </button>
-              <button class="compose-media-btn compose-emoji-btn" id="compose-like-emoji-btn" onclick="openComposeLikeEmojiPicker()" title="いいねの絵文字を設定">
-                <span id="compose-like-emoji-current" style="font-size:18px;line-height:1">❤️</span>
               </button>
               <button class="compose-media-btn" id="compose-stage-toggle-btn" onclick="toggleComposeStage()" title="ステージにも出演（認証アカウント）" style="display:none">
                 <i class="ti ti-broadcast"></i>
@@ -2264,15 +2256,6 @@
       <div id="ad-report-content"></div>
     </div>
 
-    <!-- ピークコインページ -->
-    <div class="page" id="page-peak-points">
-      <div class="page-header">
-        <button class="back-btn" onclick="goPage('ads',null)"><i class="ti ti-arrow-left"></i></button>
-        <h1><i class="ti ti-diamond" style="color:#f59e0b"></i> ピークコイン</h1>
-      </div>
-      <div id="peak-points-content"></div>
-    </div>
-
 
     <!-- ══ トラックページ ══ -->
     <div class="page" id="page-tracks">
@@ -2321,280 +2304,6 @@
       </div>
     </div>
 
-    <!-- ══ 装備ページ（廃止 - 非表示） ══ -->
-    <div class="page" id="page-equipment" style="display:none !important">
-      <div class="page-header">
-        <h1><i class="ti ti-flask" style="color:#a78bfa"></i> 装備</h1>
-      </div>
-      <div class="alchemy-room">
-        <!-- 背景演出 -->
-        <div class="alchemy-room-bg">
-          <div class="alchemy-smoke alchemy-smoke-1"></div>
-          <div class="alchemy-smoke alchemy-smoke-2"></div>
-          <div class="alchemy-smoke alchemy-smoke-3"></div>
-        </div>
-
-        <!-- 装備中スロット 5つ -->
-        <div class="equipment-slots-wrap">
-          <div class="alchemy-section-title"><i class="ti ti-shield-check"></i> 装備中</div>
-          <div class="equipment-slots" id="equipment-slots"></div>
-        </div>
-
-        <!-- 所持装備一覧 -->
-        <div class="equipment-inventory-wrap">
-          <div class="alchemy-section-title">
-            <i class="ti ti-backpack"></i> 所持装備
-            <div class="equipment-filter-pills" style="margin-left:auto">
-              <button class="equipment-filter-pill active" onclick="setEquipmentFilter('all',this)">すべて</button>
-              <button class="equipment-filter-pill" onclick="setEquipmentFilter('jewel',this)">宝石</button>
-              <button class="equipment-filter-pill" onclick="setEquipmentFilter('amulet',this)">お守り</button>
-              <button class="equipment-filter-pill" onclick="setEquipmentFilter('artifact',this)">アーティ</button>
-              <button class="equipment-filter-pill" onclick="setEquipmentFilter('soul',this)">ソウル</button>
-              <button class="equipment-filter-pill" onclick="setEquipmentFilter('medal',this)">メダル</button>
-            </div>
-          </div>
-          <div class="equipment-inventory" id="equipment-inventory"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 装備詳細 / 強化モーダル -->
-    <div class="modal-overlay" id="equipment-detail-overlay" onclick="closeEquipmentDetail()"></div>
-    <div class="modal equipment-detail-modal" id="equipment-detail-modal">
-      <div class="modal-header">
-        <span class="modal-title" id="equipment-detail-title">装備</span>
-        <button class="modal-close" onclick="closeEquipmentDetail()" style="background:none;border:none;cursor:pointer;font-size:18px;padding:6px;color:var(--text2)"><i class="ti ti-x"></i></button>
-      </div>
-      <div class="modal-body" id="equipment-detail-body"></div>
-    </div>
-
-    <!-- ══ ガチャページ ══ -->
-    <div class="page" id="page-gacha">
-      <div class="page-header">
-        <h1><i class="ti ti-sparkles" style="color:var(--accent)"></i> ガチャ</h1>
-        <button onclick="goPage('highlow',null)" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:22px;border:1px solid #fbbf24;background:linear-gradient(135deg,#92400e,#b45309);color:#fef3c7;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(251,191,36,.25)">
-          <i class="ti ti-cards"></i> ハイ&ロー
-        </button>
-      </div>
-      <div class="gacha-page-body">
-        <!-- ヒーローカード -->
-        <div class="gacha-hero">
-          <div class="gacha-hero-bg"></div>
-          <div class="gacha-hero-shine"></div>
-          <div class="gacha-hero-content">
-            <div class="gacha-hero-label">PEAKR ブーストガチャ</div>
-            <div class="gacha-hero-title">
-              <i class="ti ti-trophy gacha-hero-icon"></i>
-              <span>頂きへ、加速する。</span>
-            </div>
-            <div class="gacha-hero-desc">
-              ブーストアイテムで投稿のスコアを底上げし、<br>
-              カテゴリーランキング上位を目指そう。
-            </div>
-            <div class="gacha-ticket-bar">
-              <i class="ti ti-coin"></i>
-              <span>所持コイン</span>
-              <span id="gacha-ticket-count" class="gacha-ticket-num">0</span>
-              <span class="gacha-ticket-unit">コイン</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 演出 / 結果エリア -->
-        <div class="gacha-stage" id="gacha-stage">
-          <div class="gacha-icon-wrap" id="gacha-icon-wrap">
-            <div class="gacha-orb">
-              <div class="gacha-orb-glow"></div>
-              <div class="gacha-orb-core"><i class="ti ti-sparkles"></i></div>
-              <div class="gacha-orb-ring gacha-orb-ring-1"></div>
-              <div class="gacha-orb-ring gacha-orb-ring-2"></div>
-              <div class="gacha-orb-ring gacha-orb-ring-3"></div>
-            </div>
-          </div>
-          <div class="gacha-result" id="gacha-result" style="display:none"></div>
-          <!-- カットイン演出オーバーレイ（ステージ内に収まる） -->
-          <div id="gacha-cutin" class="gacha-cutin" style="display:none"></div>
-        </div>
-
-        <!-- ボタン -->
-        <div class="gacha-btn-row">
-          <button class="gacha-btn gacha-btn-1" onclick="doGacha(1)">
-            <div class="gacha-btn-inner">
-              <i class="ti ti-coin"></i>
-              <span class="gacha-btn-main">1回チャレンジ</span>
-              <span class="gacha-btn-sub">100コイン</span>
-            </div>
-          </button>
-          <button class="gacha-btn gacha-btn-10" onclick="doGacha(10)">
-            <div class="gacha-btn-inner">
-              <i class="ti ti-coins"></i>
-              <span class="gacha-btn-main">10連</span>
-              <span class="gacha-btn-sub">1000コイン</span>
-            </div>
-            <span class="gacha-btn-badge">お得!</span>
-          </button>
-        </div>
-
-        <!-- 排出率 -->
-        <div class="gacha-rates">
-          <div class="gacha-rate-title">
-            <i class="ti ti-chart-pie"></i> 排出確率
-          </div>
-          <div class="gacha-rate-row">
-            <span class="rarity-lg">LG</span>
-            <span class="gacha-rate-label">最上位ランク <small id="gacha-rate-boost-LG">+1000スコア相当</small></span>
-            <button class="gacha-rate-detail-btn" onclick="openRarityContents('LG')"><i class="ti ti-list"></i> 内容</button>
-            <span class="gacha-pct" id="gacha-pct-LG">0.01%</span>
-          </div>
-          <div class="gacha-rate-row">
-            <span class="rarity-ur">UR</span>
-            <span class="gacha-rate-label">ウルトラレア <small id="gacha-rate-boost-UR">+500スコア相当</small></span>
-            <button class="gacha-rate-detail-btn" onclick="openRarityContents('UR')"><i class="ti ti-list"></i> 内容</button>
-            <span class="gacha-pct" id="gacha-pct-UR">0.5%</span>
-          </div>
-          <div class="gacha-rate-row">
-            <span class="rarity-ssr">SSR</span>
-            <span class="gacha-rate-label">超レア <small id="gacha-rate-boost-SSR">+100スコア相当</small></span>
-            <button class="gacha-rate-detail-btn" onclick="openRarityContents('SSR')"><i class="ti ti-list"></i> 内容</button>
-            <span class="gacha-pct" id="gacha-pct-SSR">2.49%</span>
-          </div>
-          <div class="gacha-rate-row">
-            <span class="rarity-sr">SR</span>
-            <span class="gacha-rate-label">スーパーレア <small id="gacha-rate-boost-SR">+30スコア相当</small></span>
-            <button class="gacha-rate-detail-btn" onclick="openRarityContents('SR')"><i class="ti ti-list"></i> 内容</button>
-            <span class="gacha-pct" id="gacha-pct-SR">12%</span>
-          </div>
-          <div class="gacha-rate-row">
-            <span class="rarity-r">R</span>
-            <span class="gacha-rate-label">レア <small id="gacha-rate-boost-R">+5スコア相当</small></span>
-            <button class="gacha-rate-detail-btn" onclick="openRarityContents('R')"><i class="ti ti-list"></i> 内容</button>
-            <span class="gacha-pct" id="gacha-pct-R">35%</span>
-          </div>
-          <div class="gacha-rate-row">
-            <span class="rarity-n">N</span>
-            <span class="gacha-rate-label">ノーマル <small id="gacha-rate-boost-N">+1スコア相当</small></span>
-            <button class="gacha-rate-detail-btn" onclick="openRarityContents('N')"><i class="ti ti-list"></i> 内容</button>
-            <span class="gacha-pct" id="gacha-pct-N">50%</span>
-          </div>
-        </div>
-
-        <!-- 所持アイテム -->
-        <div class="gacha-inventory" id="gacha-inventory"></div>
-
-        <!-- 取得方法 -->
-        <div class="gacha-howto">
-          <div class="gacha-howto-title"><i class="ti ti-info-circle"></i> ピークコインの入手方法</div>
-          <div class="gacha-howto-item">
-            <i class="ti ti-pencil"></i>
-            <span>投稿するたびに <b>+100コイン</b></span>
-          </div>
-          <div class="gacha-howto-item">
-            <i class="ti ti-heart"></i>
-            <span>いいねをするたびに <b>+10コイン</b></span>
-          </div>
-          <div class="gacha-howto-item">
-            <i class="ti ti-sparkles"></i>
-            <span>ダイブで1つスクロールするたびに <b>+1コイン</b></span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ HIGH & LOW PAGE ══ -->
-    <div class="page" id="page-highlow">
-      <div class="page-header">
-        <button class="back-btn" onclick="goPage('gacha',null)"><i class="ti ti-arrow-left"></i></button>
-        <h1 style="background:linear-gradient(135deg,#fbbf24,#f59e0b,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text"><i class="ti ti-cards" style="-webkit-text-fill-color:#fbbf24"></i> ハイ&ロー</h1>
-        <span style="margin-left:auto;color:#fbbf24;font-weight:700"><i class="ti ti-coin"></i> <span id="hl-coin-display">0</span></span>
-      </div>
-      <div class="highlow-page">
-        <div class="hl-table">
-          <div class="hl-felt-decor"></div>
-          <div class="hl-title">HIGH &amp; LOW</div>
-          <div class="hl-subtitle">次のカードは高い？低い？</div>
-
-          <!-- カード表示エリア -->
-          <div class="hl-cards-area">
-            <div class="hl-card-slot">
-              <div class="hl-card-label">現在</div>
-              <div class="hl-card" id="hl-card-current">
-                <div class="hl-card-back"></div>
-              </div>
-            </div>
-            <div class="hl-vs">VS</div>
-            <div class="hl-card-slot">
-              <div class="hl-card-label">次</div>
-              <div class="hl-card" id="hl-card-next">
-                <div class="hl-card-back"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 結果表示 -->
-          <div class="hl-result" id="hl-result"></div>
-
-          <!-- 賭け金エリア -->
-          <div class="hl-bet-area" id="hl-bet-area">
-            <div class="hl-bet-label">賭け金</div>
-            <div class="hl-bet-chips">
-              <button class="hl-chip" onclick="hlSetBet(50)">50</button>
-              <button class="hl-chip" onclick="hlSetBet(100)">100</button>
-              <button class="hl-chip" onclick="hlSetBet(250)">250</button>
-              <button class="hl-chip" onclick="hlSetBet(500)">500</button>
-              <button class="hl-chip" onclick="hlSetBet(1000)">1,000</button>
-              <button class="hl-chip" onclick="hlSetBet(1500)">1,500</button>
-            </div>
-            <div class="hl-bet-display">
-              <input type="number" id="hl-bet-input" min="1" max="1500" value="100" oninput="hlOnBetInput()">
-              <span class="hl-bet-unit">コイン</span>
-            </div>
-            <button class="hl-start-btn" onclick="hlStartGame()">ゲーム開始</button>
-          </div>
-
-          <!-- アクションエリア（ハイ/ロー選択） -->
-          <div class="hl-action-area" id="hl-action-area" style="display:none">
-            <div class="hl-pot">現在の獲得予定: <span id="hl-pot">0</span> コイン</div>
-            <div class="hl-choice-row">
-              <button class="hl-choice-btn hl-high" onclick="hlChoose('high')">
-                <i class="ti ti-arrow-up"></i>
-                <span>HIGH</span>
-                <small>高い</small>
-              </button>
-              <button class="hl-choice-btn hl-low" onclick="hlChoose('low')">
-                <i class="ti ti-arrow-down"></i>
-                <span>LOW</span>
-                <small>低い</small>
-              </button>
-            </div>
-          </div>
-
-          <!-- 勝利後の継続/降りる -->
-          <div class="hl-continue-area" id="hl-continue-area" style="display:none">
-            <div class="hl-win-msg" id="hl-win-msg"></div>
-            <div class="hl-choice-row">
-              <button class="hl-cont-btn hl-cont" onclick="hlContinue()">
-                <i class="ti ti-player-play"></i> 続ける（2倍に挑戦）
-              </button>
-              <button class="hl-cont-btn hl-quit" onclick="hlQuit()">
-                <i class="ti ti-coin"></i> 降りる（受け取る）
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="hl-rules">
-          <h4><i class="ti ti-info-circle"></i> ルール</h4>
-          <ul>
-            <li>賭け金上限: <b>1,500コイン</b></li>
-            <li>勝つたびに獲得予定額が <b>2倍</b></li>
-            <li>最大 <b>4回戦</b> まで</li>
-            <li>続けるか降りるか毎回選択可能</li>
-            <li>同じ数字（A〜K）が出たら <b>引き分け</b>（再抽選）</li>
-            <li>負けると賭け金は<b>没収</b></li>
-          </ul>
-        </div>
-      </div>
-    </div>
 
     <!-- ══ DM LIST PAGE ══ -->
     <div class="page" id="page-dm">
@@ -2653,7 +2362,7 @@
     <div class="page" id="page-badges">
       <div class="page-header">
         <button class="back-btn" onclick="goPage('profile-edit',null)"><i class="ti ti-arrow-left"></i></button>
-        <h1><i class="ti ti-medal" style="color:#f59e0b;vertical-align:-2px"></i> 称号バッジ</h1>
+        <h1><i class="ti ti-medal" style="color:#f59e0b;vertical-align:-2px"></i> ランキング入賞バッジ</h1>
       </div>
       <div class="settings-body">
         <!-- ① バッジ設定スロット（最上部） -->
@@ -2662,17 +2371,10 @@
           <div class="badge-display-slots" id="badge-display-slots">
             <!-- JS で描画 -->
           </div>
-          <p class="badge-slots-hint">下から称号バッジ・ランキング入賞バッジを選択して設定できます。</p>
+          <p class="badge-slots-hint">下からランキング入賞バッジを選択して設定できます。</p>
         </section>
 
-        <!-- ② 称号バッジ一覧（ガチャ獲得） -->
-        <section class="settings-section">
-          <h2><i class="ti ti-sparkles" style="color:#a855f7"></i> 称号バッジ <span class="settings-note">（ガチャで獲得）</span></h2>
-          <div id="gacha-title-current-display" style="display:none"></div>
-          <div id="gacha-title-badges-grid"></div>
-        </section>
-
-        <!-- ③ ランキング入賞バッジ -->
+        <!-- ランキング入賞バッジ -->
         <section class="settings-section">
           <h2><i class="ti ti-medal" style="color:#f59e0b"></i> ランキング入賞バッジ <span class="settings-note">（ランキング上位で獲得）</span></h2>
           <div class="badge-search-bar">
@@ -2948,18 +2650,6 @@
     <button class="modal-close" onclick="closeRarityContents()" style="background:none;border:none;cursor:pointer;font-size:18px;padding:6px;color:var(--text2)"><i class="ti ti-x"></i></button>
   </div>
   <div class="modal-body" id="rarity-contents-body"></div>
-</div>
-
-<!-- いいね絵文字ピッカーモーダル -->
-<div class="modal-overlay" id="like-emoji-overlay" onclick="closeLikeEmojiPicker()"></div>
-<div class="modal like-emoji-modal-card" id="like-emoji-modal">
-  <div class="modal-header">
-    <span class="modal-title"><i class="ti ti-mood-smile" style="color:#ef4444"></i> いいねの絵文字を選択</span>
-    <button class="modal-close" onclick="closeLikeEmojiPicker()" style="background:none;border:none;cursor:pointer;font-size:18px;padding:6px;color:var(--text2)"><i class="ti ti-x"></i></button>
-  </div>
-  <div class="modal-body" id="like-emoji-modal-body">
-    <!-- JSで描画 -->
-  </div>
 </div>
 
 <!-- Dev: ピークコイン付与モーダル -->

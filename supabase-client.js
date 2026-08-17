@@ -858,7 +858,7 @@ async function dbLoadAndMergePosts(followingHandles = null) {
       linkUrl     : p.link_url        || null,
       imageLinkUrl: p.image_link_url  || null,
       catId       : p.cat_id          || null,
-      likeEmoji   : p.like_emoji      || '❤️',
+      likeEmoji   : null, // いいね絵文字は廃止
       rank        : 0,
       isDummy     : false,
     };
@@ -2184,9 +2184,10 @@ async function dbCreateActivity({ accountId, type, title, catId, url, location, 
   return data;
 }
 
-/** 失効していない活動を取得（過去12時間〜未来、開始順） */
+/** 失効していない活動を取得（過去24時間〜未来、開始順）
+ *  ※ ステージの寿命は最大24時間(盛り上がり次第)なので、取得窓も24時間に合わせる */
 async function dbFetchActivities(limit = 200) {
-  const since = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await db.from('activities')
     .select('*')
     .gte('starts_at', since)
@@ -2297,17 +2298,22 @@ function dbUnsubscribeActivityComments() {
   }
 }
 
-/** 表示中の活動について (activity_id, account_id) を一括取得し、件数とユニーク参加者を返す */
-async function dbFetchActivityCommenters(activityIds) {
+/** 表示中の活動について実況コメントを一括集計。
+ *  返り値: { activityId: { total, set:Set(全参加者), recentSet:Set(直近参加者) } }
+ *  recentSet = 直近 recentWindowMs 以内にコメントした人（ステージの寿命=延命判定に使う） */
+async function dbFetchActivityCommenters(activityIds, recentWindowMs = 2 * 60 * 60 * 1000) {
   if (!activityIds || !activityIds.length) return {};
   const { data, error } = await db.from('activity_comments')
-    .select('activity_id, account_id').in('activity_id', activityIds);
+    .select('activity_id, account_id, created_at').in('activity_id', activityIds);
   if (error) return {};
   const map = {};
+  const cutoff = Date.now() - recentWindowMs;
   (data || []).forEach(r => {
-    if (!map[r.activity_id]) map[r.activity_id] = { total: 0, set: new Set() };
-    map[r.activity_id].total++;
-    map[r.activity_id].set.add(r.account_id);
+    if (!map[r.activity_id]) map[r.activity_id] = { total: 0, set: new Set(), recentSet: new Set() };
+    const m = map[r.activity_id];
+    m.total++;
+    m.set.add(r.account_id);
+    if (r.created_at && new Date(r.created_at).getTime() >= cutoff) m.recentSet.add(r.account_id);
   });
   return map;
 }

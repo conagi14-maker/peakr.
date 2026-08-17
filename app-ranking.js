@@ -66,7 +66,7 @@ function _catMiniTweets(tweets, bar, maxScore) {
           <i class="ti ti-message-circle"></i><span id="reply-count-${idx}">${(tweetReplies[idx]||[]).length||''}</span>
         </button>
         <button class="ctm-like-btn${likedTweets.has(idx)?' liked':''}" onclick="event.stopPropagation();toggleLike(${idx},this)" title="いいね">
-          ${t.likeEmoji ? `<span class="like-emoji-display">${t.likeEmoji}</span>` : `<i class="ti ti-heart${likedTweets.has(idx)?'-filled':''}" style="${likedTweets.has(idx)?'color:#e11d48':''}"></i>`}<span class="like-count">${fmt(t.likes)}</span>
+          <i class="ti ti-heart${likedTweets.has(idx)?'-filled':''}" style="${likedTweets.has(idx)?'color:#e11d48':''}"></i><span class="like-count">${fmt(t.likes)}</span>
         </button>
         <span class="ctm-stat"><i class="ti ti-eye"></i>${fmt(t.views)}</span>
         ${fsFavBtn(idx)}
@@ -2356,25 +2356,13 @@ function toggleLike(idx, btn) {
     t.likes = Math.max(0, t.likes - 1);
     btn.classList.remove('liked');
   }
-  // アイコンを絵文字 or ハートに切替
+  // ハートアイコンを切替（いいね絵文字は廃止）
   const icon = btn.querySelector('i, .like-emoji-display');
   if (icon) {
-    if (t.likeEmoji) {
-      // 投稿固有の絵文字は常に表示（いいね状態に関係なく）
-      const span = document.createElement('span');
-      span.className = 'like-emoji-display';
-      span.textContent = t.likeEmoji;
-      icon.replaceWith(span);
-    } else if (nowLiked) {
-      const i = document.createElement('i');
-      i.className = 'ti ti-heart-filled';
-      i.style.color = '#e11d48';
-      icon.replaceWith(i);
-    } else {
-      const i = document.createElement('i');
-      i.className = 'ti ti-heart';
-      icon.replaceWith(i);
-    }
+    const i = document.createElement('i');
+    if (nowLiked) { i.className = 'ti ti-heart-filled'; i.style.color = '#e11d48'; }
+    else          { i.className = 'ti ti-heart'; }
+    icon.replaceWith(i);
   }
   // カウント表示更新
   const countEl = btn.querySelector('.like-count');
@@ -2390,21 +2378,10 @@ function toggleLike(idx, btn) {
   if (reelIcon) {
     const reelTarget = reelBtn.querySelector('i, .like-emoji-display');
     if (reelTarget) {
-      if (t.likeEmoji) {
-        const span = document.createElement('span');
-        span.className = 'like-emoji-display';
-        span.textContent = t.likeEmoji;
-        reelTarget.replaceWith(span);
-      } else if (nowLiked) {
-        const i = document.createElement('i');
-        i.className = 'ti ti-heart-filled';
-        i.style.color = '#ef4444';
-        reelTarget.replaceWith(i);
-      } else {
-        const i = document.createElement('i');
-        i.className = 'ti ti-heart';
-        reelTarget.replaceWith(i);
-      }
+      const i = document.createElement('i');
+      if (nowLiked) { i.className = 'ti ti-heart-filled'; i.style.color = '#ef4444'; }
+      else          { i.className = 'ti ti-heart'; }
+      reelTarget.replaceWith(i);
     }
   }
   if (reelLc)   reelLc.textContent = fmt(t.likes);
@@ -2656,12 +2633,6 @@ async function openTweetDetail(idx) {
   if (!t.extSource && u?.h) {
     _addTrackPoint(_handleToAccountId(u.h), TRACK_POINTS.click);
   }
-  // 現在のアカウントのアイテム所持を取得（別ユーザー残留防止）
-  try {
-    const _aid = localStorage.getItem('trendy_account_id');
-    if (_aid) _gachaItems = await dbGetUserItems(_aid);
-    else _gachaItems = {};
-  } catch(e) { _gachaItems = {}; }
   const hasRank = t.rank > 0;
   // 自分のアバター（コメント入力欄用）
   const myAvData = localStorage.getItem('trendy_av');

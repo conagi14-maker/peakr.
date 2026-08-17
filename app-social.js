@@ -1359,12 +1359,28 @@ let _actSelType       = 'stream';
 
 function _stageEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// 終了時刻は廃止。手動「終了」(ends_at をセット) が無ければ、内部の安全フェード
-// 期間(ユーザーには締切として見せない)を過ぎたら自動で消す。
-const STAGE_LIVE_MAX_MS = 6 * 3600 * 1000;
+// 終了時刻は廃止。手動「終了」(ends_at をセット) が無ければ、
+// 「盛り上がっているステージほど長く残る」寿命で自動的に消える。
+//   寿命 = 1時間(最低保証) + 直近2時間にコメントしたユニーク人数 × 20分  … 上限24時間
+// ・人数(ユニーク)で数えるので1人の連投では延命できない
+// ・盛り上がりが止まれば直近人数が減り、静かなステージは自然に退場する
+// ・時間が経つほど注目度スコアの新着補正も減るため、残っていても上位からは下がる
+const STAGE_LIFE_MIN_MS    = 1 * 3600 * 1000;      // 最低1時間
+const STAGE_LIFE_MAX_MS    = 24 * 3600 * 1000;     // 最大24時間
+const STAGE_LIFE_PER_USER  = 20 * 60 * 1000;       // 直近参加者1人あたり +20分
+const STAGE_RECENT_WINDOW  = 2 * 3600 * 1000;      // 「直近」の窓 = 2時間
+
+/** そのステージの寿命(開始からの有効時間)をミリ秒で返す */
+function _activityLifeMs(a) {
+  const cm = _stageCommenters[a.id];
+  const recent = cm && cm.recentSet ? cm.recentSet.size : 0;
+  const life = STAGE_LIFE_MIN_MS + recent * STAGE_LIFE_PER_USER;
+  return Math.min(STAGE_LIFE_MAX_MS, Math.max(STAGE_LIFE_MIN_MS, life));
+}
+
 function _activityStatus(a, now) {
   const start = new Date(a.starts_at).getTime();
-  const end = a.ends_at ? new Date(a.ends_at).getTime() : start + STAGE_LIVE_MAX_MS;
+  const end = a.ends_at ? new Date(a.ends_at).getTime() : start + _activityLifeMs(a);
   if (now >= start && now <= end) return 'live';
   if (now < start) return 'upcoming';
   return 'expired';
@@ -1401,22 +1417,26 @@ async function renderStage() {
   body.innerHTML = '<div class="stage-empty"><i class="ti ti-loader-2"></i> 読み込み中…</div>';
   let acts = [];
   try { acts = await dbFetchActivities(200); } catch(e) { console.warn('[stage]', e); }
+  acts = acts || [];
   const now = Date.now();
-  acts = (acts || []).filter(a => _activityStatus(a, now) !== 'expired');
+
+  // 寿命判定に実況コメント(直近ユニーク人数)を使うため、失効フィルターより先に集計する
+  _stageProfMap = {}; _stageCommenters = {};
+  if (acts.length) {
+    try { _stageCommenters = await dbFetchActivityCommenters(acts.map(a => a.id), STAGE_RECENT_WINDOW); } catch(e) {}
+  }
+
+  // 盛り上がり(直近参加者数)で伸びる寿命を過ぎたものを除外
+  acts = acts.filter(a => _activityStatus(a, now) !== 'expired');
   _stageActivities = acts;
 
-  // プロフィール＋実況参加者(スコア用)を一括取得
-  const ids    = [...new Set(acts.map(a => a.account_id))];
-  const actIds = acts.map(a => a.id);
-  _stageProfMap = {}; _stageCommenters = {};
+  // プロフィールを一括取得
+  const ids = [...new Set(acts.map(a => a.account_id))];
   if (ids.length) {
     try {
       const profs = await dbFetchProfilesByIds(ids);
       (profs || []).forEach(p => { _stageProfMap[p.account_id] = p; });
     } catch(e) {}
-  }
-  if (actIds.length) {
-    try { _stageCommenters = await dbFetchActivityCommenters(actIds); } catch(e) {}
   }
   _renderStageCats();
   _renderStageBody();
@@ -2346,7 +2366,6 @@ function openUserPage(handle) {
 
   // 装備ミニ表示
   const _upAcc = handle.startsWith('@') ? handle.slice(1) : handle;
-  renderProfileEquipmentMini(_upAcc, 'user-page-equipment-mini');
 
   const avEl = document.getElementById('user-page-av');
   // アバターをいったんデフォルト（文字）にリセット
@@ -2536,17 +2555,13 @@ function openUserPage(handle) {
         USER_PROFILES[handle].categories = profile.categories;
       }
       renderUserPageCats(handle);
-      // 称号バッジ（display_badges カラムに保存された最大3個を表示）
+      // ランキング入賞バッジ（display_badges カラムに保存された最大3個を表示・称号は廃止）
       const _upBadgesRow = document.getElementById('user-page-display-badges');
       if (_upBadgesRow) {
         const _dispBadges = Array.isArray(profile.display_badges)
           ? profile.display_badges.filter(Boolean) : [];
         if (_dispBadges.length > 0) {
           _upBadgesRow.innerHTML = _dispBadges.map(b => {
-            // 称号バッジ（title:称号名）
-            if (typeof b === 'string' && b.startsWith('title:')) {
-              return `<div class="user-page-title-badge-wrap">${_titleBadgeCardHTML(b.slice(6))}</div>`;
-            }
             // 通常バッジ（rookie 等）: 自分のローカルに同 ID があれば借用
             const earned = _loadEarnedBadges();
             const badge = earned.find(x => x.id === b);
@@ -2906,7 +2921,7 @@ function userPostCardHTML(t) {
       ${t.linkUrl ? `<div style="padding:0 0 4px">${_urlBtnHTML(t.linkUrl)}</div>` : ''}
       <div class="tweet-actions">
         <button class="action-btn reply-btn" onclick="openTweetDetail(${idx})"><i class="ti ti-message-circle"></i><span id="reply-count-${idx}">${(tweetReplies[idx]||[]).length||''}</span></button>
-        <button class="action-btn like-btn${likedTweets.has(idx)?' liked':''}" onclick="toggleLike(${idx},this)">${t.likeEmoji ? `<span class="like-emoji-display">${t.likeEmoji}</span>` : `<i class="ti ti-heart${likedTweets.has(idx)?'-filled':''}" style="${likedTweets.has(idx)?'color:#e11d48':''}"></i>`}<span class="like-count">${fmt(t.likes)}</span></button>
+        <button class="action-btn like-btn${likedTweets.has(idx)?' liked':''}" onclick="toggleLike(${idx},this)"><i class="ti ti-heart${likedTweets.has(idx)?'-filled':''}" style="${likedTweets.has(idx)?'color:#e11d48':''}"></i><span class="like-count">${fmt(t.likes)}</span></button>
         <span class="action-btn" style="pointer-events:none;cursor:default"><i class="ti ti-eye"></i><span>${fmt(t.views)}</span></span>
       </div>
     </div>
@@ -3309,408 +3324,7 @@ async function syncPixivPosts() {
 }
 
 
-// ══════════════════════════════════════════
-// 🎲 ガチャ
-// ══════════════════════════════════════════
-
-// ブースト効果（localStorage で編集可能）
-const _BOOST_AMOUNTS_DEFAULT = { boost_lg: 1000, boost_ur: 500, boost_ssr: 100, boost_sr: 30, boost_r: 5, boost_n: 1 };
-let BOOST_AMOUNTS = { ..._BOOST_AMOUNTS_DEFAULT };
-try {
-  const saved = JSON.parse(localStorage.getItem('trendy_boost_amounts') || 'null');
-  if (saved) BOOST_AMOUNTS = { ..._BOOST_AMOUNTS_DEFAULT, ...saved };
-} catch(e) {}
-// 1投稿あたりに乗せられるブースト合計スコアの上限（公平性確保・チケット連打での順位買い対策）
-const BOOST_CAP_DEFAULT = 1000;
-let BOOST_CAP = BOOST_CAP_DEFAULT;
-try {
-  const _cap = parseInt(localStorage.getItem('trendy_boost_cap') || '', 10);
-  if (!isNaN(_cap) && _cap > 0) BOOST_CAP = _cap;
-} catch(e) {}
-const RARITY_COLORS = { LG: '#ef4444', UR: '#c026d3', SSR: '#f59e0b', SR: '#8b5cf6', R: '#3b82f6', N: '#6b7280' };
-
-// ── 絵文字プール（SR=50, SSR=35, UR=20, LG=15） ──────
-const EMOJI_POOL = {
-  LG: [
-    '❤️','🎉','🔥','💯','👑','🌟','💎','🥇','🏆','⭐','💝','🦄','🌈','✨','💖',
-  ],
-  UR: [
-    '🌌','🌠','💫','⚡','🔱','🗝️','🎭','🪐','🪄','💍','🦅','🐉','🌋','🔮','🧿','⛩️','🎌','🎏','🍾','🥂',
-  ],
-  SSR: [
-    '😍','🥰','😘','💕','💞','💓','💗','💘','💙','💜','💚','💛','🧡','🖤','🤍',
-    '🤎','🌹','🌷','🌸','🌺','🌼','🌻','🎀','🍓','🍒','🎂','🧁','🍰','🍭','🍩',
-    '🦋','🐰','🐱','🐶','🐼',
-  ],
-  SR: [
-    '👍','👏','🙌','👌','🤝','✋','🤘','✌️','🤞','🤟','🙏','💪',
-    '😀','😄','😆','😁','😂','🤣','😊','😎','🤩','🥳','😋','🤤','🤗','🤔','🤭','🙃','🙂',
-    '😺','😸','😻','🐾',
-    '🌙','☀️','⚡','🌊','🔮','🎁','🎊','🎈','🎶','🎵','🎤',
-    '🍀','🌿','🍂','🍁','⚽','🏀',
-  ],
-};
-// R レアでも SR の絵文字を出して入手機会を増やす
-const R_EMOJI_RATE = 0.85; // R の85%は SR 相当の特殊枠に昇格
-const N_EMOJI_RATE = 0.80; // N の80%は SR 相当の特殊枠に昇格
-
-// ── 称号バッジプール（SR=120, SSR=85, UR=40, LG=40） ──────
-const TITLE_POOL = {
-  LG: [
-    // 既存（30）
-    '神','王','女王','皇帝','覇者','伝説','創造主','救世主','預言者',
-    '龍神','不死鳥','麒麟','鳳凰','神龍','守護神','月光','太陽神','雷神','風神',
-    '開拓者','革命家','賢者','老師','仙人','英雄','勇者','大魔法使い','大冒険家','大富豪','名匠',
-    // ネタ・記号系（10）
-    '命ずる！','キャー！','†','♔','∞','Ω','Σ','Φ','Ψ','Δ',
-  ],
-  UR: [
-    // 既存（30）
-    '至高','絶対','究極','超越','極限','超人','大天使','聖人','聖女','聖戦士',
-    '鬼神','夜叉','修羅','阿修羅','麒麟児','黒龍','白龍','金龍','銀龍','虹龍',
-    '宇宙','銀河','流星','光明','闇王','大公','大将','元帥','総帥','黄金',
-    // ネタ・記号系（10）
-    '変態紳士','ざわざわ・・・','！？','☆','★','♕','♛','※','☢','☮',
-  ],
-  SSR: [
-    // 既存（70）
-    '戦士','騎士','剣豪','侍','忍者','武士','海賊','空の旅人','賞金稼ぎ',
-    '魔法使い','召喚士','錬金術師','聖騎士','暗黒騎士','黒魔導士','白魔導士','哲学者',
-    'クリエーター','アーティスト','写真家','映画監督','作家','詩人','漫画家','アニメーター','ゲーマー','プログラマー',
-    '紳士','淑女','貴族','プリンセス','プリンス','公爵','伯爵','男爵','女神','美神',
-    'スター','アイドル','シンガー','ダンサー','ピアニスト','ロックスター','DJ','歌姫','演奏家',
-    'アスリート','チャンピオン','MVP','エース','ヒーロー','ヒロイン','レジェンド','スーパースター','トップランカー',
-    '探偵','スパイ','鑑識','ハッカー','科学者','教授','博士','研究者','発明家','天才',
-    'アルケミスト','ガンナー','吟遊詩人','機械工','ダンディ','カリスマ','聖女','王子','姫','勇敢',
-    // ネタ・コミカル系（15）
-    'もちもち','ふわふわ','もぐもぐ','ぷにぷに','ふにふに','キラキラ','ピカピカ','ぐるぐる','ぴょんぴょん',
-    'にゃんにゃん','わんわん','ウキウキ','ワクワク','ガオー','うふふ',
-  ],
-  SR: [
-    // 既存（100）
-    '女の子','男の子','美少女','イケメン','少年','少女','妖精','幼な妻','幼な子',
-    'ネコ好き','イヌ好き','鳥好き','魚好き','爬虫類好き','動物愛好家','植物育成者','園芸家','花好き','自然主義',
-    'グルメ','料理人','パン職人','パティシエ','バリスタ','ソムリエ','スイーツ通','ラーメン通','カフェ通','大食い',
-    '旅行者','バックパッカー','冒険家','探検家','アウトドア派','キャンパー','ハイカー','サーファー','スキーヤー','ランナー',
-    '読書家','映画好き','アニメ好き','漫画好き','ゲーム好き','音楽好き','ライブ好き','カラオケ好き','推し活','オタク',
-    '早起き','夜更かし','寝坊助','引きこもり','リア充','充実中','仕事人','学生','フリーランス','社畜',
-    'メガネ','ロン毛','短髪','おしゃれ','ファッショニスタ','シンプル派','ナチュラル派','ヴィンテージ','ストリート派','和装',
-    'ポジティブ','ネガティブ','クール','熱血','おっとり','せっかち','やさしい','さわやか','おもしろい','ミステリアス',
-    '優しい人','頑張り屋','癒し系','元気っ子','天然系','努力家','マイペース','チャレンジャー','ロマンチスト','現実主義者',
-    '冷静沈着','一途','負けず嫌い','人見知り','社交家','インドア派','アウトドア派','晴れ男','晴れ女','雨男',
-    // ネタ系（20）
-    'ポ','ヒソヒソ','ニコニコ','ぽよぽよ','もこもこ','すべすべ','もにゅもにゅ',
-    'ふむ','ほう','なるほど','まじ','やばい','いいね','つよい','よわい','すごい',
-    'てへ','わー','？？？','〜',
-  ],
-};
-
-const TITLE_ID = {}; // title_id → 称号文字列
-const TITLE_INFO = {}; // title_id → {rarity, title}
-Object.entries(TITLE_POOL).forEach(([rarity, list]) => {
-  list.forEach((t, i) => {
-    const id = `title_${rarity}_${String(i+1).padStart(3,'0')}`;
-    TITLE_ID[id] = t;
-    TITLE_INFO[id] = { rarity, title: t };
-  });
-});
-// 絵文字ID生成（emoji_LG_001 のような形）
-const EMOJI_ID = {}; // emoji_id → 絵文字
-const EMOJI_INFO = {}; // emoji_id → {rarity, emoji}
-Object.entries(EMOJI_POOL).forEach(([rarity, list]) => {
-  list.forEach((emj, i) => {
-    const id = `emoji_${rarity}_${String(i+1).padStart(3,'0')}`;
-    EMOJI_ID[id] = emj;
-    EMOJI_INFO[id] = { rarity, emoji: emj };
-  });
-});
-
-// レアリティ別の総確率（合計100%）
-const _RARITY_PROBS_DEFAULT = { LG: 1, UR: 4, SSR: 10, SR: 20, R: 30, N: 35 };
-let RARITY_PROBS = { ..._RARITY_PROBS_DEFAULT };
-try {
-  const saved = JSON.parse(localStorage.getItem('trendy_rarity_probs') || 'null');
-  if (saved) RARITY_PROBS = { ..._RARITY_PROBS_DEFAULT, ...saved };
-} catch(e) {}
-// そのレアリティ内で絵文字/称号が出る確率（残りはブースト）
-// 各レアリティ内で「絵文字 or 称号」が出る確率（残りがブースト）
-// 数値を上げるほどブーストが出にくくなる
-const EMOJI_RATE_IN_RARITY = { LG: 0.92, UR: 0.9, SSR: 0.9, SR: 0.85 };
-
-const GACHA_ITEMS = [
-  { id: 'boost_lg',  label: 'ブーストLG',  rarity: 'LG',  get boost() { return BOOST_AMOUNTS.boost_lg; }  },
-  { id: 'boost_ur',  label: 'ブーストUR',  rarity: 'UR',  get boost() { return BOOST_AMOUNTS.boost_ur; }  },
-  { id: 'boost_ssr', label: 'ブーストSSR', rarity: 'SSR', get boost() { return BOOST_AMOUNTS.boost_ssr; } },
-  { id: 'boost_sr',  label: 'ブーストSR',  rarity: 'SR',  get boost() { return BOOST_AMOUNTS.boost_sr; }  },
-  { id: 'boost_r',   label: 'ブーストR',   rarity: 'R',   get boost() { return BOOST_AMOUNTS.boost_r; }   },
-  { id: 'boost_n',   label: 'ブーストN',   rarity: 'N',   get boost() { return BOOST_AMOUNTS.boost_n; }   },
-];
-
-let _gachaItems = {}; // キャッシュ
-
-function _rollOne() {
-  // 1) レアリティ抽選
-  const r = Math.random() * 100;
-  let cum = 0;
-  let rarity = 'N';
-  for (const [rar, p] of Object.entries(RARITY_PROBS)) {
-    cum += p;
-    if (r < cum) { rarity = rar; break; }
-  }
-
-  // ヘルパー
-  const makeOrb = () => {
-    const orbs = ['enhance_orb_30', 'enhance_orb_60', 'enhance_orb_90'];
-    const oid = orbs[Math.floor(Math.random() * orbs.length)];
-    const orbLabels = { enhance_orb_30:'強化のオーブ30%', enhance_orb_60:'強化のオーブ60%', enhance_orb_90:'強化のオーブ90%' };
-    return { id: oid, label: orbLabels[oid], rarity: 'N', type: 'orb' };
-  };
-
-  // 2) レアリティ別の内容物抽選
-  if (rarity === 'LG' || rarity === 'UR' || rarity === 'SSR' || rarity === 'SR') {
-    // 高レア: 絵文字 40% / 称号 40% / オーブ 10% / ブースト 10%
-    const r2 = Math.random();
-    if (r2 < 0.40 && EMOJI_POOL[rarity]) {
-      const pool = EMOJI_POOL[rarity];
-      const idx = Math.floor(Math.random() * pool.length);
-      const id = `emoji_${rarity}_${String(idx+1).padStart(3,'0')}`;
-      return { id, label: pool[idx], rarity, type: 'emoji', emoji: pool[idx] };
-    } else if (r2 < 0.80 && TITLE_POOL[rarity]) {
-      const pool = TITLE_POOL[rarity];
-      const idx = Math.floor(Math.random() * pool.length);
-      const id = `title_${rarity}_${String(idx+1).padStart(3,'0')}`;
-      return { id, label: pool[idx], rarity, type: 'title', title: pool[idx] };
-    }
-    // ブーストチケットは廃止。旧ブースト枠はオーブに置換。
-    return makeOrb();
-  }
-
-  // ブーストチケット廃止に伴い、R/N もオーブに一本化
-  return makeOrb();
-}
-
-async function renderGachaPage() {
-  const aid = localStorage.getItem('trendy_account_id');
-  if (!aid) return;
-  _gachaItems = await dbGetUserItems(aid);
-  await _loadMyPoints();
-  const ticketEl = document.getElementById('gacha-ticket-count');
-  if (ticketEl) ticketEl.textContent = _myPoints.toLocaleString();
-  _renderGachaInventory();
-  _updateGachaNavBadge();
-  _refreshGachaRatesDisplay();
-}
-
-// 排出確率＆ブースト効果表示を最新に更新
-function _refreshGachaRatesDisplay() {
-  ['LG','UR','SSR','SR','R','N'].forEach(rar => {
-    // 確率
-    const pctEl = document.getElementById(`gacha-pct-${rar}`);
-    if (pctEl) {
-      const p = RARITY_PROBS[rar] ?? 0;
-      // 小数表記を見やすく（整数なら整数、小数2桁まで）
-      pctEl.textContent = (p < 1 ? p.toFixed(2) : (p % 1 === 0 ? p.toFixed(0) : p.toFixed(2))) + '%';
-    }
-    // ブースト効果
-    const boostEl = document.getElementById(`gacha-rate-boost-${rar}`);
-    if (boostEl) {
-      const itemId = _ITEM_BY_RARITY[rar];
-      const amt = BOOST_AMOUNTS[itemId];
-      if (amt !== undefined) boostEl.textContent = `+${amt}スコア相当`;
-    }
-  });
-}
-
-function _renderGachaInventory() {
-  const el = document.getElementById('gacha-inventory');
-  if (!el) return;
-  const boostItems = GACHA_ITEMS.filter(i => (_gachaItems[i.id] || 0) > 0);
-  const emojiItems = Object.entries(EMOJI_INFO)
-    .filter(([id]) => (_gachaItems[id] || 0) > 0)
-    .map(([id, info]) => ({ id, ...info, qty: _gachaItems[id] }));
-  const titleItems = Object.entries(TITLE_INFO)
-    .filter(([id]) => (_gachaItems[id] || 0) > 0)
-    .map(([id, info]) => ({ id, ...info, qty: _gachaItems[id] }));
-
-  if (!boostItems.length && !emojiItems.length && !titleItems.length) {
-    el.innerHTML = '<div class="gacha-inv-empty">所持アイテムなし</div>';
-    return;
-  }
-
-  let html = '';
-  if (boostItems.length) {
-    html += `<div class="gacha-inv-title"><i class="ti ti-rocket"></i> ブーストアイテム</div>`;
-    html += boostItems.map(i => `
-      <div class="gacha-inv-row">
-        <span class="rarity-${i.rarity.toLowerCase()}">${i.rarity}</span>
-        <span class="gacha-inv-label">${i.label}（+${i.boost}スコア）</span>
-        <span class="gacha-inv-qty">${_gachaItems[i.id]}枚</span>
-      </div>`).join('');
-  }
-  if (emojiItems.length) {
-    html += `<div class="gacha-inv-title" style="margin-top:14px"><i class="ti ti-mood-smile"></i> いいね絵文字</div>`;
-    html += `<div class="gacha-emoji-grid">` +
-      emojiItems.map(e =>
-        `<div class="gacha-emoji-item rarity-bg-${e.rarity.toLowerCase()}" title="${e.rarity}">
-          <span class="gacha-emoji-char">${e.emoji}</span>
-          <span class="gacha-emoji-rarity">${e.rarity}</span>
-        </div>`
-      ).join('') +
-      `</div>`;
-  }
-  if (titleItems.length) {
-    html += `<div class="gacha-inv-title" style="margin-top:14px"><i class="ti ti-medal"></i> 称号バッジ</div>`;
-    html += `<div class="gacha-title-grid">` +
-      titleItems.map(t =>
-        `<div class="gacha-title-badge rarity-bg-${t.rarity.toLowerCase()}" title="${t.rarity}">
-          <span class="rarity-${t.rarity.toLowerCase()}">${t.rarity}</span>
-          <span class="gacha-title-text">${t.title}</span>
-        </div>`
-      ).join('') +
-      `</div>`;
-  }
-  if (emojiItems.length || titleItems.length) {
-    html += `<div style="margin-top:10px;text-align:center"><a onclick="goPage('mypage',null)" style="font-size:12px;color:var(--accent);cursor:pointer">マイページで設定 →</a></div>`;
-  }
-  el.innerHTML = html;
-}
-
-function _updateGachaNavBadge() {
-  const badge = document.getElementById('gacha-nav-badge');
-  if (badge) badge.style.display = 'none';
-}
-
-async function doGacha(count) {
-  const aid = localStorage.getItem('trendy_account_id');
-  if (!aid) return;
-  const cost = 100 * count;
-  if (_myPoints < cost) {
-    showToast(`コインが足りません（所持: ${_myPoints} / 必要: ${cost}）`, 'error'); return;
-  }
-  // ピークコイン消費
-  const ok = await dbUsePoints(aid, cost);
-  if (!ok) { showToast('コインの消費に失敗しました', 'error'); return; }
-  _myPoints -= cost;
-  const ticketEl = document.getElementById('gacha-ticket-count');
-  if (ticketEl) ticketEl.textContent = _myPoints.toLocaleString();
-
-  // 抽選
-  let results = Array.from({ length: count }, () => _rollOne());
-
-  // カットイン抽選
-  const cutins = _rollGachaCutins();
-  const preCutins  = cutins.filter(c => c.type === 'shake' || c.type === 'blackout');
-  const postCutins = cutins.filter(c => c.type === 'henpen' || c.type === 'chain');
-
-  // pre演出（振動・ブラックアウト）→ 結果書き換え
-  const hasBlackout = preCutins.some(c => c.type === 'blackout');
-  if (preCutins.length) {
-    await _playGachaCutins(preCutins);
-    results = _applyGachaCutins(results, preCutins);
-  }
-
-  // タメ演出（2秒）→ 結果表示。ブラックアウト時はタメをスキップして即結果
-  if (!hasBlackout) {
-    await _playGachaSuspense(results);
-  }
-  _showGachaResult(results);
-
-  // post演出：確変・連続確変があればクリック待ち → 結果上書き
-  let finalResults = results;
-  if (postCutins.length) {
-    finalResults = await _waitForKakuhenClick(results, postCutins);
-  }
-
-  // アイテム加算（最終結果で）
-  const gained = {};
-  const equipResults = [];
-  for (const item of finalResults) {
-    if (item.type === 'equip') {
-      // 装備は user_equipments に個別保存
-      equipResults.push(item);
-    } else {
-      gained[item.id] = (gained[item.id] || 0) + 1;
-    }
-  }
-  // 通常アイテム
-  await Promise.all(Object.entries(gained).map(([id, qty]) => dbAddItem(aid, id, qty)));
-  for (const [id, qty] of Object.entries(gained)) {
-    _gachaItems[id] = (_gachaItems[id] || 0) + qty;
-  }
-  // 装備
-  await Promise.all(equipResults.map(item => dbAddEquipment(aid, item.slot, item.rarity)));
-
-  _renderGachaInventory();
-  _updateGachaNavBadge();
-}
-
-// 確変クリック待ち：結果表示後、ユーザーがどこかをクリックすると金エフェクトで結果上書き
-function _waitForKakuhenClick(results, postCutins) {
-  return new Promise(resolve => {
-    // 画面下にヒント
-    const hint = document.createElement('div');
-    hint.id = 'gacha-kakuhen-hint';
-    hint.className = 'gacha-kakuhen-hint';
-    hint.innerHTML = '<i class="ti ti-hand-finger"></i> どこかをタップ…？';
-    document.body.appendChild(hint);
-
-    const onClick = async () => {
-      document.removeEventListener('click', onClick, true);
-      document.removeEventListener('touchstart', onClick, true);
-      hint.remove();
-
-      const stage = document.getElementById('gacha-stage');
-      const resultEl = document.getElementById('gacha-result');
-
-      // ガチャページに戻ってない場合は戻す
-      if (!document.getElementById('page-gacha')?.classList.contains('active')) {
-        goPage('gacha', null);
-        await new Promise(r => setTimeout(r, 200));
-      }
-
-      // 1) 結果カードを消す
-      if (resultEl) {
-        resultEl.style.opacity = '0';
-        resultEl.style.transition = 'opacity 0.25s ease';
-      }
-      await new Promise(r => setTimeout(r, 250));
-
-      // 2) ステージ枠内に金色オーバーレイを表示（持続）
-      if (stage) stage.classList.add('gacha-kakuhen-gold');
-      if (resultEl) {
-        resultEl.style.display = 'none';
-        resultEl.style.opacity = '';
-        resultEl.style.transition = '';
-      }
-
-      // 3) 結果を計算
-      const newResults = _applyGachaCutins(results, postCutins);
-
-      // 4) タメ時間（金色背景を見せる）
-      await new Promise(r => setTimeout(r, 1400));
-
-      // 5) 結果を表示（金色背景は残したまま）
-      _showGachaResult(newResults);
-
-      // 6) 結果カードが出てから0.6秒後に金色背景をフェードアウト
-      await new Promise(r => setTimeout(r, 600));
-      if (stage) {
-        stage.classList.add('gacha-kakuhen-gold-out');
-        setTimeout(() => {
-          stage.classList.remove('gacha-kakuhen-gold','gacha-kakuhen-gold-out');
-        }, 600);
-      }
-
-      resolve(newResults);
-    };
-
-    setTimeout(() => {
-      document.addEventListener('click', onClick, true);
-      document.addEventListener('touchstart', onClick, true);
-    }, 100);
-  });
-}
-
+// ※ ガチャ・絵文字・称号プールは廃止により削除
 // ══════════════════════════════════════════
 // カットイン演出
 // ══════════════════════════════════════════
