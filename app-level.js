@@ -7,9 +7,11 @@
 //   公開前にサーバー権威(RLS本丸C)へ移す前提。
 // ══════════════════════════════════════════════════════════════
 
-const XP_PER_LEVEL   = 100;   // 1レベル = 100XP(一定)
-const LEVEL_MAX      = 100;   // プレステージ内の最大レベル
-const DAILY_XP_CAP   = 100;   // 1日に得られるXPの上限
+// 1レベル=8XP・1日上限100XP なので 1日あたり最大 12.5レベル上がる(気持ちよく上がる速さ)。
+// プレステージは Lv.999 到達で選択可 → 999レベル×8XP ÷ 100XP/日 ≒ 80日(約2.7ヶ月)。
+const XP_PER_LEVEL   = 8;     // 1レベル = 8XP(一定)
+const LEVEL_MAX      = 999;   // プレステージ内の最大レベル
+const DAILY_XP_CAP   = 100;   // 1日に得られるXPの上限(BOT対策の要・変更しない)
 const XP_VALUES      = { like: 1, liked: 2, post: 5, comment: 2, login: 3 };
 
 // 信頼度補正(ランキングに効くactorの係数)
@@ -51,6 +53,51 @@ const LEVEL_GEMS = [
   { name:'漆黒×金',      gg:'linear-gradient(135deg,#2a2a2a,#0a0a0a)', rim:'#e6b524', glow:'0 0 8px rgba(230,181,36,.5)' },
   { name:'虹光 オパール', holo:true },
 ];
+
+// ── 節目(100レベル刻み)の記号 ──
+// ピル本体は全段まったく同一のまま、左右に添える記号だけが格上げされる(AA系)。
+// 色は常に金。10段目のみ少し強く光らせる。
+// ※ 記号は端末のフォント差で豆腐(□)になることがあるため、記号用フォントを明示指定する。
+const MILESTONE_GOLD     = '#e6b524';
+const MILESTONE_GOLD_TOP = '#ffd76b';
+const MILESTONE_MARKS = [
+  { pre: '‹',  post: '›'  },              // 1段  Lv.1〜99
+  { pre: '«',  post: '»'  },              // 2段  Lv.100〜199
+  { pre: '✦',  post: '✦'  },              // 3段  Lv.200〜299
+  { pre: '✧',  post: '✧'  },              // 4段  Lv.300〜399
+  { pre: '✿',  post: '✿'  },              // 5段  Lv.400〜499
+  { pre: '❀',  post: '❀'  },              // 6段  Lv.500〜599
+  { pre: '✥',  post: '✥'  },              // 7段  Lv.600〜699
+  { pre: '❖',  post: '❖'  },              // 8段  Lv.700〜799
+  { pre: '✶',  post: '✶'  },              // 9段  Lv.800〜899
+  { pre: '✦★', post: '★✦', small: true }, // 10段 Lv.900〜999
+];
+
+/** レベルから節目の段(0〜9)を返す。Lv.1〜99=0段目、Lv.100〜199=1段目 … */
+function _milestoneTier(level) {
+  const t = Math.floor((level || 1) / 100);
+  return Math.max(0, Math.min(MILESTONE_MARKS.length - 1, t));
+}
+
+/** 節目記号のHTML。side: 'pre' | 'post' */
+function _milestoneMarkHtml(level, side) {
+  const i = _milestoneTier(level);
+  const m = MILESTONE_MARKS[i];
+  if (!m) return '';
+  const ch = (side === 'post') ? m.post : m.pre;
+  if (!ch) return '';
+  const top = (i === MILESTONE_MARKS.length - 1);
+  const cls = 'lvl-mk' + (m.small ? ' sm' : '') + (top ? ' top' : '');
+  return `<span class="${cls}">${ch}</span>`;
+}
+
+/** レベルピルを節目記号で挟んだHTMLを返す。 */
+function levelBadgeWithMilestone(lvl, size) {
+  const badge = levelBadgeHtml(lvl, size);
+  if (!badge) return '';
+  const level = (lvl && lvl.level != null) ? lvl.level : _levelFromXp(lvl && lvl.xp);
+  return `<span class="lvl-row">${_milestoneMarkHtml(level, 'pre')}${badge}${_milestoneMarkHtml(level, 'post')}</span>`;
+}
 
 function _gemFor(prestige) {
   const idx = Math.min(Math.max(prestige || 1, 1), LEVEL_GEMS.length) - 1;
@@ -231,7 +278,7 @@ async function dbGrantXp(accountId, reasonOrAmount) {
   const room = Math.max(0, DAILY_XP_CAP - dailyBase);
   const grant = Math.min(amount, room);
   if (grant <= 0) return { ...row, capped: true }; // 本日上限
-  const maxXp = XP_PER_LEVEL * LEVEL_MAX - 1;        // 9999(Lv.100到達・自動プレステージはしない)
+  const maxXp = XP_PER_LEVEL * LEVEL_MAX - 1;        // Lv.MAX到達で止まる(自動プレステージはしない)
   const newXp = Math.min(maxXp, (row.xp || 0) + grant);
   const firstToday = !sameDay;                       // 本日初XP → 活動日+1
   const rec = {
@@ -251,7 +298,7 @@ async function dbGrantXp(accountId, reasonOrAmount) {
   return rec;
 }
 
-/** プレステージ(ユーザー選択)。Lv.100 のときのみ段+1・Lv.1へ。 */
+/** プレステージ(ユーザー選択)。Lv.MAX のときのみ段+1・Lv.1へ。 */
 async function dbPrestige(accountId) {
   if (!accountId || typeof db === 'undefined') return false;
   const row = await dbFetchLevel(accountId);
@@ -285,6 +332,32 @@ async function dbAddWeighted(postId, kind, weight) {
   } catch (e) { /* 列未追加(sql未実行)等は静かに無視 */ }
 }
 
+/** 経験値バーの塗り色。今の宝石の色に連動させる(段が上がるとバーの色も育つ)。 */
+function _levelBarFill(prestige) {
+  const g = _gemFor(prestige || 1);
+  if (g.holo) return 'linear-gradient(90deg,#ff5f6d,#ffc371,#5eead4,#8b5cf6)';
+  return g.gg || 'linear-gradient(90deg,var(--accent),var(--accent-text))';
+}
+
+/** 経験値バー(B案: 細いバー＋「あと N XP で Lv.M」)のHTML。 */
+function _levelXpBarHtml(row) {
+  const xp = row.xp || 0;
+  const level = _levelFromXp(xp);
+  const inLevel = xp % XP_PER_LEVEL;                 // 現レベル内の進捗XP
+  const isMax = _isMaxLevel(xp);
+  const pct = isMax ? 100 : Math.round(inLevel / XP_PER_LEVEL * 100);
+  const remain = XP_PER_LEVEL - inLevel;
+  const label = isMax
+    ? `Lv.${LEVEL_MAX} 到達（最大）`
+    : `あと${remain}XP で Lv.${level + 1}`;
+  return `<div class="lvl-xp">
+    <div class="lvl-xp-track" title="${isMax ? `Lv.${LEVEL_MAX}` : inLevel + '/' + XP_PER_LEVEL + ' XP'}">
+      <i style="width:${pct}%;background:${_levelBarFill(row.prestige)}"></i>
+    </div>
+    <span class="lvl-xp-rem">${label}</span>
+  </div>`;
+}
+
 /** マイページ: 自分のレベル(宝石＋Lv)＋プレステージ案内を描画。
  *  ※ マイページのアバターにはカメラ/バッジ申請ボタンがあるので、
  *    アバターに重ねず「名前の下」に表示する(ボタンを隠さない)。 */
@@ -303,16 +376,39 @@ async function renderMyLevelUI() {
     nameEl.parentElement.insertBefore(host, nameEl.nextSibling);
   }
   if (!host) return;
-  const cur = _gemFor(row.prestige);
-  const badge = levelBadgeHtml({ prestige: row.prestige, xp: row.xp }, 72); // lg 表示
-  let html = `<div style="display:flex;align-items:center;gap:8px">${badge}<span style="font-size:12px;color:var(--text3);font-weight:700">${cur.name}</span></div>`;
+  // ピル＋節目記号(100刻み・金)。宝石名テキストは出さない。
+  const badge = levelBadgeWithMilestone({ prestige: row.prestige, xp: row.xp }, 72);
+  let html = `<div style="display:flex;align-items:center;gap:8px">${badge}</div>`;
+  html += _levelXpBarHtml(row);
   if (_isMaxLevel(row.xp)) {
     const nxt = _gemFor((row.prestige || 1) + 1);
     html += `<div><button class="btn-sm" onclick="promptPrestige()" style="border:1px solid var(--accent);color:var(--accent-text)"><i class="ti ti-diamond"></i> プレステージする</button>` +
-            `<span style="font-size:11px;color:var(--text3);margin-left:6px">Lv.100到達！次は <b>${nxt.name || '—'}</b>。今のまま留まってもOK</span></div>`;
+            `<span style="font-size:11px;color:var(--text3);margin-left:6px">Lv.${LEVEL_MAX}到達！次は <b>${nxt.name || '—'}</b>。今のまま留まってもOK</span></div>`;
   }
   host.style.display = '';
   host.innerHTML = html;
+}
+
+/** 他ユーザーのプロフィール: 名前の下にレベル(ピル＋節目記号)を描画。
+ *  XPバー・プレステージ操作は本人だけのものなので出さない。 */
+async function renderUserLevelUI(accountId) {
+  const nameEl = document.getElementById('user-page-name');
+  if (!nameEl || !accountId) return;
+  let host = document.getElementById('user-page-level');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'user-page-level';
+    host.style.cssText = 'margin-top:6px';
+    nameEl.parentElement.insertBefore(host, nameEl.nextSibling);
+  }
+  host.innerHTML = '';
+  let lvl = _levelCache[accountId];
+  if (!lvl) {
+    const row = await dbFetchLevel(accountId);
+    lvl = { prestige: row.prestige, xp: row.xp, level: _levelFromXp(row.xp) };
+    _levelCache[accountId] = lvl;
+  }
+  host.innerHTML = levelBadgeWithMilestone(lvl, 72);
 }
 
 /** プレステージ実行(確認つき)。 */
@@ -320,7 +416,7 @@ async function promptPrestige() {
   const aid = (typeof localStorage !== 'undefined') && localStorage.getItem('trendy_account_id');
   if (!aid) return;
   const row = await dbFetchLevel(aid);
-  if (!_isMaxLevel(row.xp)) { if (typeof showToast === 'function') showToast('Lv.100でプレステージできます', 'warn'); return; }
+  if (!_isMaxLevel(row.xp)) { if (typeof showToast === 'function') showToast(`Lv.${LEVEL_MAX}でプレステージできます`, 'warn'); return; }
   const nxt = _gemFor((row.prestige || 1) + 1);
   if (!confirm(`プレステージしますか？\n宝石が「${nxt.name}」に変わり、レベルは1に戻ります。\n(今の宝石のまま留まりたい場合はキャンセル)`)) return;
   const ok = await dbPrestige(aid);

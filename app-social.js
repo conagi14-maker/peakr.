@@ -2372,9 +2372,12 @@ function openUserPage(handle) {
   avEl.innerHTML = (u.av && u.av.includes?.('<img')) ? u.av : (u.av || '?');
   avEl.style.background = u.bg;
   avEl.style.color = u.tc;
-  // レベルバッジ（プロフィールは大きめ）
-  if (typeof attachLevelBadge === 'function' && !u.sub) {
-    attachLevelBadge(document.getElementById('user-page-av-wrap') || avEl, _upAcc, 72);
+  // レベル表示（名前の下にピル＋節目記号。マイページと同じ見せ方）
+  if (typeof renderUserLevelUI === 'function' && !u.sub) {
+    renderUserLevelUI(_upAcc);
+  } else {
+    const _upLv = document.getElementById('user-page-level');
+    if (_upLv) _upLv.innerHTML = '';
   }
 
   // カバー画像・自己紹介もリセット

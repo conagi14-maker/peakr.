@@ -10995,6 +10995,36 @@ body.si-open { overflow: hidden; }
 .lvl-gem.holo { background: linear-gradient(120deg, #ff5f6d, #ffc371, #5eead4, #8b5cf6, #ff5f6d); background-size: 220% 100%; animation: lvl-holo 5s linear infinite; }
 @keyframes lvl-holo { to { background-position: 220% 0; } }
 @media (prefers-reduced-motion: reduce) { .lvl-gem.holo { animation: none; } }
+/* 節目記号(100レベル刻み・常に金)。ピル本体は不変で左右の記号だけが育つ。
+   記号は端末フォント差で豆腐(□)になり得るため、記号を持つフォントを優先指定する。 */
+.lvl-row { display: inline-flex; align-items: center; gap: 4px; }
+.lvl-mk {
+  color: #e6b524; font-weight: 800; font-size: 15px; line-height: 1;
+  letter-spacing: -.5px; flex-shrink: 0;
+  font-family: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols 2",
+               "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+}
+.lvl-mk.sm { font-size: 11.5px; letter-spacing: -1px; }
+.lvl-mk.top { color: #ffd76b; text-shadow: 0 0 8px rgba(255, 215, 107, .55); }
+
+/* マイページの経験値バー(細いバー＋「あと N XP で Lv.M」) */
+.lvl-xp { display: flex; align-items: center; gap: 8px; margin-top: 1px; }
+.lvl-xp-track {
+  width: 150px; height: 5px; flex-shrink: 0;
+  border-radius: 99px; background: var(--surface2); overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.12);
+}
+.lvl-xp-track > i {
+  display: block; height: 100%; border-radius: 99px;
+  transition: width .4s ease;
+}
+.lvl-xp-rem {
+  font-size: 10.5px; font-weight: 700; color: var(--text3);
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+@media (max-width: 480px) { .lvl-xp-track { width: 110px; } }
+
 /* アバター隅の宝石ドット(右下＝認証バッジの左下と対称・衝突回避)。数字は付けない。 */
 .lvl-on-av {
   position: absolute; bottom: -2px; right: -2px; z-index: 3;

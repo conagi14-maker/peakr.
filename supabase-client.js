@@ -947,9 +947,11 @@ async function dbToggleLike(postDbId, accountId, nowLiked, postAuthorHandle, isF
       dbUpdateFanLevel(accountId, authorId, 'like', nowLiked ? 1 : -1);
     }
     // ── アカウントレベル：XP付与＋信頼度加重（ランキング用） ──
+    // 外部取込(pixiv等)の擬似アカウントは実ユーザーではないのでXPを与えない
+    const _isRealUser = (id) => !!id && !/^ext_/.test(id) && id !== 'you' && id !== 'anon_you';
     if (nowLiked && typeof dbGrantXp === 'function') {
-      dbGrantXp(accountId, 'like');                                   // いいねした人 +1
-      if (authorId && authorId !== accountId) dbGrantXp(authorId, 'liked'); // された人 +2
+      if (_isRealUser(accountId)) dbGrantXp(accountId, 'like');                    // いいねした人 +1
+      if (_isRealUser(authorId) && authorId !== accountId) dbGrantXp(authorId, 'liked'); // された人 +2
     }
     if (typeof actorTrustWeight === 'function' && typeof dbAddWeighted === 'function') {
       const w = await actorTrustWeight(accountId);
