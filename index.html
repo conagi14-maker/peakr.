@@ -619,6 +619,7 @@
           <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:10px">
             <div style="display:flex;gap:6px;align-items:center">
               <button class="btn-sm" onclick="openAnnounceModal()" title="フォロワーに告知を送る"><i class="ti ti-speakerphone"></i> 告知</button>
+              <button class="btn-sm" onclick="goPage('myposts',null)" title="自分の投稿を管理する"><i class="ti ti-list-details"></i> 投稿管理</button>
               <button class="btn-sm" id="mypage-profile-edit-btn" onclick="goPage('profile-edit',null)">プロフィール編集</button>
             </div>
             <!-- 推しユーザーアイコン（マイページ表示用） -->
@@ -2292,6 +2293,34 @@
       </div>
     </div>
 
+    <!-- ══ 投稿管理ページ ══ -->
+    <div class="page" id="page-myposts">
+      <div class="page-header">
+        <button class="back-btn" onclick="goPage('mypage',null)"><i class="ti ti-arrow-left"></i></button>
+        <h1><i class="ti ti-list-details" style="color:var(--accent)"></i> 投稿管理</h1>
+      </div>
+      <div class="myposts-body">
+        <div class="myposts-summary" id="myposts-summary"></div>
+        <div class="myposts-filters">
+          <select id="myposts-sort" class="myposts-select" onchange="renderMyPostsPage()">
+            <option value="new">新着順</option>
+            <option value="likes">いいね順</option>
+            <option value="saves">お気に入り順</option>
+            <option value="views">閲覧順</option>
+            <option value="score">スコア順</option>
+          </select>
+          <select id="myposts-cat" class="myposts-select" onchange="renderMyPostsPage()"></select>
+          <select id="myposts-media" class="myposts-select" onchange="renderMyPostsPage()">
+            <option value="all">すべて</option>
+            <option value="image">画像</option>
+            <option value="video">動画</option>
+            <option value="text">文字のみ</option>
+          </select>
+        </div>
+        <div id="myposts-list"></div>
+      </div>
+    </div>
+
     <!-- ══ 装備ページ（廃止 - 非表示） ══ -->
     <div class="page" id="page-equipment" style="display:none !important">
       <div class="page-header">
@@ -3184,6 +3213,7 @@
 <script src="app-gacha.js"></script>
 <script src="app-dev-ads.js"></script>
 <script src="app-level.js"></script>
+<script src="app-myposts.js"></script>
 </body>
 </html>
 

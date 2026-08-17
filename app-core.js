@@ -497,6 +497,7 @@ function goPage(id, btn) {
   if (id === 'equipment') { goPage('home', null); return; }
   if (id === 'highlow')  _hlInitPage();
   if (id === 'latest')   loadLatestFeed(true);
+  if (id === 'myposts' && typeof loadMyPostsPage === 'function') loadMyPostsPage();
   if (id === 'tracks')    renderTracksPage();
   if (id === 'dev-gacha') { renderDevGachaList(); setTimeout(() => { _loadCutinRatesUI(); _loadBoostAmountsUI(); _loadRarityProbsUI(); }, 100); }
   if (id === 'dev-rank-rewards') { setTimeout(() => _loadRankRewardsUI(), 100); }
