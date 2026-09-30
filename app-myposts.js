@@ -111,7 +111,7 @@ function _myPostRow(t) {
     if (typeof md === 'string' && md.trim().startsWith('[')) {
       try { src = (JSON.parse(md) || [])[0] || ''; } catch (e) { src = ''; }
     }
-    if (src) thumb = `<div class="mp-thumb"><img src="${src}" alt=""></div>`;
+    if (src) thumb = `<div class="mp-thumb"><img src="${_mpEsc(src)}" alt=""></div>`;
   } else if (p.media_type === 'video') {
     thumb = `<div class="mp-thumb mp-thumb-ph"><i class="ti ti-video"></i></div>`;
   }
