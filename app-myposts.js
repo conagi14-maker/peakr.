@@ -154,11 +154,18 @@ function deleteMyPost(postId) {
       </div>
     </div>`;
   document.body.insertAdjacentHTML('beforeend', html);
+  // 誤削除を避けるため、初期フォーカスは「キャンセル」に置く
+  document.querySelector('#mp-confirm .mp-confirm-cancel')?.focus();
 }
 
 function closeMyPostConfirm() {
   document.getElementById('mp-confirm')?.remove();
 }
+
+// Escapeキーで削除確認モーダルを閉じる（モーダル表示中のみ反応）
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('mp-confirm')) closeMyPostConfirm();
+});
 
 /** 確認モーダルで「削除する」を押したときの実処理 */
 async function confirmDeleteMyPost(postId) {
