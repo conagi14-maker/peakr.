@@ -2514,10 +2514,10 @@ function openUserPage(handle) {
       if (profile.nickname) {
         const nameEl      = document.getElementById('user-page-name');
         const nameTagHtml = profile.name_tag
-          ? `<span class="tweet-name-tag">＠${profile.name_tag}</span>` : '';
+          ? `<span class="tweet-name-tag">＠${_escHtml(profile.name_tag)}</span>` : '';
         const profileBadges = _buildProfileBadgeHtml(profile.is_verified, profile.is_corporate);
         if (nameEl) nameEl.innerHTML =
-          `${profile.nickname} ${nameTagHtml} ${u.sub ? subBadge() : '<span class="badge-main">メイン</span>'} ${profileBadges}`;
+          `${_escHtml(profile.nickname)} ${nameTagHtml} ${u.sub ? subBadge() : '<span class="badge-main">メイン</span>'} ${profileBadges}`;
         document.getElementById('user-page-title').textContent = profile.nickname;
       } else if (profile.is_verified || profile.is_corporate) {
         // nickname がなくてもバッジだけ反映
