@@ -44,10 +44,10 @@ function _adCardHTML(ad, rank) {
   const rankCls = rank <= 3 ? `ad-rank-top${rank}` : 'ad-rank-other';
   const stripBg = ad.img ? 'rgba(0,0,0,0.48)' : ad.tc;
   const rightContent = ad.img
-    ? `<div class="ad-card-img-wrap"><img class="ad-card-img" src="${ad.img}" alt="広告画像"></div>`
+    ? `<div class="ad-card-img-wrap"><img class="ad-card-img" src="${_escHtml(ad.img)}" alt="広告画像"></div>`
     : `<div class="ad-card-text-content" style="background:${ad.bg}">
-         <div class="ad-card-advertiser" style="color:${ad.tc}">${ad.advertiser}</div>
-         <div class="ad-card-text">${ad.text}</div>
+         <div class="ad-card-advertiser" style="color:${ad.tc}">${_escHtml(ad.advertiser)}</div>
+         <div class="ad-card-text">${_escHtml(ad.text)}</div>
        </div>`;
   return `<div class="ad-rank-card" style="border-color:${ad.tc}44;background:${ad.bg}" onclick="openAdDetail(${ad.id})">
     <div class="ad-card-left-strip" style="background:${stripBg}">
@@ -107,15 +107,15 @@ function openAdDetail(id) {
   const pct = Math.round((shown / ad.maxPerUser) * 100);
 
   const imgSection = ad.img
-    ? `<img src="${ad.img}" alt="広告画像" style="width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-bottom:12px;display:block">`
+    ? `<img src="${_escHtml(ad.img)}" alt="広告画像" style="width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-bottom:12px;display:block">`
     : '';
   document.getElementById('ad-detail-body').innerHTML = `
     <div style="padding:4px 0 12px">
       ${imgSection}
       <div class="ad-detail-badge" style="background:${ad.bg};color:${ad.tc}">
-        <i class="ti ti-speakerphone"></i> ${ad.advertiser}
+        <i class="ti ti-speakerphone"></i> ${_escHtml(ad.advertiser)}
       </div>
-      <p style="font-size:15px;font-weight:700;margin:12px 0 6px;line-height:1.5">${ad.text}</p>
+      <p style="font-size:15px;font-weight:700;margin:12px 0 6px;line-height:1.5">${_escHtml(ad.text)}</p>
       <div class="ad-detail-meta">
         <div class="ad-detail-row"><span>課金額</span><b>¥${ad.budget.toLocaleString()}</b></div>
         <div class="ad-detail-row"><span>あなたへの表示回数</span><b>${shown} / ${ad.maxPerUser}回</b></div>
@@ -1651,8 +1651,8 @@ async function _loadAnnounceHistory() {
   });
   el.innerHTML = unique.map(r => `
     <div style="padding:10px 0;border-bottom:1px solid var(--border)">
-      <div style="font-size:13px;font-weight:600;color:var(--text)">${r.text}</div>
-      ${r.hint ? `<div style="font-size:12px;color:var(--text2);margin-top:3px">${r.hint}</div>` : ''}
+      <div style="font-size:13px;font-weight:600;color:var(--text)">${_escHtml(r.text)}</div>
+      ${r.hint ? `<div style="font-size:12px;color:var(--text2);margin-top:3px">${_escHtml(r.hint)}</div>` : ''}
       <div style="font-size:11px;color:var(--text3);margin-top:4px">${_relTime(r.created_at)}</div>
     </div>`).join('');
 }

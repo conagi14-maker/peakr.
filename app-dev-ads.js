@@ -114,8 +114,8 @@ async function renderDevAdsList() {
           <i class="ti ti-speakerphone"></i>
         </div>
         <div class="dev-acct-info" style="flex:1;min-width:0">
-          <div class="dev-acct-name" style="font-size:13px">${ad.advertiser || '(広告主不明)'}</div>
-          <div style="font-size:12px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ad.text || ''}</div>
+          <div class="dev-acct-name" style="font-size:13px">${_escHtml(ad.advertiser || '(広告主不明)')}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(ad.text || '')}</div>
           <div class="dev-acct-meta">¥${(ad.budget || 0).toLocaleString()} ／ <span style="color:${statusColor}">● ${statusLabel}</span></div>
         </div>
         <button class="dev-acct-delete-btn" onclick="devDeleteAd('${ad.id}', '${(ad.advertiser || '').replace(/'/g, "\\'")}')">
