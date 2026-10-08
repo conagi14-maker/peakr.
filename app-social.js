@@ -2262,8 +2262,8 @@ async function renderFollowList() {
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border);cursor:pointer" onclick="openUserPage('@${p.account_id}')">
       <div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:${avBg}">${avHtml}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;color:var(--text)">${p.nickname || p.account_id}</div>
-        <div style="font-size:12px;color:var(--text3)">@${p.account_id}${p.bio ? ' ・ ' + p.bio : ''}</div>
+        <div style="font-weight:600;color:var(--text)">${_escHtml(p.nickname || p.account_id)}</div>
+        <div style="font-size:12px;color:var(--text3)">@${_escHtml(p.account_id)}${p.bio ? ' ・ ' + _escHtml(p.bio) : ''}</div>
       </div>
       <button class="btn-sm" style="flex-shrink:0" onclick="event.stopPropagation();dbToggleFollow('${aid}','@${p.account_id}').then(() => renderFollowList())">フォロー中</button>
     </div>`;
@@ -2301,8 +2301,8 @@ async function renderFollowerList() {
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border);cursor:pointer" onclick="openUserPage('@${p.account_id}')">
       <div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:${avBg}">${avHtml}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;color:var(--text)">${p.nickname || p.account_id}</div>
-        <div style="font-size:12px;color:var(--text3)">@${p.account_id}${p.bio ? ' ・ ' + p.bio : ''}</div>
+        <div style="font-weight:600;color:var(--text)">${_escHtml(p.nickname || p.account_id)}</div>
+        <div style="font-size:12px;color:var(--text3)">@${_escHtml(p.account_id)}${p.bio ? ' ・ ' + _escHtml(p.bio) : ''}</div>
       </div>
     </div>`;
   }).join('');
@@ -2338,8 +2338,8 @@ async function renderOshiRank() {
       <span class="fan-rank-num ${rankCls(i)}">${i + 1}</span>
       <div class="tweet-av-wrap"><div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;background:${avBg};color:#fff">${avHtml}</div>${fanAvOverlay}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;color:var(--text)">${name}</div>
-        <div style="font-size:12px;color:var(--text3)">@${item.fan_account_id}</div>
+        <div style="font-weight:600;color:var(--text)">${_escHtml(name)}</div>
+        <div style="font-size:12px;color:var(--text3)">@${_escHtml(item.fan_account_id)}</div>
       </div>
       <span class="fan-rank-level">レベル：${item.fan_level}</span>
     </div>`;
