@@ -46,8 +46,8 @@ function _adCardHTML(ad, rank) {
   const rightContent = ad.img
     ? `<div class="ad-card-img-wrap"><img class="ad-card-img" src="${ad.img}" alt="広告画像"></div>`
     : `<div class="ad-card-text-content" style="background:${ad.bg}">
-         <div class="ad-card-advertiser" style="color:${ad.tc}">${ad.advertiser}</div>
-         <div class="ad-card-text">${ad.text}</div>
+         <div class="ad-card-advertiser" style="color:${ad.tc}">${_escHtml(ad.advertiser)}</div>
+         <div class="ad-card-text">${_escHtml(ad.text)}</div>
        </div>`;
   return `<div class="ad-rank-card" style="border-color:${ad.tc}44;background:${ad.bg}" onclick="openAdDetail(${ad.id})">
     <div class="ad-card-left-strip" style="background:${stripBg}">
@@ -113,9 +113,9 @@ function openAdDetail(id) {
     <div style="padding:4px 0 12px">
       ${imgSection}
       <div class="ad-detail-badge" style="background:${ad.bg};color:${ad.tc}">
-        <i class="ti ti-speakerphone"></i> ${ad.advertiser}
+        <i class="ti ti-speakerphone"></i> ${_escHtml(ad.advertiser)}
       </div>
-      <p style="font-size:15px;font-weight:700;margin:12px 0 6px;line-height:1.5">${ad.text}</p>
+      <p style="font-size:15px;font-weight:700;margin:12px 0 6px;line-height:1.5">${_escHtml(ad.text)}</p>
       <div class="ad-detail-meta">
         <div class="ad-detail-row"><span>課金額</span><b>¥${ad.budget.toLocaleString()}</b></div>
         <div class="ad-detail-row"><span>あなたへの表示回数</span><b>${shown} / ${ad.maxPerUser}回</b></div>
