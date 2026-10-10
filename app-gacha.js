@@ -1651,8 +1651,8 @@ async function _loadAnnounceHistory() {
   });
   el.innerHTML = unique.map(r => `
     <div style="padding:10px 0;border-bottom:1px solid var(--border)">
-      <div style="font-size:13px;font-weight:600;color:var(--text)">${r.text}</div>
-      ${r.hint ? `<div style="font-size:12px;color:var(--text2);margin-top:3px">${r.hint}</div>` : ''}
+      <div style="font-size:13px;font-weight:600;color:var(--text)">${_escHtml(r.text)}</div>
+      ${r.hint ? `<div style="font-size:12px;color:var(--text2);margin-top:3px">${_escHtml(r.hint)}</div>` : ''}
       <div style="font-size:11px;color:var(--text3);margin-top:4px">${_relTime(r.created_at)}</div>
     </div>`).join('');
 }
