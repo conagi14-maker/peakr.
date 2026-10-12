@@ -510,8 +510,10 @@ async function dbFetchPosts(limit = 30) {
 async function dbDeletePost(postId) {
   if (!postId) return false;
   await db.from('post_likes').delete().eq('post_id', postId);
-  const { error } = await db.from('posts').delete().eq('id', postId);
+  const { data, error } = await db.from('posts').delete().eq('id', postId).select('id');
   if (error) { console.error('[DB] 投稿削除エラー:', error.message); return false; }
+  // RLS等で0件削除でもerrorは返らないため、実際に消えたか確認する(消えていないのに成功表示するのを防ぐ)
+  if (Array.isArray(data) && data.length === 0) { console.warn('[DB] 投稿削除: 0件(権限または既に削除済み)'); return false; }
   return true;
 }
 
