@@ -168,5 +168,19 @@ async function confirmDeleteMyPost(postId) {
   if (!ok) { if (typeof showToast === 'function') showToast('削除に失敗しました', 'error'); return; }
   _myPostsCache = _myPostsCache.filter(x => String(x._raw.id) !== String(postId));
   renderMyPostsPage();
+  // ホーム/マイページ等のメモリ配列・DOMにも残らないよう除去（deletePost と同じ後始末）
+  try {
+    if (typeof HOME_TWEETS !== 'undefined') {
+      const hIdx = HOME_TWEETS.findIndex(t => String(t.db_id) === String(postId));
+      if (hIdx !== -1) HOME_TWEETS.splice(hIdx, 1);
+    }
+    if (typeof myPosts !== 'undefined') {
+      const mIdx = myPosts.findIndex(t => String(t.db_id) === String(postId));
+      if (mIdx !== -1) myPosts.splice(mIdx, 1);
+    }
+    document.querySelectorAll(`[data-db-id="${postId}"]`).forEach(el => el.remove());
+    if (typeof renderMyPosts === 'function') renderMyPosts();
+    if (typeof renderMyRank === 'function') renderMyRank();
+  } catch (e) { console.warn('[投稿管理] 削除後の再描画エラー:', e && e.message); }
   if (typeof showToast === 'function') showToast('投稿を削除しました', 'info');
 }
