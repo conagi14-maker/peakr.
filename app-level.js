@@ -201,9 +201,10 @@ async function dbFetchLevel(accountId) {
   if (!accountId || typeof db === 'undefined') return empty;
   try {
     const { data, error } = await db.from('account_levels').select('*').eq('account_id', accountId).maybeSingle();
-    if (error || !data) return empty;
+    if (error) return { ...empty, _failed: true }; // 取得失敗(0XPと区別。書き込み側で中断に使う)
+    if (!data) return empty;
     return data;
-  } catch (e) { return empty; }
+  } catch (e) { return { ...empty, _failed: true }; }
 }
 
 /** 表示中アカウントのレベルを一括取得してキャッシュ(未取得のみDBアクセス) */
@@ -225,6 +226,7 @@ async function dbGrantXp(accountId, reasonOrAmount) {
   const amount = (typeof reasonOrAmount === 'number') ? reasonOrAmount : (XP_VALUES[reasonOrAmount] || 0);
   if (amount <= 0) return null;
   const row = await dbFetchLevel(accountId);
+  if (row._failed) return null; // 取得失敗時にXP0で上書きしない
   const today = new Date().toISOString().slice(0, 10);
   const sameDay = row.daily_date === today;
   const dailyBase = sameDay ? row.daily_xp : 0;
@@ -245,7 +247,8 @@ async function dbGrantXp(accountId, reasonOrAmount) {
     updated_at : new Date().toISOString(),
   };
   try {
-    await db.from('account_levels').upsert(rec, { onConflict: 'account_id' });
+    const { error } = await db.from('account_levels').upsert(rec, { onConflict: 'account_id' });
+    if (error) return null;
     _levelCache[accountId] = { prestige: rec.prestige, xp: rec.xp, level: _levelFromXp(rec.xp) };
   } catch (e) { return null; }
   return rec;
@@ -255,7 +258,7 @@ async function dbGrantXp(accountId, reasonOrAmount) {
 async function dbPrestige(accountId) {
   if (!accountId || typeof db === 'undefined') return false;
   const row = await dbFetchLevel(accountId);
-  if (!_isMaxLevel(row.xp)) return false;
+  if (row._failed || !_isMaxLevel(row.xp)) return false;
   const rec = {
     account_id : accountId,
     xp         : 0,
@@ -267,7 +270,8 @@ async function dbPrestige(accountId) {
     updated_at : new Date().toISOString(),
   };
   try {
-    await db.from('account_levels').upsert(rec, { onConflict: 'account_id' });
+    const { error } = await db.from('account_levels').upsert(rec, { onConflict: 'account_id' });
+    if (error) return false;
     _levelCache[accountId] = { prestige: rec.prestige, xp: 0, level: 1 };
   } catch (e) { return false; }
   return true;
