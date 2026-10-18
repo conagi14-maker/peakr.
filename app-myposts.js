@@ -154,9 +154,16 @@ function deleteMyPost(postId) {
       </div>
     </div>`;
   document.body.insertAdjacentHTML('beforeend', html);
+  document.addEventListener('keydown', _mpConfirmEscHandler);
+}
+
+// Escキーで削除確認モーダルを閉じる
+function _mpConfirmEscHandler(e) {
+  if (e.key === 'Escape') closeMyPostConfirm();
 }
 
 function closeMyPostConfirm() {
+  document.removeEventListener('keydown', _mpConfirmEscHandler);
   document.getElementById('mp-confirm')?.remove();
 }
 
