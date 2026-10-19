@@ -1405,8 +1405,8 @@ function _reelCardHTML(group) {
       <iframe class="reel-yt-iframe" style="display:none;position:absolute;top:0;left:0;width:100%;height:60%;border:none" allowfullscreen allow="autoplay;encrypted-media;picture-in-picture"></iframe>
       <!-- 情報バー -->
       <div class="reel-yt-info">
-        <div class="reel-yt-channel" onclick="event.stopPropagation();window.open('${t.extUrl}','_blank','noopener,noreferrer')">${t.user?.n || ''}</div>
-        <div class="reel-yt-title" onclick="event.stopPropagation();window.open('${t.extUrl}','_blank','noopener,noreferrer')">${_escHtml(t.text || '')}</div>
+        <div class="reel-yt-channel" onclick="event.stopPropagation();window.open('${_escHtml(encodeURI(t.extUrl || ''))}','_blank','noopener,noreferrer')">${_escHtml(t.user?.n || '')}</div>
+        <div class="reel-yt-title" onclick="event.stopPropagation();window.open('${_escHtml(encodeURI(t.extUrl || ''))}','_blank','noopener,noreferrer')">${_escHtml(t.text || '')}</div>
         <div class="reel-yt-actions">
           <button class="reel-action-btn" onclick="event.stopPropagation();openTweetDetail(${idx})">
             <i class="ti ti-message-circle"></i><span>${(tweetReplies[idx]||[]).length||0}</span>
