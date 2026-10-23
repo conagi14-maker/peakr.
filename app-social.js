@@ -446,13 +446,13 @@ function catChipHTML(handle, cat, isSelf) {
   const tCls = catTrustClass(cat.agree, cat.deny);
   const voteAttrs = isSelf
     ? 'disabled'
-    : `onclick="event.stopPropagation();doVoteCategory('${handle}','${cat.name}',this)"`;
+    : `data-handle="${_escHtml(handle)}" data-cat="${_escHtml(cat.name)}" onclick="event.stopPropagation();doVoteCategory(this.dataset.handle,this.dataset.cat,this)"`;
   return `<div class="profile-cat-chip ${tCls}">
     <button class="cat-vote-btn cat-agree${mv==='agree'?' voted':''}" data-side="agree" ${voteAttrs}>
       <i class="ti ti-chevron-up"></i><span class="cvote-num">${cat.agree}</span>
     </button>
-    <span class="cat-chip-name" onclick="event.stopPropagation();openCatDetail('${handle}','${cat.name}')" title="設定者・投票者を確認">
-      ${cat.name} <i class="ti ti-info-circle" style="font-size:9px;opacity:0.5;vertical-align:1px"></i>
+    <span class="cat-chip-name" data-handle="${_escHtml(handle)}" data-cat="${_escHtml(cat.name)}" onclick="event.stopPropagation();openCatDetail(this.dataset.handle,this.dataset.cat)" title="設定者・投票者を確認">
+      ${_escHtml(cat.name)} <i class="ti ti-info-circle" style="font-size:9px;opacity:0.5;vertical-align:1px"></i>
     </span>
     <button class="cat-vote-btn cat-deny${mv==='deny'?' voted':''}" data-side="deny" ${voteAttrs}>
       <span class="cvote-num">${cat.deny}</span><i class="ti ti-chevron-down"></i>
@@ -531,7 +531,7 @@ function openCatDetail(handle, catName) {
     const rest  = total - shown.length;
     const items = shown.map(v => {
       const isMe = v === myHandle;
-      return `<span class="cd-voter${isMe?' cd-voter-me':''}">${isMe ? 'あなた' : v}</span>`;
+      return `<span class="cd-voter${isMe?' cd-voter-me':''}">${isMe ? 'あなた' : _escHtml(v)}</span>`;
     }).join('');
     const more = rest > 0 ? `<span class="cd-voter-more">他${rest}人</span>` : '';
     return `<div class="cd-voter-row">
@@ -549,14 +549,14 @@ function openCatDetail(handle, catName) {
     <div class="cd-chip-wrap">
       <div class="profile-cat-chip ${tCls}" style="pointer-events:none">
         <span class="cat-vote-btn cat-agree"><i class="ti ti-chevron-up"></i><span>${cat.agree}</span></span>
-        <span class="cat-chip-name">${cat.name}</span>
+        <span class="cat-chip-name">${_escHtml(cat.name)}</span>
         <span class="cat-vote-btn cat-deny"><span>${cat.deny}</span><i class="ti ti-chevron-down"></i></span>
       </div>
       <span class="cd-trust-label">${trustLabel}</span>
     </div>
     <div class="cd-section">
       <div class="cd-section-title"><i class="ti ti-pencil"></i> カテゴリー設定者</div>
-      <span class="cd-setter">${cat.setBy === myHandle ? 'あなた' : cat.setBy}${cat.setBy === handle ? ' （本人）' : ''}</span>
+      <span class="cd-setter">${cat.setBy === myHandle ? 'あなた' : _escHtml(cat.setBy)}${cat.setBy === handle ? ' （本人）' : ''}</span>
     </div>
     <div class="cd-section">
       <div class="cd-section-title"><i class="ti ti-chevron-up" style="color:#166534"></i> 同意した人 <span class="cd-count">${cat.agree}人</span></div>
