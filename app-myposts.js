@@ -14,6 +14,12 @@ function _mpEsc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/** 文字列を絵文字(サロゲートペア)を壊さず先頭n文字に切り詰め、超過時は「…」を付ける */
+function _mpClip(s, n) {
+  const chars = Array.from(String(s || ''));
+  return chars.length > n ? chars.slice(0, n).join('') + '…' : chars.join('');
+}
+
 /** マイページの「投稿管理」から遷移したときに呼ぶ（一覧を取得して描画） */
 async function loadMyPostsPage() {
   const listEl = document.getElementById('myposts-list');
@@ -115,7 +121,7 @@ function _myPostRow(t) {
   } else if (p.media_type === 'video') {
     thumb = `<div class="mp-thumb mp-thumb-ph"><i class="ti ti-video"></i></div>`;
   }
-  const text = _mpEsc((p.content || '').slice(0, 80)) || '<span style="color:var(--text3)">（本文なし）</span>';
+  const text = _mpEsc(_mpClip(p.content, 80)) || '<span style="color:var(--text3)">（本文なし）</span>';
   const isSub = p.is_sub ? '<span class="mp-sub">サブ</span>' : '';
   return `<div class="mp-row" data-post="${p.id}">
     ${thumb || '<div class="mp-thumb mp-thumb-ph"><i class="ti ti-align-left"></i></div>'}
@@ -139,7 +145,7 @@ function _myPostRow(t) {
 function deleteMyPost(postId) {
   if (!postId) return;
   const t = _myPostsCache.find(x => String(x._raw.id) === String(postId));
-  const preview = t ? _mpEsc((t._raw.content || '').slice(0, 40)) : '';
+  const preview = t ? _mpEsc(_mpClip(t._raw.content, 40)) : '';
   document.getElementById('mp-confirm')?.remove();
   const html = `
     <div id="mp-confirm" class="mp-confirm-overlay" onclick="if(event.target===this)closeMyPostConfirm()">
